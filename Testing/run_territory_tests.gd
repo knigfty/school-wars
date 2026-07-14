@@ -25,7 +25,9 @@ func _run_tests() -> void:
 	_check(tile.get_owner_team_id().is_empty(), "Moving students cannot capture")
 
 	black_student.velocity = Vector2.ZERO
-	tile.advance_capture(candidates, tile.capture_duration)
+	tile.advance_capture(candidates, 4.9)
+	_check(tile.get_owner_team_id().is_empty(), "One student needs five seconds to capture")
+	tile.advance_capture(candidates, 0.1)
 	_check(tile.get_owner_team_id() == &"black", "A stationary student captures a neutral tile")
 
 	var green_student: StudentController = STUDENT_SCENE.instantiate() as StudentController
@@ -39,9 +41,27 @@ func _run_tests() -> void:
 	tile.advance_capture(green_candidates, tile.capture_duration)
 	_check(tile.get_owner_team_id() == &"green", "A stationary opponent can recapture a tile")
 
+	var second_black: StudentController = STUDENT_SCENE.instantiate() as StudentController
+	second_black.team = BLACK_TEAM
+	root.add_child(second_black)
+	var stacked_candidates: Array[Node2D] = [black_student, second_black]
+	_check(
+		tile.get_required_capture_duration(2) == 4.0,
+		"A second allied capturer reduces capture time to four seconds"
+	)
+	_check(
+		tile.get_required_capture_duration(5) == 1.0,
+		"Five allied capturers reach the one-second capture floor"
+	)
+	tile.advance_capture(stacked_candidates, 3.9)
+	_check(tile.get_owner_team_id() == &"green", "Two allies do not capture before four seconds")
+	tile.advance_capture(stacked_candidates, 0.1)
+	_check(tile.get_owner_team_id() == &"black", "Two allies capture after four seconds")
+
 	tile.queue_free()
 	black_student.queue_free()
 	green_student.queue_free()
+	second_black.queue_free()
 	if _failures == 0:
 		print("Territory capture tests passed.")
 	quit(_failures)

@@ -88,6 +88,21 @@ func _run_tests() -> void:
 		"Attack order assigns the enemy to the second student"
 	)
 
+	enemy_student.position = first_student.position + Vector2(20.0, 0.0)
+	var enemy_health_before_retreat: float = enemy_student.current_health
+	command_controller.issue_move_order(selected_units, Vector2(800.0, 800.0))
+	_check(
+		first_student.get_attack_target() == null and first_order.has_active_order(),
+		"A move command overwrites explicit combat status"
+	)
+	first_order._physics_process(1.0)
+	first_student._physics_process(1.0)
+	_check(
+		enemy_student.current_health == enemy_health_before_retreat
+		and first_student.velocity.length() > 0.0,
+		"Active movement takes priority over automatic contact combat"
+	)
+
 	first_student.queue_free()
 	second_student.queue_free()
 	enemy_student.queue_free()

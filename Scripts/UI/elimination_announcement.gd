@@ -26,7 +26,7 @@ func _process(delta: float) -> void:
 func show_team_eliminated(team: TeamDefinition) -> void:
 	if team == null:
 		return
-	_label.text = "%s TEAM ELIMINATED" % team.display_name.to_upper()
+	_label.text = "%s has been eliminated" % team.display_name
 	_label.modulate = team.color.lightened(0.35)
 	_remaining = display_duration
 	show()

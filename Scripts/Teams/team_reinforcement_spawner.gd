@@ -5,10 +5,7 @@ signal reinforcement_spawned(team: TeamDefinition, student: StudentController)
 
 @export var student_scene: PackedScene
 @export var units_parent_path: NodePath = NodePath("../Units")
-@export_range(1.0, 60.0, 0.5) var base_spawn_interval: float = 15.0
-@export_range(1.0, 60.0, 0.5) var minimum_spawn_interval: float = 3.0
-@export_range(0.0, 2.0, 0.05) var territory_rate_bonus: float = 0.35
-@export_range(1, 100, 1) var maximum_students_per_team: int = 30
+@export_range(1.0, 60.0, 0.5) var minimum_spawn_interval: float = 1.0
 
 var _elapsed_by_team: Dictionary = {}
 var _eliminated_teams: Dictionary = {}
@@ -30,29 +27,37 @@ func _process(delta: float) -> void:
 			continue
 		var elapsed: float = float(_elapsed_by_team.get(team_id, 0.0)) + delta
 		var interval: float = get_spawn_interval(team_id)
-		if elapsed >= interval and get_student_count(team_id) < maximum_students_per_team:
+		if elapsed >= interval and get_student_count(team_id) < get_maximum_students(team_id):
 			spawn_reinforcement(spawn_point)
 			elapsed = 0.0
 		_elapsed_by_team[team_id] = elapsed
 
 
 func calculate_spawn_interval(
+	base_interval: float,
 	territory_count: int,
-	spawn_rate_multiplier: float = 1.0
+	reduction_per_territory: float = 1.0
 ) -> float:
-	var territory_multiplier: float = (
-		1.0
-		+ maxf(float(territory_count), 0.0)
-		* territory_rate_bonus
-		* maxf(spawn_rate_multiplier, 0.1)
+	return maxf(
+		minimum_spawn_interval,
+		base_interval - maxf(float(territory_count), 0.0) * reduction_per_territory
 	)
-	return maxf(minimum_spawn_interval, base_spawn_interval / territory_multiplier)
 
 
 func get_spawn_interval(team_id: StringName) -> float:
 	var team: TeamDefinition = _get_team_definition(team_id)
-	var trait_multiplier: float = team.spawn_rate_multiplier if team != null else 1.0
-	return calculate_spawn_interval(get_owned_territory_count(team_id), trait_multiplier)
+	if team == null:
+		return 15.0
+	return calculate_spawn_interval(
+		team.base_spawn_interval,
+		get_owned_territory_count(team_id),
+		team.territory_spawn_reduction
+	)
+
+
+func get_maximum_students(team_id: StringName) -> int:
+	var team: TeamDefinition = _get_team_definition(team_id)
+	return team.maximum_students if team != null else 10
 
 
 func get_owned_territory_count(team_id: StringName) -> int:

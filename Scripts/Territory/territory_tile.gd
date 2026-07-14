@@ -5,13 +5,16 @@ signal ownership_changed(tile: TerritoryTile, previous_team: StringName, team: T
 
 const TERRITORY_GROUP: StringName = &"territory_tiles"
 
-@export var capture_duration: float = 2.5
+@export var capture_duration: float = 5.0
+@export var capture_reduction_per_additional_student: float = 1.0
+@export var minimum_capture_duration: float = 1.0
 @export var stationary_speed_threshold: float = 5.0
 @export var tile_size: Vector2 = Vector2(110.0, 56.0)
 
 var owner_team: TeamDefinition
 var _capturing_team: TeamDefinition
 var _capture_elapsed: float = 0.0
+var _current_capture_duration: float = 5.0
 
 
 func _ready() -> void:
@@ -26,19 +29,23 @@ func _physics_process(delta: float) -> void:
 
 func advance_capture(candidates: Array[Node2D], delta: float) -> void:
 	var stationary_teams: Dictionary = {}
+	var stationary_counts: Dictionary = {}
 	for candidate: Node2D in candidates:
 		var student: StudentController = candidate as StudentController
 		if student == null or student.team == null:
 			continue
 		if student.velocity.length() > stationary_speed_threshold:
 			continue
-		stationary_teams[student.get_team_id()] = student.team
+		var team_id: StringName = student.get_team_id()
+		stationary_teams[team_id] = student.team
+		stationary_counts[team_id] = int(stationary_counts.get(team_id, 0)) + 1
 
 	if stationary_teams.size() != 1:
 		_reset_capture()
 		return
 
 	var candidate_team: TeamDefinition = stationary_teams.values()[0] as TeamDefinition
+	var stationary_count: int = int(stationary_counts[candidate_team.team_id])
 	if owner_team != null and owner_team.team_id == candidate_team.team_id:
 		_reset_capture()
 		return
@@ -47,10 +54,20 @@ func advance_capture(candidates: Array[Node2D], delta: float) -> void:
 		_capturing_team = candidate_team
 		_capture_elapsed = 0.0
 
+	_current_capture_duration = get_required_capture_duration(stationary_count)
 	_capture_elapsed += maxf(delta, 0.0)
 	queue_redraw()
-	if _capture_elapsed >= capture_duration:
+	if _capture_elapsed >= _current_capture_duration:
 		_set_owner(candidate_team)
+
+
+func get_required_capture_duration(stationary_student_count: int) -> float:
+	var additional_students: int = maxi(stationary_student_count - 1, 0)
+	return maxf(
+		minimum_capture_duration,
+		capture_duration
+		- float(additional_students) * capture_reduction_per_additional_student
+	)
 
 
 func get_owner_team_id() -> StringName:
@@ -60,7 +77,7 @@ func get_owner_team_id() -> StringName:
 func get_capture_ratio() -> float:
 	if _capturing_team == null:
 		return 0.0
-	return clampf(_capture_elapsed / maxf(capture_duration, 0.01), 0.0, 1.0)
+	return clampf(_capture_elapsed / maxf(_current_capture_duration, 0.01), 0.0, 1.0)
 
 
 func contains_world_point(world_point: Vector2) -> bool:
@@ -85,6 +102,7 @@ func _reset_capture() -> void:
 		return
 	_capturing_team = null
 	_capture_elapsed = 0.0
+	_current_capture_duration = capture_duration
 	queue_redraw()
 
 

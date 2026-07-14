@@ -25,35 +25,30 @@ func _run_tests() -> void:
 	await physics_frame
 	_check(_attacks_observed >= 1, "Enemy students fight when their bodies meet")
 	_check(green.current_health < green_starting_health, "Contact combat deals health damage")
-	_check(
-		is_equal_approx(purple.get_attack_damage(), purple.stats.attack_damage * 1.4),
-		"Purple's trait increases attack damage"
-	)
+	_check(purple.maximum_health == 60.0, "Purple spawns with 60 HP")
+	_check(purple.get_attack_damage_per_second() == 15.0, "Purple deals 15 HP per second")
+	_check(green.maximum_health == 30.0, "Green spawns with 30 HP")
+	_check(green.get_attack_damage_per_second() == 5.0, "Green deals 5 HP per second")
 
 	var black: StudentController = _create_student(BLACK_TEAM, Vector2(500.0, 500.0))
-	_check(
-		black.maximum_health > black.stats.maximum_health,
-		"Black's all-rounder trait increases maximum health"
-	)
-	_check(
-		black.get_attack_damage() > black.stats.attack_damage,
-		"Black's all-rounder trait increases attack damage"
-	)
+	_check(black.maximum_health == 70.0, "Black spawns with 70 HP")
+	_check(black.get_attack_damage_per_second() == 10.0, "Black deals 10 HP per second")
 
 	var yellow: StudentController = _create_student(YELLOW_TEAM, Vector2(700.0, 700.0))
 	var victim: StudentController = _create_student(GREEN_TEAM, Vector2(850.0, 700.0))
 	var yellow_starting_maximum: float = yellow.maximum_health
-	victim.take_damage(victim.current_health, yellow)
-	_check(
-		yellow.maximum_health == yellow_starting_maximum + 12.0,
-		"Yellow gains maximum health for an enemy takedown"
-	)
-
 	var black_starting_maximum: float = black.maximum_health
-	black.on_enemy_takedown(green)
+	_check(yellow.maximum_health == 100.0, "Yellow spawns with 100 HP")
+	_check(yellow.get_attack_damage_per_second() == 6.0, "Yellow deals 6 HP per second")
+	victim.take_damage(1.0, yellow)
+	victim.take_damage(victim.current_health, black)
 	_check(
-		black.maximum_health == black_starting_maximum + 3.0,
-		"Black receives a smaller takedown growth bonus"
+		yellow.maximum_health == yellow_starting_maximum + 20.0,
+		"Yellow gains 20 HP for assisting an enemy takedown"
+	)
+	_check(
+		black.maximum_health == black_starting_maximum + 10.0,
+		"Black gains 10 HP for completing an enemy takedown"
 	)
 
 	purple.queue_free()

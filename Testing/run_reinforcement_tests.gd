@@ -1,6 +1,10 @@
 extends SceneTree
 
 const TEST_SCENE: PackedScene = preload("res://Scenes/movement_test.tscn")
+const BLACK_TEAM: TeamDefinition = preload("res://Resources/Team/black_team.tres")
+const GREEN_TEAM: TeamDefinition = preload("res://Resources/Team/green_team.tres")
+const PURPLE_TEAM: TeamDefinition = preload("res://Resources/Team/purple_team.tres")
+const YELLOW_TEAM: TeamDefinition = preload("res://Resources/Team/yellow_team.tres")
 
 var _failures: int = 0
 
@@ -15,29 +19,27 @@ func _run_tests() -> void:
 	var spawner: TeamReinforcementSpawner = test_scene.get_node(
 		"ReinforcementSpawner"
 	) as TeamReinforcementSpawner
-	var no_territory_interval: float = spawner.calculate_spawn_interval(0)
-	var three_territory_interval: float = spawner.calculate_spawn_interval(3)
-	var many_territory_interval: float = spawner.calculate_spawn_interval(100)
-	var green_base_interval: float = spawner.calculate_spawn_interval(0, 1.35)
-	var normal_one_tile_interval: float = spawner.calculate_spawn_interval(1)
-	var green_one_tile_interval: float = spawner.calculate_spawn_interval(1, 1.35)
-	_check(no_territory_interval == 15.0, "Every team starts at one student per 15 seconds")
+	var yellow_base: float = spawner.calculate_spawn_interval(15.0, 0)
+	var yellow_three_tiles: float = spawner.calculate_spawn_interval(15.0, 3)
+	var green_base: float = spawner.calculate_spawn_interval(10.0, 0)
+	var green_three_tiles: float = spawner.calculate_spawn_interval(10.0, 3)
+	var black_base: float = spawner.calculate_spawn_interval(12.0, 0)
+	var many_territory_interval: float = spawner.calculate_spawn_interval(10.0, 100)
+	_check(yellow_base == 15.0, "Yellow and Purple start at one unit per 15 seconds")
+	_check(green_base == 10.0, "Green starts at one unit per 10 seconds")
+	_check(black_base == 12.0, "Black starts at one unit per 12 seconds")
 	_check(
-		three_territory_interval < no_territory_interval,
-		"Captured tiles increase reinforcement rate"
+		yellow_three_tiles == 12.0 and green_three_tiles == 7.0,
+		"Every captured square reduces the spawn interval by one second"
 	)
 	_check(
 		many_territory_interval == spawner.minimum_spawn_interval,
 		"Reinforcement rate respects its safety cap"
 	)
-	_check(
-		green_base_interval == no_territory_interval,
-		"Green keeps the same 15-second rate before capturing territory"
-	)
-	_check(
-		green_one_tile_interval < normal_one_tile_interval,
-		"Green converts captured territory into spawn speed more efficiently"
-	)
+	_check(spawner.get_maximum_students(YELLOW_TEAM.team_id) == 10, "Yellow caps at 10 units")
+	_check(spawner.get_maximum_students(PURPLE_TEAM.team_id) == 10, "Purple caps at 10 units")
+	_check(spawner.get_maximum_students(GREEN_TEAM.team_id) == 15, "Green caps at 15 units")
+	_check(spawner.get_maximum_students(BLACK_TEAM.team_id) == 12, "Black caps at 12 units")
 
 	for node: Node in get_nodes_in_group(TeamSpawnPoint.SPAWN_POINT_GROUP):
 		var spawn_point: TeamSpawnPoint = node as TeamSpawnPoint

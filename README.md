@@ -8,22 +8,24 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 
 | Team | Starting point | Special trait |
 | --- | --- | --- |
-| Purple | North | Strong Attack: deals 40% more damage |
-| Green | East | Fast Spawn: captured territory accelerates reinforcements 35% more |
-| Black | South | All-Rounder: 10% territory-spawn, damage, and health bonuses plus 3 maximum health per takedown |
-| Yellow | West | Takedown Growth: involved students gain 12 maximum health when an enemy is defeated |
+| Purple | North | 60 HP, 15 damage per second, 15-second base spawn, 10-unit cap |
+| Green | East | 30 HP, 5 damage per second, 10-second base spawn, 15-unit cap |
+| Black | South | 70 HP, 10 damage per second, 12-second base spawn, 12-unit cap, +10 HP per kill/assist |
+| Yellow | West | 100 HP, 6 damage per second, 15-second base spawn, 10-unit cap, +20 HP per kill/assist |
 
 - Each team begins with two students inside its colored base diamond.
-- The three non-player colors use trait-specific strategies: Green spreads rapidly across neutral territory, Purple hunts nearby enemies, Yellow prioritizes weakened enemies for takedowns, and Black balances expansion with nearby fights.
+- The three non-player colors use trait-specific strategies: Green favors expansion and defense, Purple hunts nearby enemies, Yellow prioritizes weakened enemies for takedowns, and Black balances expansion with nearby fights. AI squads can split between chasing a retreating enemy and holding captured territory.
 - Twelve neutral white territory diamonds are placed randomly inside the arena each match.
-- A student captures a tile by remaining stationary on it for 2.5 seconds. Moving students do not advance capture, and competing teams on the same tile pause capture.
+- One student captures a tile by remaining stationary on it for 5 seconds. Every additional stationary ally on the same tile reduces the required time by 1 second, down to a 1-second floor. Moving students do not advance capture, and competing teams on the same tile pause capture.
 - A captured tile changes to the capturing student's team color. Opponents can recapture it with the same stationary rule.
 - Every team receives reinforcements only inside its own base.
-- The base reinforcement interval is 15 seconds for every team while it owns no non-base squares. Captured territory accelerates spawning according to `15 / (1 + 0.35 × owned tiles × team territory multiplier)`, with a minimum interval of 3 seconds and a maximum of 30 students per team.
+- Purple and Yellow start with a 15-second reinforcement interval and cap at 10 students. Green starts at 10 seconds and caps at 15 students. Black starts at 12 seconds and caps at 12 students. Every captured non-base square subtracts exactly 1 second from that team's interval, with a 1-second safety floor.
 - Students collide only with other students and the invisible four-edge circumference, so they cannot leave the floating diamond.
-- Enemy students automatically fight when they collide. Attacks use a per-student cooldown, team-adjusted damage, and visible health bars.
+- Enemy students automatically fight one opposing student at a time when they collide. Damage is applied once per second at each team's listed rate and health bars remain visible.
 - A selected squad can pursue a specific enemy. Students who contributed damage receive their team's takedown benefit when that enemy is defeated.
-- Capturing eight of the twelve squares wins the match. A team is permanently eliminated as soon as its last student is killed: its spawning stops and a four-second announcement appears at the top of the screen. The match ends when one team remains.
+- A new movement order overrides combat and remains the student's priority until the destination is reached. Explicit attack orders still cancel movement and begin pursuit.
+- A team is permanently eliminated as soon as its last student is killed: its spawning stops and a four-second `<Color> has been eliminated` announcement appears, but the match continues. Elimination alone never opens a result screen.
+- Capturing eight of the twelve squares is the only match-ending condition. It produces Victory for the player or Defeat when an active AI team reaches the threshold.
 - Victory and Defeat screens stop the finished simulation and provide a return button to start again from the color-selection menu.
 
 ## Controls
@@ -72,19 +74,19 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 
 - `GameFlowController` owns the menu → match → result → menu lifecycle. Matches are instantiated only after color selection and are disposed before returning to the menu.
 - `GameMenu` draws the responsive reference-inspired title treatment, uniformed student portraits, four team cards, and trait labels while real Button controls provide input.
-- `TeamDefinition` resources are the source of truth for team identity, color, trait labels, spawn rate, damage, starting health, and takedown growth.
+- `TeamDefinition` resources are the source of truth for team identity, color, exact base spawn interval, unit cap, starting health, damage per second, and takedown growth.
 - `StudentController` is a command-driven `CharacterBody2D` motor and combatant. It owns health, contact detection, target pursuit, attack cadence, damage contribution, takedown rewards, and combat feedback without reading player input.
 - `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
 - `StudentMoveOrderComponent` decomposes destinations into alternating isometric diagonal legs, producing crisscross movement instead of direct straight-line cuts. `UnitCommandController` distributes formation movement, territory-center, and explicit enemy-target orders.
 - `RTSCameraController` owns right-drag and edge panning, pointer-centered wheel zoom, smoothing, and viewport-aware constraints.
 - `FourSquareArena` renders the gray four-tip platform with directional top-edge lighting, a raised north bevel, asymmetric side faces, a deep lower rim, and a floating shadow. Four rotated invisible collision shapes form its circumference.
 - `TerritoryField` uses a randomized seed to place neutral tiles within the diamond while enforcing tile spacing and base clearance.
-- `TerritoryTile` is a monitoring `Area2D`. It filters overlapping bodies to stationary students, resolves team contention, records capture progress, and emits ownership changes.
+- `TerritoryTile` is a monitoring `Area2D`. It filters overlapping bodies to stationary students, resolves team contention, counts allied capturers, applies the 5-to-1-second timing curve, records capture progress, and emits ownership changes.
 - `TeamSpawnPoint` draws and validates each colored base diamond and provides only base-contained spawn slots.
-- `TeamReinforcementSpawner` counts owned territories and live students per team, calculates the current interval, and instantiates new students at the matching team's base.
+- `TeamReinforcementSpawner` counts owned territories and live students per team, subtracts one second per tile from the team's base interval, enforces its individual unit cap, and instantiates new students at the matching base.
 - `TeamStatusLabel` displays each team's territory count, current reinforcement interval, and trait.
-- `TeamAIController` periodically applies four trait-specific strategies while leaving the selected player's units untouched.
-- `MatchManager` evaluates conquest, permanently eliminates zero-unit teams, holds the four-second announcement window, and emits the final result consumed by the Victory/Defeat overlay.
+- `TeamAIController` periodically applies four trait-specific strategies, reserves defenders on owned tiles, and selects a team-dependent fraction of free units to chase enemies while leaving the player's units untouched.
+- `MatchManager` disables zero-unit teams without ending the simulation and emits a final result only when an active team reaches the conquest threshold.
 
 ## Automated checks
 

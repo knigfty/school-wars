@@ -40,7 +40,7 @@ func _ready() -> void:
 		push_error("%s requires a configured TeamDefinition." % name)
 		set_physics_process(false)
 		return
-	maximum_health = stats.maximum_health * team.maximum_health_multiplier
+	maximum_health = team.starting_health
 	current_health = maximum_health
 	_apply_team_visuals()
 	queue_redraw()
@@ -135,7 +135,11 @@ func on_enemy_takedown(_enemy: StudentController) -> void:
 
 
 func get_attack_damage() -> float:
-	return stats.attack_damage * team.attack_damage_multiplier
+	return team.damage_per_second / maxf(stats.attacks_per_second, 0.01)
+
+
+func get_attack_damage_per_second() -> float:
+	return team.damage_per_second
 
 
 func get_health_ratio() -> float:
@@ -160,6 +164,11 @@ func _resolve_combat_target() -> StudentController:
 			return _attack_target
 		_attack_target = null
 		_move_intent = Vector2.ZERO
+	var move_order: StudentMoveOrderComponent = get_node_or_null(
+		"MoveOrder"
+	) as StudentMoveOrderComponent
+	if move_order != null and move_order.has_active_order():
+		return null
 	return _find_contact_enemy()
 
 
