@@ -22,6 +22,7 @@ func _draw() -> void:
 	draw_colored_polygon(shadow_points, Color(0.01, 0.025, 0.055, 0.48))
 	_draw_platform_depth(points)
 	draw_colored_polygon(points, Color("cacbca"))
+	_draw_north_bevel(points)
 	_draw_platform_grid()
 
 	var outline: PackedVector2Array = points.duplicate()
@@ -81,6 +82,26 @@ func _draw_platform_grid() -> void:
 			1.0
 		)
 		offset += 90.0
+
+
+func _draw_north_bevel(points: PackedVector2Array) -> void:
+	var north: Vector2 = points[0]
+	var east: Vector2 = points[1]
+	var west: Vector2 = points[3]
+	var inset: float = 14.0
+	var inner_north: Vector2 = north + Vector2(0.0, inset)
+	var inner_east: Vector2 = east + Vector2(-inset, 0.0)
+	var inner_west: Vector2 = west + Vector2(inset, 0.0)
+	draw_colored_polygon(
+		PackedVector2Array([north, east, inner_east, inner_north]),
+		Color("aeb2b4")
+	)
+	draw_colored_polygon(
+		PackedVector2Array([west, north, inner_north, inner_west]),
+		Color("e5e6e3")
+	)
+	draw_line(inner_west, inner_north, Color("8f9498"), 2.0, true)
+	draw_line(inner_north, inner_east, Color("777d82"), 2.0, true)
 
 
 func _draw_side_label(label_text: String, center: Vector2) -> void:

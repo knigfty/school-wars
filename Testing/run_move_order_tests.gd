@@ -56,6 +56,19 @@ func _run_tests() -> void:
 		second_order.get_destination().is_equal_approx(Vector2(520.0, 500.0)),
 		"Second student receives the right formation slot"
 	)
+	_check(first_order.get_waypoints().size() == 2, "Move order creates a two-leg route")
+	var route_start: Vector2 = first_student.global_position
+	var route: Array[Vector2] = first_order.get_waypoints()
+	var first_leg: Vector2 = route[0] - route_start
+	var second_leg: Vector2 = route[1] - route[0]
+	_check(
+		is_equal_approx(absf(first_leg.x), absf(first_leg.y)),
+		"First movement leg follows an isometric diagonal"
+	)
+	_check(
+		is_equal_approx(absf(second_leg.x), absf(second_leg.y)),
+		"Second movement leg crosses on the opposite isometric diagonal"
+	)
 
 	await physics_frame
 	await physics_frame

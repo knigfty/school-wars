@@ -32,6 +32,9 @@ func _refresh() -> void:
 		if spawn_point == null or spawn_point.team == null:
 			continue
 		var team_id: StringName = spawn_point.team.team_id
+		if spawner.is_team_eliminated(team_id):
+			lines.append("%s · ELIMINATED" % spawn_point.team.display_name)
+			continue
 		lines.append(
 			"%s · %d · %.1fs · %s" % [
 				spawn_point.team.display_name,

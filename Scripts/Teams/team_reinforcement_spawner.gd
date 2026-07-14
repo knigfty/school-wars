@@ -5,12 +5,13 @@ signal reinforcement_spawned(team: TeamDefinition, student: StudentController)
 
 @export var student_scene: PackedScene
 @export var units_parent_path: NodePath = NodePath("../Units")
-@export_range(1.0, 60.0, 0.5) var base_spawn_interval: float = 14.0
+@export_range(1.0, 60.0, 0.5) var base_spawn_interval: float = 15.0
 @export_range(1.0, 60.0, 0.5) var minimum_spawn_interval: float = 3.0
 @export_range(0.0, 2.0, 0.05) var territory_rate_bonus: float = 0.35
 @export_range(1, 100, 1) var maximum_students_per_team: int = 30
 
 var _elapsed_by_team: Dictionary = {}
+var _eliminated_teams: Dictionary = {}
 
 
 func _ready() -> void:
@@ -25,6 +26,8 @@ func _process(delta: float) -> void:
 		if spawn_point == null or spawn_point.team == null:
 			continue
 		var team_id: StringName = spawn_point.team.team_id
+		if is_team_eliminated(team_id):
+			continue
 		var elapsed: float = float(_elapsed_by_team.get(team_id, 0.0)) + delta
 		var interval: float = get_spawn_interval(team_id)
 		if elapsed >= interval and get_student_count(team_id) < maximum_students_per_team:
@@ -38,10 +41,12 @@ func calculate_spawn_interval(
 	spawn_rate_multiplier: float = 1.0
 ) -> float:
 	var territory_multiplier: float = (
-		1.0 + maxf(float(territory_count), 0.0) * territory_rate_bonus
+		1.0
+		+ maxf(float(territory_count), 0.0)
+		* territory_rate_bonus
+		* maxf(spawn_rate_multiplier, 0.1)
 	)
-	var multiplier: float = territory_multiplier * maxf(spawn_rate_multiplier, 0.1)
-	return maxf(minimum_spawn_interval, base_spawn_interval / multiplier)
+	return maxf(minimum_spawn_interval, base_spawn_interval / territory_multiplier)
 
 
 func get_spawn_interval(team_id: StringName) -> float:
@@ -68,9 +73,20 @@ func get_student_count(team_id: StringName) -> int:
 	return count
 
 
+func eliminate_team(team_id: StringName) -> void:
+	_eliminated_teams[team_id] = true
+	_elapsed_by_team.erase(team_id)
+
+
+func is_team_eliminated(team_id: StringName) -> bool:
+	return bool(_eliminated_teams.get(team_id, false))
+
+
 func spawn_reinforcement(spawn_point: TeamSpawnPoint) -> StudentController:
 	var units_parent: Node2D = get_node_or_null(units_parent_path) as Node2D
 	if units_parent == null or student_scene == null or spawn_point.team == null:
+		return null
+	if is_team_eliminated(spawn_point.team.team_id):
 		return null
 	var student: StudentController = student_scene.instantiate() as StudentController
 	if student == null:

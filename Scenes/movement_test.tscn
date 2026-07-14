@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Maps/movement_test_arena.gd" id="1_arena"]
 [ext_resource type="PackedScene" path="res://Characters/student.tscn" id="2_student"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://Scripts/UI/team_status_label.gd" id="14_status"]
 [ext_resource type="Script" path="res://Scripts/Match/team_ai_controller.gd" id="15_ai"]
 [ext_resource type="Script" path="res://Scripts/Match/match_manager.gd" id="16_match"]
+[ext_resource type="Script" path="res://Scripts/UI/elimination_announcement.gd" id="17_elimination"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_edge"]
 size = Vector2(1018.234, 30)
@@ -45,12 +46,24 @@ corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
-font_size = 24
+font_size = 18
 font_color = Color(0.91, 0.94, 1, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_body"]
-font_size = 16
+font_size = 12
 font_color = Color(0.78, 0.82, 0.9, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_announcement"]
+bg_color = Color(0.025, 0.03, 0.04, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.84, 0.9, 0.8)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="SchoolWars" type="Node2D"]
 
@@ -173,10 +186,10 @@ mouse_filter = 2
 script = ExtResource("4_selection")
 
 [node name="Instructions" type="PanelContainer" parent="HUD"]
-offset_left = 24.0
-offset_top = 20.0
-offset_right = 500.0
-offset_bottom = 212.0
+offset_left = 14.0
+offset_top = 12.0
+offset_right = 326.0
+offset_bottom = 132.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/Instructions"]
@@ -195,17 +208,17 @@ label_settings = SubResource("LabelSettings_title")
 
 [node name="Controls" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Select: left-click or left-drag one team\nMove/capture: left-click ground or a square\nAttack: left-click an enemy with students selected\nCamera: right-drag or screen edges · Zoom: wheel"
+text = "L-drag: select · L-click: move/capture\nL-click enemy: attack\nR-drag: pan · Wheel: zoom"
 label_settings = SubResource("LabelSettings_body")
 
 [node name="StatusPanel" type="PanelContainer" parent="HUD"]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -350.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = 190.0
+offset_left = -310.0
+offset_top = 12.0
+offset_right = -14.0
+offset_bottom = 138.0
 grow_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_status")
 
@@ -214,12 +227,35 @@ layout_mode = 2
 theme_override_constants/outline_size = 2
 theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.03, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 12
 text = "TEAM · TILES · SPAWN · TRAIT"
 horizontal_alignment = 1
 vertical_alignment = 1
 script = ExtResource("14_status")
 spawner_path = NodePath("../../../ReinforcementSpawner")
+
+[node name="EliminationAnnouncement" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 332.0
+offset_top = 12.0
+offset_right = -332.0
+offset_bottom = 58.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_announcement")
+script = ExtResource("17_elimination")
+
+[node name="Label" type="Label" parent="HUD/EliminationAnnouncement"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 18
+text = "PURPLE TEAM ELIMINATED"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="CommandController" type="Node" parent="."]
 script = ExtResource("5_commands")

@@ -56,7 +56,7 @@ func _physics_process(delta: float) -> void:
 			_move_intent = Vector2.ZERO
 			_perform_attack(combat_target)
 		elif combat_target == _attack_target:
-			_move_intent = target_offset.normalized()
+			_move_intent = _get_crisscross_direction(target_offset)
 
 	var target_velocity: Vector2 = _move_intent * stats.movement_speed
 	var change_rate: float = (
@@ -175,6 +175,20 @@ func _find_contact_enemy() -> StudentController:
 			nearest_enemy = candidate
 			nearest_distance = distance
 	return nearest_enemy
+
+
+func _get_crisscross_direction(offset: Vector2) -> Vector2:
+	var diagonal_down_amount: float = (offset.x + offset.y) * 0.5
+	var diagonal_up_amount: float = (offset.x - offset.y) * 0.5
+	if absf(diagonal_down_amount) >= absf(diagonal_up_amount):
+		return Vector2(
+			signf(diagonal_down_amount),
+			signf(diagonal_down_amount)
+		).normalized()
+	return Vector2(
+		signf(diagonal_up_amount),
+		-signf(diagonal_up_amount)
+	).normalized()
 
 
 func _perform_attack(target: StudentController) -> void:

@@ -18,7 +18,10 @@ func _run_tests() -> void:
 	var no_territory_interval: float = spawner.calculate_spawn_interval(0)
 	var three_territory_interval: float = spawner.calculate_spawn_interval(3)
 	var many_territory_interval: float = spawner.calculate_spawn_interval(100)
-	var green_trait_interval: float = spawner.calculate_spawn_interval(0, 1.35)
+	var green_base_interval: float = spawner.calculate_spawn_interval(0, 1.35)
+	var normal_one_tile_interval: float = spawner.calculate_spawn_interval(1)
+	var green_one_tile_interval: float = spawner.calculate_spawn_interval(1, 1.35)
+	_check(no_territory_interval == 15.0, "Every team starts at one student per 15 seconds")
 	_check(
 		three_territory_interval < no_territory_interval,
 		"Captured tiles increase reinforcement rate"
@@ -28,8 +31,12 @@ func _run_tests() -> void:
 		"Reinforcement rate respects its safety cap"
 	)
 	_check(
-		green_trait_interval < no_territory_interval,
-		"Green's trait increases its base reinforcement rate"
+		green_base_interval == no_territory_interval,
+		"Green keeps the same 15-second rate before capturing territory"
+	)
+	_check(
+		green_one_tile_interval < normal_one_tile_interval,
+		"Green converts captured territory into spawn speed more efficiently"
 	)
 
 	for node: Node in get_nodes_in_group(TeamSpawnPoint.SPAWN_POINT_GROUP):
