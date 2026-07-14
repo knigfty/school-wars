@@ -78,6 +78,11 @@ func _run_tests() -> void:
 		purple_students[1].get_attack_target() == black_target,
 		"AI can send another student chasing a fleeing enemy"
 	)
+	for index: int in manager.victory_territory_count:
+		var eliminated_team_tile: TerritoryTile = (
+			tactical_territories[index] as TerritoryTile
+		)
+		eliminated_team_tile._set_owner(PURPLE_TEAM)
 
 	for node: Node in get_nodes_in_group(StudentController.STUDENT_GROUP):
 		var student: StudentController = node as StudentController
@@ -89,7 +94,10 @@ func _run_tests() -> void:
 		"ReinforcementSpawner"
 	) as TeamReinforcementSpawner
 	_check(spawner.is_team_eliminated(&"purple"), "Eliminated teams stop spawning")
-	_check(not manager.has_ended(), "Eliminating one color does not stop the match")
+	_check(
+		not manager.has_ended(),
+		"Zero units eliminates a color regardless of its captured squares"
+	)
 	_check(_match_results.is_empty(), "Elimination emits no Victory or Defeat result")
 	var announcement: EliminationAnnouncement = match_scene.get_node(
 		"HUD/EliminationAnnouncement"

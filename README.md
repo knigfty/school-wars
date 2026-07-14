@@ -24,7 +24,7 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 - Enemy students automatically fight one opposing student at a time when they collide. Damage is applied once per second at each team's listed rate and health bars remain visible.
 - A selected squad can pursue a specific enemy. Students who contributed damage receive their team's takedown benefit when that enemy is defeated.
 - A new movement order overrides combat and remains the student's priority until the destination is reached. Explicit attack orders still cancel movement and begin pursuit.
-- A team is permanently eliminated as soon as its last student is killed: its spawning stops and a four-second `<Color> has been eliminated` announcement appears, but the match continues. Elimination alone never opens a result screen.
+- A team is permanently eliminated as soon as its last student is killed, regardless of how many squares it owns. Its spawning stops, its old squares cannot award victory, and a four-second `<Color> has been eliminated` announcement appears, but the match continues. Elimination alone never opens a result screen.
 - Capturing eight of the twelve squares is the only match-ending condition. It produces Victory for the player or Defeat when an active AI team reaches the threshold.
 - Victory and Defeat screens stop the finished simulation and provide a return button to start again from the color-selection menu.
 
