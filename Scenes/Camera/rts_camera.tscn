@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Camera/rts_camera_controller.gd" id="1_camera"]
+
+[node name="RTSCamera" type="Camera2D"]
+position = Vector2(800, 800)
+script = ExtResource("1_camera")
+world_bounds = Rect2(-120, -120, 1840, 1840)
+pan_speed = 650.0
+edge_margin = 24.0
+minimum_zoom = 0.75
+maximum_zoom = 2.0
+zoom_step = 0.15

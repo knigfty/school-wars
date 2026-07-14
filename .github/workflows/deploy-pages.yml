@@ -1,0 +1,97 @@
+name: Export and deploy Web build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_RELEASE: "4.3-stable"
+  GODOT_TEMPLATE_VERSION: "4.3.stable"
+
+jobs:
+  build:
+    name: Export Godot project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Download Godot and Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            --output /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}/Godot_v${GODOT_RELEASE}_linux.x86_64.zip"
+          curl --fail --location --retry 3 \
+            --output /tmp/godot-templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE}/Godot_v${GODOT_RELEASE}_export_templates.tpz"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          chmod +x "/tmp/godot/Godot_v${GODOT_RELEASE}_linux.x86_64"
+          template_directory="$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_VERSION}"
+          mkdir -p "$template_directory"
+          cp -R /tmp/godot-templates/templates/. "$template_directory/"
+
+      - name: Export Web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf export/web
+          mkdir -p export/web
+          "/tmp/godot/Godot_v${GODOT_RELEASE}_linux.x86_64" \
+            --headless \
+            --path . \
+            --export-release Web \
+            export/web/index.html
+
+      - name: Validate and prepare Web build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s export/web/index.html
+          find export/web -maxdepth 1 -type f -name '*.js' -print -quit | grep -q .
+          find export/web -maxdepth 1 -type f -name '*.wasm' -print -quit | grep -q .
+          find export/web -maxdepth 1 -type f -name '*.pck' -print -quit | grep -q .
+          touch export/web/.nojekyll
+          cp Tools/serve_web.py export/web/serve_web.py
+          cp Tools/run_exported_web.bat export/web/run_localhost.bat
+
+      - name: Upload downloadable Web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: school-wars-web
+          path: export/web
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: export/web
+
+  deploy:
+    name: Deploy GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

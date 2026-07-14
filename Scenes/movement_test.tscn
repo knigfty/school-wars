@@ -1,0 +1,155 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Maps/movement_test_arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://Characters/student.tscn" id="2_student"]
+[ext_resource type="PackedScene" path="res://Scenes/Camera/rts_camera.tscn" id="3_camera"]
+[ext_resource type="Script" path="res://Scripts/UI/unit_selection_controller.gd" id="4_selection"]
+[ext_resource type="Script" path="res://Scripts/Commands/unit_command_controller.gd" id="5_commands"]
+[ext_resource type="Script" path="res://Scripts/Maps/team_spawn_point.gd" id="6_spawn"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
+size = Vector2(1550, 30)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
+size = Vector2(30, 1550)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.035, 0.047, 0.075, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.32, 0.43, 0.61, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="LabelSettings" id="LabelSettings_title"]
+font_size = 24
+font_color = Color(0.91, 0.94, 1, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_body"]
+font_size = 16
+font_color = Color(0.7, 0.78, 0.91, 1)
+
+[node name="SelectionTest" type="Node2D"]
+
+[node name="Arena" type="Node2D" parent="."]
+script = ExtResource("1_arena")
+
+[node name="Walls" type="StaticBody2D" parent="Arena"]
+visible = false
+collision_layer = 1
+collision_mask = 0
+
+[node name="Top" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(800, 25)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="Bottom" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(800, 1575)
+shape = SubResource("RectangleShape2D_horizontal")
+
+[node name="Left" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(25, 800)
+shape = SubResource("RectangleShape2D_vertical")
+
+[node name="Right" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(1575, 800)
+shape = SubResource("RectangleShape2D_vertical")
+
+[node name="SpawnPoints" type="Node2D" parent="Arena"]
+
+[node name="Black" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(180, 180)
+script = ExtResource("6_spawn")
+team_name = &"Black"
+team_color = Color(0.08, 0.09, 0.12, 1)
+
+[node name="Green" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(1420, 180)
+script = ExtResource("6_spawn")
+team_name = &"Green"
+team_color = Color(0.29, 0.64, 0.42, 1)
+
+[node name="Yellow" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(180, 1420)
+script = ExtResource("6_spawn")
+team_name = &"Yellow"
+team_color = Color(0.88, 0.74, 0.26, 1)
+
+[node name="Purple" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(1420, 1420)
+script = ExtResource("6_spawn")
+team_name = &"Purple"
+team_color = Color(0.57, 0.37, 0.76, 1)
+
+[node name="Student1" parent="." instance=ExtResource("2_student")]
+position = Vector2(260, 180)
+
+[node name="Student2" parent="." instance=ExtResource("2_student")]
+position = Vector2(180, 260)
+
+[node name="Student3" parent="." instance=ExtResource("2_student")]
+position = Vector2(1340, 180)
+
+[node name="Student4" parent="." instance=ExtResource("2_student")]
+position = Vector2(1420, 260)
+
+[node name="Student5" parent="." instance=ExtResource("2_student")]
+position = Vector2(180, 1340)
+
+[node name="Student6" parent="." instance=ExtResource("2_student")]
+position = Vector2(260, 1420)
+
+[node name="Student7" parent="." instance=ExtResource("2_student")]
+position = Vector2(1420, 1340)
+
+[node name="Student8" parent="." instance=ExtResource("2_student")]
+position = Vector2(1340, 1420)
+
+[node name="RTSCamera" parent="." instance=ExtResource("3_camera")]
+position = Vector2(1420, 1420)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="SelectionOverlay" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_selection")
+
+[node name="Instructions" type="PanelContainer" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 500.0
+offset_bottom = 188.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/Instructions"]
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Instructions/MarginContainer"]
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Four-Square RTS Arena"
+label_settings = SubResource("LabelSettings_title")
+
+[node name="Controls" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Select: left-click or left-drag over students\nMove: left-click empty ground after selecting\nCamera: IJKL, screen edges, or right-drag\nZoom: mouse wheel"
+label_settings = SubResource("LabelSettings_body")
+
+[node name="CommandController" type="Node" parent="."]
+script = ExtResource("5_commands")
+selection_controller_path = NodePath("../HUD/SelectionOverlay")

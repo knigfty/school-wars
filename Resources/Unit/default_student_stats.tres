@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StudentStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Resources/Unit/student_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+maximum_health = 100.0
+movement_speed = 180.0
+acceleration = 1200.0
+deceleration = 1600.0
+attack_damage = 10.0
+attack_range = 28.0
+attacks_per_second = 1.0
+

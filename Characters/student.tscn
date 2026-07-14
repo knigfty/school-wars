@@ -1,0 +1,51 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Characters/student_controller.gd" id="1_controller"]
+[ext_resource type="Resource" path="res://Resources/Unit/default_student_stats.tres" id="2_stats"]
+[ext_resource type="Script" path="res://Scripts/Characters/selectable_component.gd" id="3_selectable"]
+[ext_resource type="Script" path="res://Scripts/Characters/student_move_order_component.gd" id="4_move_order"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_student"]
+radius = 15.0
+
+[node name="Student" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 3
+script = ExtResource("1_controller")
+stats = ExtResource("2_stats")
+
+[node name="SelectionIndicator" type="Line2D" parent="."]
+visible = false
+points = PackedVector2Array(-25, 15, 0, 28, 25, 15, 0, 4, -25, 15)
+width = 3.0
+default_color = Color(0.25, 0.9, 1, 0.95)
+joint_mode = 1
+
+[node name="Shadow" type="Polygon2D" parent="."]
+position = Vector2(0, 15)
+polygon = PackedVector2Array(-15, 0, 0, -6, 15, 0, 0, 6)
+color = Color(0, 0, 0, 0.35)
+
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="Outline" type="Polygon2D" parent="Visuals"]
+polygon = PackedVector2Array(0, -24, 18, -8, 18, 13, 0, 24, -18, 13, -18, -8)
+color = Color(0.74, 0.8, 0.93, 1)
+
+[node name="Body" type="Polygon2D" parent="Visuals"]
+polygon = PackedVector2Array(0, -20, 14, -6, 14, 11, 0, 20, -14, 11, -14, -6)
+color = Color(0.18, 0.13, 0.27, 1)
+
+[node name="TeamMark" type="Polygon2D" parent="Visuals"]
+position = Vector2(0, -5)
+polygon = PackedVector2Array(0, -7, 7, 0, 0, 7, -7, 0)
+color = Color(0.72, 0.45, 0.95, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_student")
+
+[node name="Selectable" type="Node" parent="."]
+script = ExtResource("3_selectable")
+
+[node name="MoveOrder" type="Node" parent="."]
+script = ExtResource("4_move_order")
