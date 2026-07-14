@@ -24,6 +24,11 @@ func _run_tests() -> void:
 		is_equal_approx(camera.get_zoom_level(), camera.minimum_zoom),
 		"Zoom is constrained to the configured minimum"
 	)
+	var fully_zoomed_view: Vector2 = root.get_visible_rect().size / camera.get_zoom_level()
+	_check(
+		fully_zoomed_view.x >= 1440.0 and fully_zoomed_view.y >= 1512.0,
+		"Maximum zoom-out fits the complete platform and its depth"
+	)
 
 	camera.set_zoom_level(1.0, true)
 	camera.set_target_position(Vector2(-1000.0, -1000.0), true)
@@ -54,4 +59,3 @@ func _check(condition: bool, description: String) -> void:
 
 	_failures += 1
 	push_error("FAIL: %s" % description)
-

@@ -4,6 +4,7 @@ const STUDENT_SCENE: PackedScene = preload("res://Characters/student.tscn")
 const COMMAND_CONTROLLER_SCRIPT: Script = preload(
 	"res://Scripts/Commands/unit_command_controller.gd"
 )
+const GREEN_TEAM: TeamDefinition = preload("res://Resources/Team/green_team.tres")
 
 var _failures: int = 0
 
@@ -15,10 +16,14 @@ func _initialize() -> void:
 func _run_tests() -> void:
 	var first_student: StudentController = STUDENT_SCENE.instantiate() as StudentController
 	var second_student: StudentController = STUDENT_SCENE.instantiate() as StudentController
+	var enemy_student: StudentController = STUDENT_SCENE.instantiate() as StudentController
 	first_student.position = Vector2(100.0, 100.0)
 	second_student.position = Vector2(140.0, 100.0)
+	enemy_student.position = Vector2(600.0, 500.0)
+	enemy_student.team = GREEN_TEAM
 	root.add_child(first_student)
 	root.add_child(second_student)
+	root.add_child(enemy_student)
 
 	var first_selectable: SelectableComponent = (
 		first_student.get_node("Selectable") as SelectableComponent
@@ -60,8 +65,19 @@ func _run_tests() -> void:
 	second_order.cancel_order()
 	_check(first_student.velocity.is_zero_approx(), "Cancelling an order stops the student")
 
+	command_controller.issue_attack_order(selected_units, enemy_student)
+	_check(
+		first_student.get_attack_target() == enemy_student,
+		"Attack order assigns the enemy to the first student"
+	)
+	_check(
+		second_student.get_attack_target() == enemy_student,
+		"Attack order assigns the enemy to the second student"
+	)
+
 	first_student.queue_free()
 	second_student.queue_free()
+	enemy_student.queue_free()
 	command_controller.free()
 	if _failures == 0:
 		print("Move order tests passed.")

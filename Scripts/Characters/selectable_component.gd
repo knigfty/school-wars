@@ -46,3 +46,6 @@ func get_screen_position() -> Vector2:
 		return Vector2.ZERO
 	return unit.get_global_transform_with_canvas().origin
 
+
+func get_student() -> StudentController:
+	return get_parent() as StudentController

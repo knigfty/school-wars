@@ -18,6 +18,7 @@ func _run_tests() -> void:
 	var no_territory_interval: float = spawner.calculate_spawn_interval(0)
 	var three_territory_interval: float = spawner.calculate_spawn_interval(3)
 	var many_territory_interval: float = spawner.calculate_spawn_interval(100)
+	var green_trait_interval: float = spawner.calculate_spawn_interval(0, 1.35)
 	_check(
 		three_territory_interval < no_territory_interval,
 		"Captured tiles increase reinforcement rate"
@@ -25,6 +26,10 @@ func _run_tests() -> void:
 	_check(
 		many_territory_interval == spawner.minimum_spawn_interval,
 		"Reinforcement rate respects its safety cap"
+	)
+	_check(
+		green_trait_interval < no_territory_interval,
+		"Green's trait increases its base reinforcement rate"
 	)
 
 	for node: Node in get_nodes_in_group(TeamSpawnPoint.SPAWN_POINT_GROUP):

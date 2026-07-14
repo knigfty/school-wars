@@ -16,6 +16,8 @@ func _ready() -> void:
 		return
 
 	_selection_controller.move_order_requested.connect(_on_move_order_requested)
+	_selection_controller.attack_order_requested.connect(_on_attack_order_requested)
+	_selection_controller.territory_order_requested.connect(_on_territory_order_requested)
 
 
 func issue_move_order(
@@ -43,11 +45,50 @@ func issue_move_order(
 		_issue_unit_order(selected_units[index], world_destination + formation_offset)
 
 
+func issue_attack_order(
+	selected_units: Array[SelectableComponent],
+	target: StudentController
+) -> void:
+	for selectable: SelectableComponent in selected_units:
+		var student: StudentController = selectable.get_student()
+		if student == null or not student.is_enemy(target):
+			continue
+		var move_order: StudentMoveOrderComponent = student.get_node_or_null(
+			"MoveOrder"
+		) as StudentMoveOrderComponent
+		if move_order != null:
+			move_order.cancel_order()
+		student.set_attack_target(target)
+
+
+func issue_territory_order(
+	selected_units: Array[SelectableComponent],
+	territory: TerritoryTile
+) -> void:
+	if territory == null:
+		return
+	issue_move_order(selected_units, territory.global_position)
+
+
 func _on_move_order_requested(
 	selected_units: Array[SelectableComponent],
 	world_destination: Vector2
 ) -> void:
 	issue_move_order(selected_units, world_destination)
+
+
+func _on_attack_order_requested(
+	selected_units: Array[SelectableComponent],
+	target: StudentController
+) -> void:
+	issue_attack_order(selected_units, target)
+
+
+func _on_territory_order_requested(
+	selected_units: Array[SelectableComponent],
+	territory: TerritoryTile
+) -> void:
+	issue_territory_order(selected_units, territory)
 
 
 func _issue_unit_order(
@@ -57,6 +98,7 @@ func _issue_unit_order(
 	var student: StudentController = selectable.get_parent() as StudentController
 	if student == null:
 		return
+	student.clear_attack_target()
 
 	var move_order: StudentMoveOrderComponent = student.get_node_or_null(
 		"MoveOrder"

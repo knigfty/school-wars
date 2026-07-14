@@ -58,7 +58,8 @@ jobs:
             run_collision_tests.gd \
             run_map_tests.gd \
             run_territory_tests.gd \
-            run_reinforcement_tests.gd; do
+            run_reinforcement_tests.gd \
+            run_combat_tests.gd; do
             "$godot" --headless --path . --script "res://Testing/$test_script"
           done
           rm -rf export/web

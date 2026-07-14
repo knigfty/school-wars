@@ -6,6 +6,14 @@ signal move_order_requested(
 	selected_units: Array[SelectableComponent],
 	world_destination: Vector2
 )
+signal attack_order_requested(
+	selected_units: Array[SelectableComponent],
+	target: StudentController
+)
+signal territory_order_requested(
+	selected_units: Array[SelectableComponent],
+	territory: TerritoryTile
+)
 
 @export_range(0.0, 32.0, 1.0) var drag_threshold: float = 6.0
 @export_range(1.0, 64.0, 1.0) var click_radius: float = 18.0
@@ -57,8 +65,16 @@ func _notification(what: int) -> void:
 func select_in_screen_rect(screen_rect: Rect2) -> void:
 	var normalized_rect: Rect2 = screen_rect.abs()
 	var next_selection: Array[SelectableComponent] = []
+	var selection_team_id: StringName = &""
 	for selectable in _get_selectable_units():
-		if normalized_rect.has_point(selectable.get_screen_position()):
+		if not normalized_rect.has_point(selectable.get_screen_position()):
+			continue
+		var student: StudentController = selectable.get_student()
+		if student == null:
+			continue
+		if selection_team_id.is_empty():
+			selection_team_id = student.get_team_id()
+		if student.get_team_id() == selection_team_id:
 			next_selection.append(selectable)
 	_set_selection(next_selection)
 
@@ -106,6 +122,10 @@ func _cancel_drag() -> void:
 func _handle_click(screen_position: Vector2) -> void:
 	var clicked_unit: SelectableComponent = _find_closest_selectable(screen_position)
 	if clicked_unit != null:
+		var clicked_student: StudentController = clicked_unit.get_student()
+		if _is_enemy_of_selection(clicked_student):
+			attack_order_requested.emit(_selected_units, clicked_student)
+			return
 		var clicked_selection: Array[SelectableComponent] = [clicked_unit]
 		_set_selection(clicked_selection)
 		return
@@ -117,7 +137,26 @@ func _handle_click(screen_position: Vector2) -> void:
 	var world_destination: Vector2 = (
 		get_viewport().get_canvas_transform().affine_inverse() * screen_position
 	)
+	var territory: TerritoryTile = _find_territory(world_destination)
+	if territory != null:
+		territory_order_requested.emit(_selected_units, territory)
+		return
 	move_order_requested.emit(_selected_units, world_destination)
+
+
+func _is_enemy_of_selection(target: StudentController) -> bool:
+	if target == null or _selected_units.is_empty():
+		return false
+	var leader: StudentController = _selected_units[0].get_student()
+	return leader != null and leader.is_enemy(target)
+
+
+func _find_territory(world_position: Vector2) -> TerritoryTile:
+	for node: Node in get_tree().get_nodes_in_group(TerritoryTile.TERRITORY_GROUP):
+		var territory: TerritoryTile = node as TerritoryTile
+		if territory != null and territory.contains_world_point(world_position):
+			return territory
+	return null
 
 
 func _find_closest_selectable(screen_position: Vector2) -> SelectableComponent:

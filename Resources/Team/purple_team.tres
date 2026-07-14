@@ -7,3 +7,6 @@ script = ExtResource("1_team")
 team_id = &"purple"
 display_name = "Purple"
 color = Color(0.67, 0.16, 0.76, 1)
+trait_name = "STRONG ATTACK"
+trait_description = "Heavy hitters: attacks deal 40% more damage."
+attack_damage_multiplier = 1.4

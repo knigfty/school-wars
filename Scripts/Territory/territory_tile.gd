@@ -63,6 +63,15 @@ func get_capture_ratio() -> float:
 	return clampf(_capture_elapsed / maxf(capture_duration, 0.01), 0.0, 1.0)
 
 
+func contains_world_point(world_point: Vector2) -> bool:
+	var local_point: Vector2 = to_local(world_point)
+	var half_size: Vector2 = tile_size * 0.5
+	return (
+		absf(local_point.x) / half_size.x
+		+ absf(local_point.y) / half_size.y
+	) <= 1.0
+
+
 func _set_owner(next_team: TeamDefinition) -> void:
 	var previous_team: StringName = get_owner_team_id()
 	owner_team = next_team
@@ -87,6 +96,10 @@ func _draw() -> void:
 		Vector2(0.0, half_size.y),
 		Vector2(-half_size.x, 0.0),
 	])
+	var lower_points: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in points:
+		lower_points.append(point + Vector2(0.0, 7.0))
+	draw_colored_polygon(lower_points, Color("777c7b"))
 	var fill_color: Color = Color("f4f5f2")
 	if owner_team != null:
 		fill_color = owner_team.color.lightened(0.2)

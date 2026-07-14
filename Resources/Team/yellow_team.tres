@@ -7,3 +7,6 @@ script = ExtResource("1_team")
 team_id = &"yellow"
 display_name = "Yellow"
 color = Color(0.92, 0.75, 0.14, 1)
+trait_name = "TAKEDOWN GROWTH"
+trait_description = "Battle growth: involved students gain 12 maximum health per takedown."
+takedown_max_health_gain = 12.0

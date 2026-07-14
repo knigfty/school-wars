@@ -33,13 +33,21 @@ func _process(delta: float) -> void:
 		_elapsed_by_team[team_id] = elapsed
 
 
-func calculate_spawn_interval(territory_count: int) -> float:
-	var multiplier: float = 1.0 + maxf(float(territory_count), 0.0) * territory_rate_bonus
+func calculate_spawn_interval(
+	territory_count: int,
+	spawn_rate_multiplier: float = 1.0
+) -> float:
+	var territory_multiplier: float = (
+		1.0 + maxf(float(territory_count), 0.0) * territory_rate_bonus
+	)
+	var multiplier: float = territory_multiplier * maxf(spawn_rate_multiplier, 0.1)
 	return maxf(minimum_spawn_interval, base_spawn_interval / multiplier)
 
 
 func get_spawn_interval(team_id: StringName) -> float:
-	return calculate_spawn_interval(get_owned_territory_count(team_id))
+	var team: TeamDefinition = _get_team_definition(team_id)
+	var trait_multiplier: float = team.spawn_rate_multiplier if team != null else 1.0
+	return calculate_spawn_interval(get_owned_territory_count(team_id), trait_multiplier)
 
 
 func get_owned_territory_count(team_id: StringName) -> int:
@@ -73,3 +81,12 @@ func spawn_reinforcement(spawn_point: TeamSpawnPoint) -> StudentController:
 	student.global_position = spawn_point.get_spawn_position(get_student_count(team_id) - 1)
 	reinforcement_spawned.emit(spawn_point.team, student)
 	return student
+
+
+func _get_team_definition(team_id: StringName) -> TeamDefinition:
+	for node: Node in get_tree().get_nodes_in_group(TeamSpawnPoint.SPAWN_POINT_GROUP):
+		var spawn_point: TeamSpawnPoint = node as TeamSpawnPoint
+		if spawn_point != null and spawn_point.team != null:
+			if spawn_point.team.team_id == team_id:
+				return spawn_point.team
+	return null

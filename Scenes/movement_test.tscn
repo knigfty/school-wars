@@ -187,17 +187,17 @@ label_settings = SubResource("LabelSettings_title")
 
 [node name="Controls" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Select: left-click or left-drag students\nMove: left-click ground after selecting\nCapture: stop on a white diamond for 2.5s\nCamera: right-drag or screen edges · Zoom: wheel"
+text = "Select: left-click or left-drag one team\nMove/capture: left-click ground or a square\nAttack: left-click an enemy with students selected\nCamera: right-drag or screen edges · Zoom: wheel"
 label_settings = SubResource("LabelSettings_body")
 
 [node name="StatusPanel" type="PanelContainer" parent="HUD"]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -244.0
+offset_left = -350.0
 offset_top = 20.0
 offset_right = -20.0
-offset_bottom = 176.0
+offset_bottom = 190.0
 grow_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_status")
 
@@ -207,7 +207,7 @@ theme_override_constants/outline_size = 2
 theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.03, 1)
 theme_override_font_sizes/font_size = 15
-text = "TERRITORY · NEXT STUDENT"
+text = "TEAM · TILES · SPAWN · TRAIT"
 horizontal_alignment = 1
 vertical_alignment = 1
 script = ExtResource("14_status")

@@ -17,6 +17,10 @@ func _draw() -> void:
 	if team == null:
 		return
 	var points: PackedVector2Array = _get_diamond_points()
+	var lower_points: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in points:
+		lower_points.append(point + Vector2(0.0, 8.0))
+	draw_colored_polygon(lower_points, team.color.darkened(0.68))
 	draw_colored_polygon(points, team.color.darkened(0.42))
 	var outline: PackedVector2Array = points.duplicate()
 	outline.append(points[0])

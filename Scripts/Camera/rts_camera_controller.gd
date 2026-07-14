@@ -22,7 +22,7 @@ signal zoom_changed(zoom_level: float)
 @export var pan_down_action: StringName = "camera_pan_down"
 
 @export_category("Zoom")
-@export_range(0.1, 8.0, 0.05) var minimum_zoom: float = 0.75
+@export_range(0.1, 8.0, 0.01) var minimum_zoom: float = 0.32
 @export_range(0.1, 8.0, 0.05) var maximum_zoom: float = 2.0
 @export_range(0.01, 1.0, 0.01) var zoom_step: float = 0.15
 @export_range(0.0, 40.0, 0.1) var zoom_smoothing: float = 16.0

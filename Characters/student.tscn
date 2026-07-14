@@ -24,9 +24,9 @@ default_color = Color(0.25, 0.9, 1, 0.95)
 joint_mode = 1
 
 [node name="Shadow" type="Polygon2D" parent="."]
-position = Vector2(0, 15)
-polygon = PackedVector2Array(-15, 0, 0, -6, 15, 0, 0, 6)
-color = Color(0, 0, 0, 0.35)
+position = Vector2(4, 18)
+polygon = PackedVector2Array(-18, 0, -13, -5, 0, -7, 13, -5, 18, 0, 13, 5, 0, 7, -13, 5)
+color = Color(0, 0, 0, 0.42)
 
 [node name="Visuals" type="Node2D" parent="."]
 
@@ -38,10 +38,27 @@ color = Color(0.74, 0.8, 0.93, 1)
 polygon = PackedVector2Array(0, -20, 14, -6, 14, 11, 0, 20, -14, 11, -14, -6)
 color = Color(0.18, 0.13, 0.27, 1)
 
+[node name="Legs" type="Polygon2D" parent="Visuals"]
+polygon = PackedVector2Array(-11, 9, -2, 9, -3, 23, -12, 23, 2, 9, 11, 9, 12, 23, 3, 23)
+color = Color(0.075, 0.08, 0.095, 1)
+
 [node name="TeamMark" type="Polygon2D" parent="Visuals"]
 position = Vector2(0, -5)
 polygon = PackedVector2Array(0, -7, 7, 0, 0, 7, -7, 0)
 color = Color(0.72, 0.45, 0.95, 1)
+
+[node name="Head" type="Polygon2D" parent="Visuals"]
+position = Vector2(0, -18)
+polygon = PackedVector2Array(0, -9, 7, -6, 10, 0, 7, 7, 0, 10, -7, 7, -10, 0, -7, -6)
+color = Color(0.72, 0.51, 0.31, 1)
+
+[node name="Hair" type="Polygon2D" parent="Visuals"]
+polygon = PackedVector2Array(-9, -22, -5, -29, 3, -31, 9, -25, 8, -20, 2, -24, -4, -22)
+color = Color(0.09, 0.06, 0.035, 1)
+
+[node name="Cap" type="Polygon2D" parent="Visuals"]
+polygon = PackedVector2Array(-10, -28, 0, -34, 10, -28, 8, -24, -8, -24)
+color = Color(0.45, 0.17, 0.6, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_student")

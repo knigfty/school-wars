@@ -8,6 +8,6 @@ script = ExtResource("1_camera")
 world_bounds = Rect2(-120, -120, 1840, 1840)
 pan_speed = 650.0
 edge_margin = 24.0
-minimum_zoom = 0.75
+minimum_zoom = 0.32
 maximum_zoom = 2.0
 zoom_step = 0.15
