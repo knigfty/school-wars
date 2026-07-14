@@ -44,17 +44,25 @@ jobs:
           mkdir -p "$template_directory"
           cp -R /tmp/godot-templates/templates/. "$template_directory/"
 
-      - name: Export Web build
+      - name: Test and export Web build
         shell: bash
         run: |
           set -euo pipefail
+          godot="/tmp/godot/Godot_v${GODOT_RELEASE}_linux.x86_64"
+          for test_script in \
+            run_movement_tests.gd \
+            run_camera_tests.gd \
+            run_selection_tests.gd \
+            run_move_order_tests.gd \
+            run_collision_tests.gd \
+            run_map_tests.gd \
+            run_territory_tests.gd \
+            run_reinforcement_tests.gd; do
+            "$godot" --headless --path . --script "res://Testing/$test_script"
+          done
           rm -rf export/web
           mkdir -p export/web
-          "/tmp/godot/Godot_v${GODOT_RELEASE}_linux.x86_64" \
-            --headless \
-            --path . \
-            --export-release Web \
-            export/web/index.html
+          "$godot" --headless --path . --export-release Web export/web/index.html
 
       - name: Validate and prepare Web build
         shell: bash

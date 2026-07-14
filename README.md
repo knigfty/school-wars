@@ -1,35 +1,82 @@
-# School Wars — RTS Selection, Orders, and Camera
+# School Wars
 
-This project establishes a browser-safe Godot 4.x foundation with multi-unit selection, left-click movement orders, a floating four-square arena, and a constrained RTS camera.
+School Wars is a browser-first Godot 4 RTS prototype. Four colored student teams compete for territory on a floating, isometric diamond platform. The current build focuses on mouse-driven squad control, stationary territory capture, and territory-scaled reinforcement spawning.
 
-## Run the project
+Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://knigfty.github.io/school-wars/).
 
-1. Open this folder in Godot 4.3 or later.
-2. Press **F6** to run the current selection test scene, or **F5** to run the project.
-3. Select a student with a left click, or select multiple students by holding the left mouse button and dragging a box around them.
-4. With students selected, left-click empty ground to direct them there.
-5. Pan the camera with **IJKL**, the screen edges, or right-mouse dragging. Zoom with the mouse wheel.
+## Match rules
 
-The camera begins at the Purple southeast spawn so selectable students are visible immediately. The renderer is set to **GL Compatibility**, which is the appropriate baseline for Godot Web exports.
+| Team | Starting point |
+| --- | --- |
+| Purple | North |
+| Green | East |
+| Black | South |
+| Yellow | West |
 
-## Architecture
+- Each team begins with two students inside its colored base diamond.
+- Twelve neutral white territory diamonds are placed randomly inside the arena each match.
+- A student captures a tile by remaining stationary on it for 2.5 seconds. Moving students do not advance capture, and competing teams on the same tile pause capture.
+- A captured tile changes to the capturing student's team color. Opponents can recapture it with the same stationary rule.
+- Every team receives reinforcements only inside its own base.
+- The base reinforcement interval is 14 seconds. Territory accelerates it according to `14 / (1 + 0.35 × owned tiles)`, with a minimum interval of 3 seconds and a maximum of 30 students per team.
+- Students collide only with other students and the invisible four-edge circumference, so they cannot leave the floating diamond.
 
-- `Resources/Unit/student_stats.gd` defines reusable unit tuning data. The default `.tres` resource owns all current numbers; the controller does not hardcode them.
-- `Scripts/Characters/student_controller.gd` is a command-driven movement motor. It never reads player input; future AI or player orders can drive it through `set_move_intent()`.
-- `Scripts/Characters/selectable_component.gd` gives a unit selection state and a screen-space selection position without coupling it to global UI logic.
-- `Scripts/Characters/student_move_order_component.gd` converts a world destination into movement intent and stops the student within a configurable arrival radius.
-- `Scripts/UI/unit_selection_controller.gd` owns left-click, drag-marquee selection, and empty-ground order requests through camera pan and zoom.
-- `Scripts/Commands/unit_command_controller.gd` distributes group movement orders into centered formation slots.
-- `Scripts/Camera/rts_camera_controller.gd` owns right-drag panning, cursor-centered zoom, smoothing, and viewport-aware map constraints. It has no dependency on units or map gameplay.
-- `Scripts/Maps/movement_test_arena.gd` draws four equal square quadrants as a floating platform, adds a visible platform depth and shadow, and labels its North, South, East, and West sides. The camera exposes a small controlled margin of sky around the map.
-- `Scripts/Maps/team_spawn_point.gd` defines reusable color-coded spawn markers. Black, Green, Yellow, and Purple occupy the four map corners.
-- `Characters/student.tscn` composes the movement motor, selectable component, placeholder visuals, and default stats. Students collide with one another and the invisible map circumference.
-- `Scenes/Camera/rts_camera.tscn` provides a reusable configured camera component.
-- `Scenes/movement_test.tscn` composes the four spawn corners, eight test students, four invisible perimeter walls, selection UI, command system, and camera. There are no internal wall bodies or visible fences.
+## Controls
 
-## Automated check
+- **Select students:** left-click one student, or hold and drag the left mouse button around a group.
+- **Direct selected students:** after selecting, left-click empty ground. The command system assigns formation slots so the group does not target one identical point.
+- **Pan the map:** hold and drag the right mouse button. Screen-edge panning and optional IJKL camera panning are also available.
+- **Zoom:** use the mouse wheel. Zoom is centered around the pointer and constrained to the playable viewing area.
 
-With a Godot executable on your `PATH`, run:
+Students never read keyboard movement input. There is no WASD or eight-direction control of an individual student.
+
+## Run in Godot
+
+1. Install Godot 4.3 or later and the matching Web export templates.
+2. Open this folder in Godot.
+3. Press **F5** to run the project.
+
+The project uses the GL Compatibility renderer and a threadless Web preset for broad browser and static-hosting support.
+
+## Run in a browser on localhost
+
+With Godot installed, run:
+
+```bash
+./Tools/run_web.sh
+```
+
+On Windows, double-click `Tools/run_web.bat`, or run:
+
+```powershell
+python Tools/run_web.py
+```
+
+The launcher finds Godot, exports the project, verifies the HTML, JavaScript, WebAssembly, and PCK output, starts `http://localhost:8060`, and opens the browser. Set `GODOT_BIN` or pass `--godot` if Godot is not on `PATH`.
+
+To run without installing Godot, download the `school-wars-web` artifact from a successful GitHub Actions run, extract it, and double-click its included `run_localhost.bat`. That package requires Python 3 but not Godot.
+
+## Automatic deployment
+
+`.github/workflows/deploy-pages.yml` performs a Godot Web export whenever `main` changes. It publishes the browser build to GitHub Pages and uploads the same output as a downloadable `school-wars-web` artifact. The repository's Pages source must remain set to **GitHub Actions**.
+
+## Technical architecture
+
+- `TeamDefinition` resources are the source of truth for team IDs, names, and colors. Students, bases, territory ownership, the HUD, and the reinforcement economy all consume the same resources.
+- `StudentController` is a command-driven `CharacterBody2D` motor. It applies team visuals and exposes movement intent, but does not read player input.
+- `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
+- `StudentMoveOrderComponent` drives a selected student toward a world destination. `UnitCommandController` distributes a group order into centered formation slots.
+- `RTSCameraController` owns right-drag and edge panning, pointer-centered wheel zoom, smoothing, and viewport-aware constraints.
+- `FourSquareArena` renders the gray four-tip platform, its depth and shadow, and the North, East, South, and West orientation. Four rotated invisible collision shapes form its circumference.
+- `TerritoryField` uses a randomized seed to place neutral tiles within the diamond while enforcing tile spacing and base clearance.
+- `TerritoryTile` is a monitoring `Area2D`. It filters overlapping bodies to stationary students, resolves team contention, records capture progress, and emits ownership changes.
+- `TeamSpawnPoint` draws and validates each colored base diamond and provides only base-contained spawn slots.
+- `TeamReinforcementSpawner` counts owned territories and live students per team, calculates the current interval, and instantiates new students at the matching team's base.
+- `TeamStatusLabel` displays each team's territory count and current reinforcement interval.
+
+## Automated checks
+
+With a Godot executable on `PATH`, run:
 
 ```bash
 godot --headless --path . --script res://Testing/run_movement_tests.gd
@@ -38,42 +85,12 @@ godot --headless --path . --script res://Testing/run_selection_tests.gd
 godot --headless --path . --script res://Testing/run_move_order_tests.gd
 godot --headless --path . --script res://Testing/run_collision_tests.gd
 godot --headless --path . --script res://Testing/run_map_tests.gd
+godot --headless --path . --script res://Testing/run_territory_tests.gd
+godot --headless --path . --script res://Testing/run_reinforcement_tests.gd
 ```
 
-Some installations name the executable `godot4`; use that name if needed.
+Some installations name the executable `godot4`.
 
-## Run in a browser on localhost
+## Current scope
 
-Install Godot 4 and its matching Web export templates, then use one command:
-
-```bash
-./Tools/run_web.sh
-```
-
-On Windows, double-click `Tools/run_web.bat` or run:
-
-```powershell
-python Tools/run_web.py
-```
-
-The launcher finds Godot, exports the project, validates the generated HTML, JavaScript, WebAssembly, and PCK files, starts `http://localhost:8060`, and opens the browser automatically. If Godot is not on `PATH`, set `GODOT_BIN` or pass `--godot /path/to/godot`.
-
-The included server supplies WebAssembly MIME and cross-origin isolation headers. The current preset disables threads for broader browser and hosting compatibility.
-
-## Automatic GitHub Pages deployment
-
-`.github/workflows/deploy-pages.yml` builds the Godot Web export in GitHub Actions whenever `main` changes, uploads a downloadable `school-wars-web` artifact, and deploys the same build to GitHub Pages. Godot is downloaded only inside the cloud runner, so players and contributors do not need Godot to run the compiled build.
-
-One repository setting is required: open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. GitHub Pages for a private repository requires a GitHub plan that supports private Pages sites; otherwise change the repository visibility to public.
-
-To run without Godot after a successful workflow:
-
-1. Open the workflow run in the repository's **Actions** tab.
-2. Download and extract the `school-wars-web` artifact.
-3. Double-click `run_localhost.bat` inside the extracted folder.
-
-This standalone package requires Python 3 but does not require Godot.
-
-## Scope boundary
-
-Combat, health runtime state, AI, territories, menus, and match rules are intentionally not implemented in this increment. They remain separate roadmap features.
+This prototype implements navigation, selection, camera control, territory capture, and reinforcement economy. Combat, health, AI orders, win conditions, sound, character sprite animation, and the reference title/team-selection screen remain future work.

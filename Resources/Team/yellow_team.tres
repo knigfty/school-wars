@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TeamDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Resources/Team/team_definition.gd" id="1_team"]
+
+[resource]
+script = ExtResource("1_team")
+team_id = &"yellow"
+display_name = "Yellow"
+color = Color(0.92, 0.75, 0.14, 1)

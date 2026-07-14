@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Characters/student_controller.gd" id="1_controller"]
 [ext_resource type="Resource" path="res://Resources/Unit/default_student_stats.tres" id="2_stats"]
 [ext_resource type="Script" path="res://Scripts/Characters/selectable_component.gd" id="3_selectable"]
 [ext_resource type="Script" path="res://Scripts/Characters/student_move_order_component.gd" id="4_move_order"]
+[ext_resource type="Resource" path="res://Resources/Team/purple_team.tres" id="5_team"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_student"]
 radius = 15.0
@@ -13,6 +14,7 @@ collision_layer = 2
 collision_mask = 3
 script = ExtResource("1_controller")
 stats = ExtResource("2_stats")
+team = ExtResource("5_team")
 
 [node name="SelectionIndicator" type="Line2D" parent="."]
 visible = false

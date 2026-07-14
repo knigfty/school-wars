@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Maps/movement_test_arena.gd" id="1_arena"]
 [ext_resource type="PackedScene" path="res://Characters/student.tscn" id="2_student"]
@@ -6,12 +6,17 @@
 [ext_resource type="Script" path="res://Scripts/UI/unit_selection_controller.gd" id="4_selection"]
 [ext_resource type="Script" path="res://Scripts/Commands/unit_command_controller.gd" id="5_commands"]
 [ext_resource type="Script" path="res://Scripts/Maps/team_spawn_point.gd" id="6_spawn"]
+[ext_resource type="PackedScene" path="res://Scenes/Territory/territory_tile.tscn" id="7_territory"]
+[ext_resource type="Script" path="res://Scripts/Territory/territory_field.gd" id="8_field"]
+[ext_resource type="Script" path="res://Scripts/Teams/team_reinforcement_spawner.gd" id="9_spawner"]
+[ext_resource type="Resource" path="res://Resources/Team/black_team.tres" id="10_black"]
+[ext_resource type="Resource" path="res://Resources/Team/green_team.tres" id="11_green"]
+[ext_resource type="Resource" path="res://Resources/Team/yellow_team.tres" id="12_yellow"]
+[ext_resource type="Resource" path="res://Resources/Team/purple_team.tres" id="13_purple"]
+[ext_resource type="Script" path="res://Scripts/UI/team_status_label.gd" id="14_status"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
-size = Vector2(1550, 30)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
-size = Vector2(30, 1550)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_edge"]
+size = Vector2(1018.234, 30)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.035, 0.047, 0.075, 0.92)
@@ -25,15 +30,27 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_status"]
+bg_color = Color(0.02, 0.025, 0.04, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.53, 0.58, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 24
 font_color = Color(0.91, 0.94, 1, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_body"]
 font_size = 16
-font_color = Color(0.7, 0.78, 0.91, 1)
+font_color = Color(0.78, 0.82, 0.9, 1)
 
-[node name="SelectionTest" type="Node2D"]
+[node name="SchoolWars" type="Node2D"]
 
 [node name="Arena" type="Node2D" parent="."]
 script = ExtResource("1_arena")
@@ -43,74 +60,97 @@ visible = false
 collision_layer = 1
 collision_mask = 0
 
-[node name="Top" type="CollisionShape2D" parent="Arena/Walls"]
-position = Vector2(800, 25)
-shape = SubResource("RectangleShape2D_horizontal")
+[node name="NorthEast" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(1160, 440)
+rotation = 0.785398
+shape = SubResource("RectangleShape2D_edge")
 
-[node name="Bottom" type="CollisionShape2D" parent="Arena/Walls"]
-position = Vector2(800, 1575)
-shape = SubResource("RectangleShape2D_horizontal")
+[node name="EastSouth" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(1160, 1160)
+rotation = 2.356194
+shape = SubResource("RectangleShape2D_edge")
 
-[node name="Left" type="CollisionShape2D" parent="Arena/Walls"]
-position = Vector2(25, 800)
-shape = SubResource("RectangleShape2D_vertical")
+[node name="SouthWest" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(440, 1160)
+rotation = 0.785398
+shape = SubResource("RectangleShape2D_edge")
 
-[node name="Right" type="CollisionShape2D" parent="Arena/Walls"]
-position = Vector2(1575, 800)
-shape = SubResource("RectangleShape2D_vertical")
+[node name="WestNorth" type="CollisionShape2D" parent="Arena/Walls"]
+position = Vector2(440, 440)
+rotation = 2.356194
+shape = SubResource("RectangleShape2D_edge")
 
 [node name="SpawnPoints" type="Node2D" parent="Arena"]
 
-[node name="Black" type="Marker2D" parent="Arena/SpawnPoints"]
-position = Vector2(180, 180)
+[node name="PurpleNorth" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(800, 170)
 script = ExtResource("6_spawn")
-team_name = &"Black"
-team_color = Color(0.08, 0.09, 0.12, 1)
+team = ExtResource("13_purple")
+direction_name = "North"
 
-[node name="Green" type="Marker2D" parent="Arena/SpawnPoints"]
-position = Vector2(1420, 180)
+[node name="GreenEast" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(1430, 800)
 script = ExtResource("6_spawn")
-team_name = &"Green"
-team_color = Color(0.29, 0.64, 0.42, 1)
+team = ExtResource("11_green")
+direction_name = "East"
 
-[node name="Yellow" type="Marker2D" parent="Arena/SpawnPoints"]
-position = Vector2(180, 1420)
+[node name="BlackSouth" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(800, 1430)
 script = ExtResource("6_spawn")
-team_name = &"Yellow"
-team_color = Color(0.88, 0.74, 0.26, 1)
+team = ExtResource("10_black")
+direction_name = "South"
 
-[node name="Purple" type="Marker2D" parent="Arena/SpawnPoints"]
-position = Vector2(1420, 1420)
+[node name="YellowWest" type="Marker2D" parent="Arena/SpawnPoints"]
+position = Vector2(170, 800)
 script = ExtResource("6_spawn")
-team_name = &"Purple"
-team_color = Color(0.57, 0.37, 0.76, 1)
+team = ExtResource("12_yellow")
+direction_name = "West"
 
-[node name="Student1" parent="." instance=ExtResource("2_student")]
-position = Vector2(260, 180)
+[node name="TerritoryField" type="Node2D" parent="Arena"]
+script = ExtResource("8_field")
+territory_scene = ExtResource("7_territory")
 
-[node name="Student2" parent="." instance=ExtResource("2_student")]
-position = Vector2(180, 260)
+[node name="Units" type="Node2D" parent="."]
 
-[node name="Student3" parent="." instance=ExtResource("2_student")]
-position = Vector2(1340, 180)
+[node name="PurpleStudent1" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(800, 170)
+team = ExtResource("13_purple")
 
-[node name="Student4" parent="." instance=ExtResource("2_student")]
-position = Vector2(1420, 260)
+[node name="PurpleStudent2" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(772, 170)
+team = ExtResource("13_purple")
 
-[node name="Student5" parent="." instance=ExtResource("2_student")]
-position = Vector2(180, 1340)
+[node name="GreenStudent1" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(1430, 800)
+team = ExtResource("11_green")
 
-[node name="Student6" parent="." instance=ExtResource("2_student")]
-position = Vector2(260, 1420)
+[node name="GreenStudent2" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(1402, 800)
+team = ExtResource("11_green")
 
-[node name="Student7" parent="." instance=ExtResource("2_student")]
-position = Vector2(1420, 1340)
+[node name="BlackStudent1" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(800, 1430)
+team = ExtResource("10_black")
 
-[node name="Student8" parent="." instance=ExtResource("2_student")]
-position = Vector2(1340, 1420)
+[node name="BlackStudent2" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(772, 1430)
+team = ExtResource("10_black")
+
+[node name="YellowStudent1" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(170, 800)
+team = ExtResource("12_yellow")
+
+[node name="YellowStudent2" parent="Units" instance=ExtResource("2_student")]
+position = Vector2(142, 800)
+team = ExtResource("12_yellow")
 
 [node name="RTSCamera" parent="." instance=ExtResource("3_camera")]
-position = Vector2(1420, 1420)
+position = Vector2(800, 1300)
+
+[node name="ReinforcementSpawner" type="Node" parent="."]
+script = ExtResource("9_spawner")
+student_scene = ExtResource("2_student")
+units_parent_path = NodePath("../Units")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
@@ -128,7 +168,7 @@ script = ExtResource("4_selection")
 offset_left = 24.0
 offset_top = 20.0
 offset_right = 500.0
-offset_bottom = 188.0
+offset_bottom = 212.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/Instructions"]
@@ -142,13 +182,36 @@ theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Four-Square RTS Arena"
+text = "School Wars · Territory Test"
 label_settings = SubResource("LabelSettings_title")
 
 [node name="Controls" type="Label" parent="HUD/Instructions/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Select: left-click or left-drag over students\nMove: left-click empty ground after selecting\nCamera: IJKL, screen edges, or right-drag\nZoom: mouse wheel"
+text = "Select: left-click or left-drag students\nMove: left-click ground after selecting\nCapture: stop on a white diamond for 2.5s\nCamera: right-drag or screen edges · Zoom: wheel"
 label_settings = SubResource("LabelSettings_body")
+
+[node name="StatusPanel" type="PanelContainer" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -244.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 176.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_status")
+
+[node name="TeamStatus" type="Label" parent="HUD/StatusPanel"]
+layout_mode = 2
+theme_override_constants/outline_size = 2
+theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.03, 1)
+theme_override_font_sizes/font_size = 15
+text = "TERRITORY · NEXT STUDENT"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("14_status")
+spawner_path = NodePath("../../../ReinforcementSpawner")
 
 [node name="CommandController" type="Node" parent="."]
 script = ExtResource("5_commands")
