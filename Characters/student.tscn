@@ -35,13 +35,11 @@ color = Color(0, 0, 0, 0.38)
 position = Vector2(-5, 8)
 polygon = PackedVector2Array(-4, -2, 3, -2, 3, 13, -5, 13)
 color = Color(0.06, 0.07, 0.08, 1)
-pivot_offset = Vector2(0, -2)
 
 [node name="RightLeg" type="Polygon2D" parent="Visuals"]
 position = Vector2(5, 8)
 polygon = PackedVector2Array(-3, -2, 4, -2, 5, 13, -3, 13)
 color = Color(0.06, 0.07, 0.08, 1)
-pivot_offset = Vector2(0, -2)
 
 [node name="LeftShoe" type="Polygon2D" parent="Visuals/LeftLeg"]
 position = Vector2(-1, 12)
@@ -73,14 +71,12 @@ color = Color(0.72, 0.45, 0.95, 1)
 [node name="LeftArm" type="Polygon2D" parent="Visuals"]
 position = Vector2(-11, -10)
 polygon = PackedVector2Array(-3, -3, 3, -3, 4, 12, -2, 13)
-color = Color(0.18, 0.13, 0.27, 1)
-pivot_offset = Vector2(0, -3)
+color = Color(0.08, 0.075, 0.08, 1)
 
 [node name="RightArm" type="Polygon2D" parent="Visuals"]
 position = Vector2(11, -10)
 polygon = PackedVector2Array(-3, -3, 3, -3, 2, 13, -4, 12)
-color = Color(0.18, 0.13, 0.27, 1)
-pivot_offset = Vector2(0, -3)
+color = Color(0.08, 0.075, 0.08, 1)
 
 [node name="LeftHand" type="Polygon2D" parent="Visuals/LeftArm"]
 position = Vector2(1, 12)
