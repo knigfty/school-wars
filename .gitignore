@@ -1,0 +1,5 @@
+.godot/
+export/
+__pycache__/
+*.py[cod]
+*.tmp
