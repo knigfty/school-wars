@@ -1,6 +1,8 @@
 class_name TerritoryField
 extends Node2D
 
+const EMBLEMS: Array[String] = ["heart", "club", "spade", "diamond"]
+
 @export var territory_scene: PackedScene
 @export_range(1, 40, 1) var territory_count: int = 12
 @export var generation_seed: int = 0
@@ -50,9 +52,12 @@ func generate_territories() -> void:
 			continue
 		positions.append(candidate)
 
-	for territory_position: Vector2 in positions:
+	for index: int in positions.size():
 		var territory: TerritoryTile = territory_scene.instantiate() as TerritoryTile
-		territory.position = to_local(territory_position)
+		if territory == null:
+			continue
+		territory.position = to_local(positions[index])
+		territory.emblem = EMBLEMS[index % EMBLEMS.size()]
 		add_child(territory)
 
 
