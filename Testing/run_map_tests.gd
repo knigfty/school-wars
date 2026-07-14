@@ -3,12 +3,6 @@ extends SceneTree
 const TEST_SCENE: PackedScene = preload("res://Scenes/movement_test.tscn")
 const EXPECTED_MAP_BOUNDS: Rect2 = Rect2(80.0, 80.0, 1440.0, 1440.0)
 const EXPECTED_CAMERA_BOUNDS: Rect2 = Rect2(-120.0, -120.0, 1840.0, 1840.0)
-const EXPECTED_MAP_POINTS: PackedVector2Array = PackedVector2Array([
-	Vector2(800.0, 80.0),
-	Vector2(1520.0, 800.0),
-	Vector2(800.0, 1520.0),
-	Vector2(80.0, 800.0),
-])
 const EXPECTED_SPAWN_POSITIONS: Dictionary = {
 	&"purple": Vector2(800.0, 170.0),
 	&"green": Vector2(1430.0, 800.0),
@@ -22,6 +16,12 @@ const EXPECTED_DIRECTIONS: Dictionary = {
 	&"yellow": "West",
 }
 
+var _expected_map_points: PackedVector2Array = PackedVector2Array([
+	Vector2(800.0, 80.0),
+	Vector2(1520.0, 800.0),
+	Vector2(800.0, 1520.0),
+	Vector2(80.0, 800.0),
+])
 var _failures: int = 0
 
 
@@ -35,8 +35,8 @@ func _run_tests() -> void:
 
 	var arena: FourSquareArena = test_scene.get_node("Arena") as FourSquareArena
 	_check(arena.get_map_bounds() == EXPECTED_MAP_BOUNDS, "Map bounds frame the diamond")
-	_check(arena.get_map_polygon() == EXPECTED_MAP_POINTS, "Map has four pointed sides")
-	for point: Vector2 in EXPECTED_MAP_POINTS:
+	_check(arena.get_map_polygon() == _expected_map_points, "Map has four pointed sides")
+	for point: Vector2 in _expected_map_points:
 		_check(arena.contains_world_point(point), "%s is on the map edge" % point)
 	_check(not arena.contains_world_point(Vector2.ZERO), "Sky is outside the playable map")
 

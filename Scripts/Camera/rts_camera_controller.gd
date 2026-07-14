@@ -103,7 +103,7 @@ func set_target_position(world_position: Vector2, immediate: bool = false) -> vo
 		global_position = _target_position
 
 
-func get_target_position() -> Vector2:
+func get_pan_target_position() -> Vector2:
 	return _target_position
 
 

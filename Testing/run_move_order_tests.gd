@@ -53,6 +53,7 @@ func _run_tests() -> void:
 	)
 
 	await physics_frame
+	await physics_frame
 	_check(first_student.velocity.length() > 0.0, "Move order drives the movement motor")
 
 	first_order.cancel_order()

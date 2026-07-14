@@ -27,6 +27,7 @@ func _run_tests() -> void:
 	)
 
 	await physics_frame
+	await physics_frame
 	_check(student.velocity.length() > 0.0, "Movement intent accelerates the student")
 	_check(
 		student.velocity.length() <= student.stats.movement_speed,

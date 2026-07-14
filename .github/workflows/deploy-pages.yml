@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           godot="/tmp/godot/Godot_v${GODOT_RELEASE}_linux.x86_64"
+          "$godot" --headless --editor --path . --quit-after 2
           for test_script in \
             run_movement_tests.gd \
             run_camera_tests.gd \
