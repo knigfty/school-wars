@@ -1,6 +1,6 @@
 # School Wars
 
-School Wars is a browser-first Godot 4 RTS prototype. Four colored student teams fight for territory on a floating, isometric diamond platform using mouse-driven squad control, stationary capture, close-contact combat, and territory-scaled reinforcements.
+School Wars is a browser-first Godot 4 RTS prototype. Choose a school color from the launch menu, then fight three autonomous teams for territory on a floating isometric platform using mouse-driven squad control, stationary capture, close-contact combat, and territory-scaled reinforcements.
 
 Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://knigfty.github.io/school-wars/).
 
@@ -14,6 +14,7 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 | Yellow | West | Takedown Growth: involved students gain 12 maximum health when an enemy is defeated |
 
 - Each team begins with two students inside its colored base diamond.
+- The three non-player colors autonomously choose and contest territory squares.
 - Twelve neutral white territory diamonds are placed randomly inside the arena each match.
 - A student captures a tile by remaining stationary on it for 2.5 seconds. Moving students do not advance capture, and competing teams on the same tile pause capture.
 - A captured tile changes to the capturing student's team color. Opponents can recapture it with the same stationary rule.
@@ -22,9 +23,12 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 - Students collide only with other students and the invisible four-edge circumference, so they cannot leave the floating diamond.
 - Enemy students automatically fight when they collide. Attacks use a per-student cooldown, team-adjusted damage, and visible health bars.
 - A selected squad can pursue a specific enemy. Students who contributed damage receive their team's takedown benefit when that enemy is defeated.
+- Capturing eight of the twelve squares wins the match. Losing every student after the opening grace period causes defeat.
+- Victory and Defeat screens stop the finished simulation and provide a return button to start again from the color-selection menu.
 
 ## Controls
 
+- **Choose a team:** select Black, Green, Yellow, or Purple from the launch menu. Only the chosen color is player-selectable during that match.
 - **Select students:** left-click one student, or hold and drag the left mouse button around a group.
 - **Direct selected students:** after selecting, left-click empty ground. The command system assigns formation slots so the group does not target one identical point.
 - **Capture a square:** with students selected, left-click a territory diamond. The squad is ordered to the square's center and captures after stopping there.
@@ -66,6 +70,8 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 
 ## Technical architecture
 
+- `GameFlowController` owns the menu → match → result → menu lifecycle. Matches are instantiated only after color selection and are disposed before returning to the menu.
+- `GameMenu` draws the responsive reference-inspired title treatment, uniformed student portraits, four team cards, and trait labels while real Button controls provide input.
 - `TeamDefinition` resources are the source of truth for team identity, color, trait labels, spawn rate, damage, starting health, and takedown growth.
 - `StudentController` is a command-driven `CharacterBody2D` motor and combatant. It owns health, contact detection, target pursuit, attack cadence, damage contribution, takedown rewards, and combat feedback without reading player input.
 - `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
@@ -77,6 +83,8 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 - `TeamSpawnPoint` draws and validates each colored base diamond and provides only base-contained spawn slots.
 - `TeamReinforcementSpawner` counts owned territories and live students per team, calculates the current interval, and instantiates new students at the matching team's base.
 - `TeamStatusLabel` displays each team's territory count, current reinforcement interval, and trait.
+- `TeamAIController` periodically sends each non-player team toward its best available neutral or enemy territory without touching the player's units.
+- `MatchManager` evaluates the eight-square conquest threshold and player elimination, then emits the result consumed by the Victory/Defeat overlay.
 
 ## Automated checks
 
@@ -92,10 +100,12 @@ godot --headless --path . --script res://Testing/run_map_tests.gd
 godot --headless --path . --script res://Testing/run_territory_tests.gd
 godot --headless --path . --script res://Testing/run_reinforcement_tests.gd
 godot --headless --path . --script res://Testing/run_combat_tests.gd
+godot --headless --path . --script res://Testing/run_menu_tests.gd
+godot --headless --path . --script res://Testing/run_match_tests.gd
 ```
 
 Some installations name the executable `godot4`.
 
 ## Current scope
 
-This prototype implements navigation, selection, constrained camera control, territory capture, combat, health, team traits, and reinforcement economy. Strategic AI orders, win conditions, sound, full sprite animation, and the reference title/team-selection screen remain future work.
+This prototype implements the complete menu-to-result loop, player-team selection, opponent territory AI, navigation, constrained camera control, capture, combat, health, team traits, conquest/elimination results, and reinforcement economy. Sound, advanced tactical AI, and full frame-by-frame sprite animation remain future work.

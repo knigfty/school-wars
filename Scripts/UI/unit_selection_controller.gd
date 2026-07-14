@@ -19,6 +19,7 @@ signal territory_order_requested(
 @export_range(1.0, 64.0, 1.0) var click_radius: float = 18.0
 @export var marquee_fill_color: Color = Color(0.22, 0.72, 1.0, 0.18)
 @export var marquee_border_color: Color = Color(0.42, 0.85, 1.0, 0.95)
+@export var player_team_id: StringName = &""
 
 var _dragging: bool = false
 var _drag_start: Vector2 = Vector2.ZERO
@@ -79,6 +80,11 @@ func select_in_screen_rect(screen_rect: Rect2) -> void:
 	_set_selection(next_selection)
 
 
+func configure_player_team(team_id: StringName) -> void:
+	player_team_id = team_id
+	_set_selection([])
+
+
 func get_selected_units() -> Array[SelectableComponent]:
 	return _selected_units
 
@@ -126,6 +132,8 @@ func _handle_click(screen_position: Vector2) -> void:
 		if _is_enemy_of_selection(clicked_student):
 			attack_order_requested.emit(_selected_units, clicked_student)
 			return
+		if not _can_select_student(clicked_student):
+			return
 		var clicked_selection: Array[SelectableComponent] = [clicked_unit]
 		_set_selection(clicked_selection)
 		return
@@ -162,7 +170,7 @@ func _find_territory(world_position: Vector2) -> TerritoryTile:
 func _find_closest_selectable(screen_position: Vector2) -> SelectableComponent:
 	var closest: SelectableComponent
 	var closest_distance: float = click_radius
-	for selectable in _get_selectable_units():
+	for selectable in _get_all_selectable_units():
 		var distance: float = screen_position.distance_to(selectable.get_screen_position())
 		if distance <= closest_distance:
 			closest = selectable
@@ -171,6 +179,14 @@ func _find_closest_selectable(screen_position: Vector2) -> SelectableComponent:
 
 
 func _get_selectable_units() -> Array[SelectableComponent]:
+	var selectables: Array[SelectableComponent] = []
+	for selectable: SelectableComponent in _get_all_selectable_units():
+		if _can_select_student(selectable.get_student()):
+			selectables.append(selectable)
+	return selectables
+
+
+func _get_all_selectable_units() -> Array[SelectableComponent]:
 	var selectables: Array[SelectableComponent] = []
 	var selectable_nodes: Array[Node] = get_tree().get_nodes_in_group(
 		SelectableComponent.SELECTABLE_GROUP
@@ -182,8 +198,15 @@ func _get_selectable_units() -> Array[SelectableComponent]:
 	return selectables
 
 
+func _can_select_student(student: StudentController) -> bool:
+	return (
+		student != null
+		and (player_team_id.is_empty() or student.get_team_id() == player_team_id)
+	)
+
+
 func _set_selection(next_selection: Array[SelectableComponent]) -> void:
-	for selectable in _get_selectable_units():
+	for selectable in _get_all_selectable_units():
 		selectable.set_selected(selectable in next_selection)
 	_selected_units = next_selection
 	selection_changed.emit(_selected_units)

@@ -43,9 +43,24 @@ polygon = PackedVector2Array(-11, 9, -2, 9, -3, 23, -12, 23, 2, 9, 11, 9, 12, 23
 color = Color(0.075, 0.08, 0.095, 1)
 
 [node name="TeamMark" type="Polygon2D" parent="Visuals"]
-position = Vector2(0, -5)
+position = Vector2(8, -7)
 polygon = PackedVector2Array(0, -7, 7, 0, 0, 7, -7, 0)
 color = Color(0.72, 0.45, 0.95, 1)
+
+[node name="ButtonTop" type="Polygon2D" parent="Visuals"]
+position = Vector2(0, -8)
+polygon = PackedVector2Array(0, -2, 2, 0, 0, 2, -2, 0)
+color = Color(0.96, 0.78, 0.18, 1)
+
+[node name="ButtonMiddle" type="Polygon2D" parent="Visuals"]
+position = Vector2(0, -1)
+polygon = PackedVector2Array(0, -2, 2, 0, 0, 2, -2, 0)
+color = Color(0.96, 0.78, 0.18, 1)
+
+[node name="ButtonBottom" type="Polygon2D" parent="Visuals"]
+position = Vector2(0, 6)
+polygon = PackedVector2Array(0, -2, 2, 0, 0, 2, -2, 0)
+color = Color(0.96, 0.78, 0.18, 1)
 
 [node name="Head" type="Polygon2D" parent="Visuals"]
 position = Vector2(0, -18)
