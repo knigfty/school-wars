@@ -4,7 +4,6 @@ extends Node
 signal team_eliminated(team: TeamDefinition)
 signal match_ended(player_won: bool, winner: TeamDefinition)
 
-@export_range(1, 40, 1) var victory_territory_count: int = 8
 @export_range(0.1, 3.0, 0.1) var evaluation_interval: float = 0.5
 
 var player_team: TeamDefinition
@@ -43,14 +42,11 @@ func evaluate_match() -> void:
 		if _get_student_count(typed_team_id) == 0:
 			_eliminate_team(typed_team_id)
 
-	var territory_counts: Dictionary = _get_territory_counts()
-	for team_id: Variant in territory_counts:
-		var typed_team_id: StringName = StringName(team_id)
-		if is_team_eliminated(typed_team_id):
-			continue
-		if int(territory_counts[team_id]) >= victory_territory_count:
-			_finish_match(_get_team_definition(typed_team_id))
-			return
+	if is_team_eliminated(player_team.team_id):
+		_finish_match(_get_first_active_team())
+		return
+	if _active_team_ids.size() == 1:
+		_finish_match(player_team)
 
 
 func has_ended() -> bool:
@@ -80,15 +76,10 @@ func _finish_match(winner: TeamDefinition) -> void:
 	match_ended.emit(player_won, winner)
 
 
-func _get_territory_counts() -> Dictionary:
-	var counts: Dictionary = {}
-	for node: Node in get_tree().get_nodes_in_group(TerritoryTile.TERRITORY_GROUP):
-		var territory: TerritoryTile = node as TerritoryTile
-		if territory == null or territory.get_owner_team_id().is_empty():
-			continue
-		var team_id: StringName = territory.get_owner_team_id()
-		counts[team_id] = int(counts.get(team_id, 0)) + 1
-	return counts
+func _get_first_active_team() -> TeamDefinition:
+	for team_id: Variant in _active_team_ids:
+		return _get_team_definition(StringName(team_id))
+	return null
 
 
 func _get_student_count(team_id: StringName) -> int:

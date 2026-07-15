@@ -56,18 +56,14 @@ func _run_tests() -> void:
 		second_order.get_destination().is_equal_approx(Vector2(520.0, 500.0)),
 		"Second student receives the right formation slot"
 	)
-	_check(first_order.get_waypoints().size() == 2, "Move order creates a two-leg route")
-	var route_start: Vector2 = first_student.global_position
-	var route: Array[Vector2] = first_order.get_waypoints()
-	var first_leg: Vector2 = route[0] - route_start
-	var second_leg: Vector2 = route[1] - route[0]
+	_check(first_order.get_waypoints().size() == 1, "Move order uses a direct route")
+	first_order._physics_process(0.01)
+	var expected_direction: Vector2 = (
+		first_order.get_destination() - first_student.global_position
+	).normalized()
 	_check(
-		is_equal_approx(absf(first_leg.x), absf(first_leg.y)),
-		"First movement leg follows an isometric diagonal"
-	)
-	_check(
-		is_equal_approx(absf(second_leg.x), absf(second_leg.y)),
-		"Second movement leg crosses on the opposite isometric diagonal"
+		first_student.get_move_intent().is_equal_approx(expected_direction),
+		"Move order steers naturally toward its destination"
 	)
 
 	await physics_frame
@@ -104,18 +100,20 @@ func _run_tests() -> void:
 	)
 
 	first_order.cancel_order()
+	first_order.set_destination(first_student.global_position + Vector2(20.0, 0.0))
+	first_order._physics_process(0.01)
+	_check(
+		first_student.get_move_intent().length() < 1.0,
+		"Students slow smoothly as they approach their destination"
+	)
+	first_order.cancel_order()
 	first_order.stall_timeout = 0.1
 	first_order.set_destination(
 		first_student.global_position + Vector2(400.0, 300.0)
 	)
 	_check(
-		first_order.get_waypoints().size() == 2,
-		"Blocked route starts with a crisscross waypoint"
-	)
-	first_order._physics_process(0.11)
-	_check(
-		first_order.has_active_order(),
-		"A stalled crisscross leg retries the final destination directly"
+		first_order.get_waypoints().size() == 1,
+		"Natural movement retains a single direct destination"
 	)
 	first_order._physics_process(0.11)
 	_check(
