@@ -3,6 +3,9 @@ extends Control
 
 signal team_selected(team: TeamDefinition)
 
+const HOVER_IN_DURATION: float = 0.14
+const HOVER_OUT_DURATION: float = 0.2
+
 @export var black_team: TeamDefinition
 @export var green_team: TeamDefinition
 @export var yellow_team: TeamDefinition
@@ -10,6 +13,8 @@ signal team_selected(team: TeamDefinition)
 
 var _teams: Array[TeamDefinition] = []
 var _team_buttons: Array[Button] = []
+var _hover_amounts: Array[float] = []
+var _hover_tweens: Dictionary = {}
 
 
 func _ready() -> void:
@@ -37,11 +42,11 @@ func _create_team_buttons() -> void:
 		var team: TeamDefinition = _teams[index]
 		if team == null:
 			continue
-		var button: Button = Button.new()
+		var button: TeamSelectionButton = TeamSelectionButton.new()
 		button.name = "%sTeamButton" % team.display_name
 		button.text = ""
 		button.focus_mode = Control.FOCUS_ALL
-		button.tooltip_text = team.trait_description
+		button.set_trait_tooltip(team.trait_name, team.color.lightened(0.22))
 		button.add_theme_stylebox_override("normal", _make_button_style(Color.TRANSPARENT))
 		button.add_theme_stylebox_override(
 			"hover",
@@ -56,10 +61,11 @@ func _create_team_buttons() -> void:
 			_make_button_style(Color(team.color, 0.24), team.color.lightened(0.45))
 		)
 		button.pressed.connect(_on_team_button_pressed.bind(team))
-		button.mouse_entered.connect(queue_redraw)
-		button.mouse_exited.connect(queue_redraw)
+		button.mouse_entered.connect(_set_card_hovered.bind(index, true))
+		button.mouse_exited.connect(_set_card_hovered.bind(index, false))
 		add_child(button)
 		_team_buttons.append(button)
+		_hover_amounts.append(0.0)
 
 
 func _layout_team_buttons() -> void:
@@ -114,11 +120,36 @@ func _draw_background() -> void:
 func _draw_team_card(card_rect: Rect2, team: TeamDefinition, pose: int) -> void:
 	if team == null:
 		return
-	var button: Button = _team_buttons[pose] if pose < _team_buttons.size() else null
-	var hovered: bool = button != null and button.is_hovered()
-	var card_color: Color = Color(0.08, 0.085, 0.09, 0.16 if not hovered else 0.3)
+	var hover_amount: float = _hover_amounts[pose] if pose < _hover_amounts.size() else 0.0
+	if hover_amount > 0.0:
+		draw_rect(
+			card_rect.grow(7.0),
+			Color(team.color, 0.07 * hover_amount),
+			false,
+			6.0,
+			true
+		)
+		draw_rect(
+			card_rect.grow(2.0),
+			Color(team.color, 0.18 * hover_amount),
+			false,
+			4.0,
+			true
+		)
+	var card_color: Color = Color(
+		0.08,
+		0.085,
+		0.09,
+		lerpf(0.16, 0.3, hover_amount)
+	)
 	draw_rect(card_rect, card_color, true)
-	draw_rect(card_rect, Color(team.color, 0.45 if not hovered else 0.9), false, 2.0)
+	draw_rect(
+		card_rect,
+		Color(team.color, lerpf(0.45, 0.9, hover_amount)),
+		false,
+		lerpf(2.0, 3.0, hover_amount),
+		true
+	)
 	_draw_student(
 		Vector2(card_rect.get_center().x, card_rect.position.y + card_rect.size.y * 0.42),
 		team,
@@ -134,7 +165,7 @@ func _draw_team_card(card_rect: Rect2, team: TeamDefinition, pose: int) -> void:
 		2.0
 	)
 	_draw_centered_text(
-		team.trait_name,
+		team.trait_name.to_upper(),
 		Vector2(card_rect.get_center().x, card_rect.end.y - 15.0),
 		11,
 		team.color.lightened(0.38),
@@ -270,6 +301,35 @@ func _make_button_style(
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(6)
 	return style
+
+
+func _set_card_hovered(index: int, hovered: bool) -> void:
+	if index < 0 or index >= _hover_amounts.size():
+		return
+	if _hover_tweens.has(index):
+		var active_tween: Tween = _hover_tweens[index] as Tween
+		if active_tween != null and active_tween.is_valid():
+			active_tween.kill()
+
+	var target_amount: float = 1.0 if hovered else 0.0
+	var duration: float = HOVER_IN_DURATION if hovered else HOVER_OUT_DURATION
+	var tween: Tween = create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_method(
+		_set_hover_amount.bind(index),
+		_hover_amounts[index],
+		target_amount,
+		duration
+	)
+	_hover_tweens[index] = tween
+
+
+func _set_hover_amount(amount: float, index: int) -> void:
+	if index < 0 or index >= _hover_amounts.size():
+		return
+	_hover_amounts[index] = amount
+	queue_redraw()
 
 
 func _on_team_button_pressed(team: TeamDefinition) -> void:
