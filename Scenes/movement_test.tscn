@@ -36,15 +36,15 @@ corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_status"]
 bg_color = Color(0.02, 0.025, 0.04, 0.88)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.5, 0.53, 0.58, 0.8)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 18
@@ -253,19 +253,19 @@ label_settings = SubResource("LabelSettings_body")
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -162.0
+offset_left = -326.0
 offset_top = 56.0
 offset_right = -14.0
-offset_bottom = 119.0
+offset_bottom = 176.0
 grow_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_status")
 
 [node name="TeamStatus" type="Label" parent="HUD/StatusPanel"]
 layout_mode = 2
-theme_override_constants/outline_size = 1
+theme_override_constants/outline_size = 2
 theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.03, 1)
-theme_override_font_sizes/font_size = 6
+theme_override_font_sizes/font_size = 12
 text = "TEAM · TILES · SPAWN · TRAIT"
 horizontal_alignment = 1
 vertical_alignment = 1
