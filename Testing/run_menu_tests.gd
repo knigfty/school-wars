@@ -47,12 +47,29 @@ func _run_tests() -> void:
 		"RTSCamera"
 	) as RTSCameraController
 	_check(camera.get_pan_target_position().x > 800.0, "Camera opens near Green's east base")
+	var instructions: Control = app.current_match.get_node("HUD/Instructions") as Control
+	var help_button: HelpToggleButton = app.current_match.get_node(
+		"HUD/HelpButton"
+	) as HelpToggleButton
+	_check(not instructions.visible, "How-to-play instructions start hidden")
+	help_button.set_help_visible(true)
+	_check(instructions.visible, "Question-mark button can show instructions")
+	help_button.set_help_visible(false)
+	_check(not instructions.visible, "Question-mark button can hide instructions again")
 
 	app.show_match_result(true, GREEN_TEAM)
+	await process_frame
+	var result_panel: Control = app.get_node("EndScreen/ResultPanel") as Control
 	var result_title: Label = app.get_node(
 		"EndScreen/ResultPanel/Margin/VBox/Title"
 	) as Label
 	_check(end_screen.visible, "Victory screen appears when the match ends")
+	_check(
+		result_panel.get_global_rect().get_center().is_equal_approx(
+			end_screen.get_global_rect().get_center()
+		),
+		"End-game popup remains centered in the viewport"
+	)
 	_check(result_title.text == "VICTORY", "Winning shows the Victory result")
 	_check(
 		app.current_match.process_mode == Node.PROCESS_MODE_DISABLED,
