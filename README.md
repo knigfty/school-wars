@@ -85,7 +85,7 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 - `TerritoryTile` is a monitoring `Area2D`. It filters overlapping bodies to stationary students, resolves team contention, counts allied capturers, applies the 5-to-1-second timing curve, records capture progress, and emits ownership changes.
 - `TeamSpawnPoint` draws and validates each colored base diamond and provides only base-contained spawn slots.
 - `TeamReinforcementSpawner` counts owned territories and live students per team, subtracts one second per tile from the team's base interval, enforces its individual unit cap, and instantiates new students at the matching base.
-- `TeamStatusLabel` displays each team's territory count, current reinforcement interval, and trait.
+- `TeamStatusLabel` displays only each team's live unit count in a compact single-line bar.
 - `TeamAIController` periodically applies four trait-specific strategies, reserves defenders on owned tiles, and selects a team-dependent fraction of free units to chase enemies while leaving the player's units untouched.
 - `MatchManager` permanently disables zero-unit teams, ends immediately on player elimination, and awards victory only after all three opponents are eliminated. Territory control affects reinforcements but never ends the match.
 
