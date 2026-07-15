@@ -10,6 +10,7 @@ const TERRITORY_GROUP: StringName = &"territory_tiles"
 @export var minimum_capture_duration: float = 1.0
 @export var stationary_speed_threshold: float = 5.0
 @export var tile_size: Vector2 = Vector2(110.0, 56.0)
+@export_enum("heart", "club", "spade", "diamond") var emblem: String = "diamond"
 
 var owner_team: TeamDefinition
 var _capturing_team: TeamDefinition
@@ -117,20 +118,19 @@ func _draw() -> void:
 	var lower_points: PackedVector2Array = PackedVector2Array()
 	for point: Vector2 in points:
 		lower_points.append(point + Vector2(0.0, 7.0))
-	draw_colored_polygon(lower_points, Color("777c7b"))
-	var fill_color: Color = Color("f4f5f2")
+	draw_colored_polygon(lower_points, Color("c1c4c2"))
+	var fill_color: Color = Color("fafaf8")
 	if owner_team != null:
-		fill_color = owner_team.color.lightened(0.2)
+		fill_color = owner_team.color.lightened(0.12)
 	draw_colored_polygon(points, fill_color)
 	var outline: PackedVector2Array = points.duplicate()
 	outline.append(points[0])
-	draw_polyline(outline, Color(0.2, 0.23, 0.28, 0.45), 2.0)
+	draw_polyline(outline, Color(1.0, 1.0, 1.0, 0.72), 2.0)
 
-	var emblem_color: Color = Color("b8bdbb")
+	var emblem_color: Color = Color("b7bab8")
 	if owner_team != null:
-		emblem_color = owner_team.color.darkened(0.2)
-	draw_circle(Vector2(0.0, 2.0), 12.0, emblem_color)
-	draw_circle(Vector2(-13.0, -2.0), 8.0, emblem_color)
+		emblem_color = owner_team.color.darkened(0.18)
+	_draw_emblem(emblem_color)
 
 	var capture_ratio: float = get_capture_ratio()
 	if capture_ratio > 0.0 and _capturing_team != null:
@@ -141,3 +141,33 @@ func _draw() -> void:
 			_capturing_team.color,
 			true
 		)
+
+
+func _draw_emblem(color: Color) -> void:
+	match emblem:
+		"heart":
+			draw_circle(Vector2(-7.0, -2.0), 8.0, color)
+			draw_circle(Vector2(7.0, -2.0), 8.0, color)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(-14.0, 1.0), Vector2(14.0, 1.0), Vector2(0.0, 16.0)
+			]), color)
+		"club":
+			draw_circle(Vector2(0.0, -9.0), 8.0, color)
+			draw_circle(Vector2(-9.0, 1.0), 8.0, color)
+			draw_circle(Vector2(9.0, 1.0), 8.0, color)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(-4.0, 4.0), Vector2(4.0, 4.0), Vector2(7.0, 15.0), Vector2(-7.0, 15.0)
+			]), color)
+		"spade":
+			draw_circle(Vector2(-7.0, 3.0), 8.0, color)
+			draw_circle(Vector2(7.0, 3.0), 8.0, color)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0.0, -16.0), Vector2(14.0, 2.0), Vector2(-14.0, 2.0)
+			]), color)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(-4.0, 7.0), Vector2(4.0, 7.0), Vector2(7.0, 16.0), Vector2(-7.0, 16.0)
+			]), color)
+		_:
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0.0, -15.0), Vector2(13.0, 0.0), Vector2(0.0, 15.0), Vector2(-13.0, 0.0)
+			]), color)
