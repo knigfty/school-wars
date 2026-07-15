@@ -24,23 +24,18 @@ func _refresh() -> void:
 		spawner_path
 	) as TeamReinforcementSpawner
 	if spawner == null:
-		text = "Territory status unavailable"
+		text = "Unit counts unavailable"
 		return
-	var lines: PackedStringArray = PackedStringArray(["TEAM · TILES · SPAWN · TRAIT"])
+	var entries: PackedStringArray = PackedStringArray()
 	for node: Node in get_tree().get_nodes_in_group(TeamSpawnPoint.SPAWN_POINT_GROUP):
 		var spawn_point: TeamSpawnPoint = node as TeamSpawnPoint
 		if spawn_point == null or spawn_point.team == null:
 			continue
 		var team_id: StringName = spawn_point.team.team_id
-		if spawner.is_team_eliminated(team_id):
-			lines.append("%s · ELIMINATED" % spawn_point.team.display_name)
-			continue
-		lines.append(
-			"%s · %d · %.1fs · %s" % [
+		entries.append(
+			"%s: %d" % [
 				spawn_point.team.display_name,
-				spawner.get_owned_territory_count(team_id),
-				spawner.get_spawn_interval(team_id),
-				spawn_point.team.trait_name,
+				spawner.get_student_count(team_id),
 			]
 		)
-	text = "\n".join(lines)
+	text = " · ".join(entries)
