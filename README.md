@@ -36,6 +36,7 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 - **Attack an enemy:** with students selected, left-click an enemy student. The squad pursues that target and attacks at contact range.
 - **Pan the map:** hold and drag the right mouse button. Screen-edge panning and optional IJKL camera panning are also available.
 - **Zoom:** use the mouse wheel. Maximum zoom-out fits the whole platform, including its visible depth.
+- **Show controls:** click the round **?** button in the top-right to show the readable how-to-play panel; click it again to hide the panel.
 
 Students never read keyboard movement input. There is no WASD or eight-direction control of an individual student.
 
@@ -73,6 +74,7 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 
 - `GameFlowController` owns the menu → match → result → menu lifecycle. Matches are instantiated only after color selection and are disposed before returning to the menu.
 - `GameMenu` draws the responsive reference-inspired title treatment, uniformed student portraits, four team cards, concise trait tooltips, and an animated team-color hover glow while real Button controls provide input.
+- `HelpToggleButton` keeps the readable in-match instructions hidden until the player requests them from the round question-mark button.
 - `TeamDefinition` resources are the source of truth for team identity, color, exact base spawn interval, unit cap, starting health, damage per second, and takedown growth.
 - `StudentController` is a command-driven `CharacterBody2D` motor and combatant. It owns health, contact detection, target pursuit, attack cadence, damage contribution, takedown rewards, and combat feedback without reading player input.
 - `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
