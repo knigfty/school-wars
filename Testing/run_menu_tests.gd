@@ -48,10 +48,20 @@ func _run_tests() -> void:
 	) as RTSCameraController
 	_check(camera.get_pan_target_position().x > 800.0, "Camera opens near Green's east base")
 	var instructions: Control = app.current_match.get_node("HUD/Instructions") as Control
+	var status_panel: Control = app.current_match.get_node("HUD/StatusPanel") as Control
+	var team_status: Label = status_panel.get_node("TeamStatus") as Label
 	var help_button: HelpToggleButton = app.current_match.get_node(
 		"HUD/HelpButton"
 	) as HelpToggleButton
 	_check(not instructions.visible, "How-to-play instructions start hidden")
+	_check(
+		status_panel.size.is_equal_approx(instructions.size),
+		"Team status matches the instructions panel size"
+	)
+	_check(
+		team_status.get_theme_font_size("font_size") == 12,
+		"Team status uses readable high-resolution text"
+	)
 	help_button.set_help_visible(true)
 	_check(instructions.visible, "Question-mark button can show instructions")
 	help_button.set_help_visible(false)
