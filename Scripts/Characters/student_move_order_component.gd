@@ -6,6 +6,7 @@ signal destination_reached(destination: Vector2)
 signal move_blocked(destination: Vector2)
 
 @export_range(1.0, 64.0, 1.0) var arrival_distance: float = 10.0
+@export_range(24.0, 160.0, 4.0) var arrival_slowdown_distance: float = 72.0
 @export_range(0.25, 5.0, 0.25) var stall_timeout: float = 1.5
 @export_range(0.1, 8.0, 0.1) var minimum_progress_distance: float = 2.0
 
@@ -63,12 +64,17 @@ func _physics_process(delta: float) -> void:
 			move_blocked.emit(blocked_destination)
 			return
 
-	_student.set_move_intent(offset.normalized())
+	var arrival_speed_scale: float = clampf(
+		waypoint_distance / maxf(arrival_slowdown_distance, arrival_distance),
+		0.2,
+		1.0
+	)
+	_student.set_move_intent(offset.normalized() * arrival_speed_scale)
 
 
 func set_destination(world_destination: Vector2) -> void:
 	_destination = world_destination
-	_waypoints = _build_crisscross_waypoints(_student.global_position, _destination)
+	_waypoints = [_destination]
 	_waypoint_index = 0
 	_has_active_order = true
 	_reset_stall_watchdog()
@@ -95,26 +101,6 @@ func get_destination() -> Vector2:
 
 func get_waypoints() -> Array[Vector2]:
 	return _waypoints.duplicate()
-
-
-func _build_crisscross_waypoints(start: Vector2, finish: Vector2) -> Array[Vector2]:
-	var offset: Vector2 = finish - start
-	var diagonal_down_amount: float = (offset.x + offset.y) * 0.5
-	var diagonal_up_amount: float = (offset.x - offset.y) * 0.5
-	var diagonal_down: Vector2 = Vector2(diagonal_down_amount, diagonal_down_amount)
-	var diagonal_up: Vector2 = Vector2(diagonal_up_amount, -diagonal_up_amount)
-	var first_leg: Vector2 = diagonal_down
-	if _student.get_instance_id() % 2 == 0:
-		first_leg = diagonal_up
-	var corner: Vector2 = start + first_leg
-	var result: Array[Vector2] = []
-	if (
-		corner.distance_to(start) > arrival_distance
-		and corner.distance_to(finish) > arrival_distance
-	):
-		result.append(corner)
-	result.append(finish)
-	return result
 
 
 func _complete_order() -> void:
