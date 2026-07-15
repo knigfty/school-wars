@@ -57,7 +57,10 @@ func _run_tests() -> void:
 	_check(not instructions.visible, "How-to-play instructions start hidden")
 	_check(
 		status_panel.size.is_equal_approx(instructions.size),
-		"Team status matches the instructions panel size"
+		"Team status %s matches instructions %s" % [
+			status_panel.size,
+			instructions.size,
+		]
 	)
 	_check(
 		team_status.get_theme_font_size("font_size") == 12,

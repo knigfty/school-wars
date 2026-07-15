@@ -224,6 +224,7 @@ script = ExtResource("4_selection")
 
 [node name="Instructions" type="PanelContainer" parent="HUD"]
 visible = false
+custom_minimum_size = Vector2(312, 120)
 offset_left = 14.0
 offset_top = 12.0
 offset_right = 326.0
@@ -250,6 +251,7 @@ text = "L-drag: select · L-click: move/capture\nL-click enemy: attack\nR-drag: 
 label_settings = SubResource("LabelSettings_body")
 
 [node name="StatusPanel" type="PanelContainer" parent="HUD"]
+custom_minimum_size = Vector2(312, 120)
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
@@ -262,6 +264,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_status")
 
 [node name="TeamStatus" type="Label" parent="HUD/StatusPanel"]
 layout_mode = 2
+clip_text = true
 theme_override_constants/outline_size = 2
 theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
 theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.03, 1)
