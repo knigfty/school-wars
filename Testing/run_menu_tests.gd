@@ -47,6 +47,7 @@ func _run_tests() -> void:
 		"RTSCamera"
 	) as RTSCameraController
 	_check(camera.get_pan_target_position().x > 800.0, "Camera opens near Green's east base")
+	await process_frame
 	var instructions: Control = app.current_match.get_node("HUD/Instructions") as Control
 	var status_panel: Control = app.current_match.get_node("HUD/StatusPanel") as Control
 	var team_status: Label = status_panel.get_node("TeamStatus") as Label
