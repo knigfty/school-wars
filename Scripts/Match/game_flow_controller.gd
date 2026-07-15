@@ -55,9 +55,9 @@ func show_match_result(player_won: bool, winner: TeamDefinition) -> void:
 	_result_title.text = "VICTORY" if player_won else "DEFEAT"
 	_result_title.modulate = Color("71ec7b") if player_won else Color("ee6262")
 	if player_won:
-		_result_detail.text = "%s controls the school." % selected_team.display_name
+		_result_detail.text = "%s eliminated all opposing teams." % selected_team.display_name
 	elif winner != null:
-		_result_detail.text = "%s won the territory war." % winner.display_name
+		_result_detail.text = "%s eliminated your team." % winner.display_name
 	else:
 		_result_detail.text = "Your students were eliminated."
 	_end_screen.show()
