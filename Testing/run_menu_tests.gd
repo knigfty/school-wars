@@ -19,6 +19,17 @@ func _run_tests() -> void:
 	var end_screen: Control = app.get_node("EndScreen") as Control
 	_check(menu.visible, "Game menu is shown when the project launches")
 	_check(menu.get_team_buttons().size() == 4, "Menu offers four team colors")
+	var expected_tooltips: Array[String] = [
+		"All-Rounder",
+		"Fast Spawn",
+		"High Health",
+		"High Attack",
+	]
+	for index: int in expected_tooltips.size():
+		_check(
+			menu.get_team_buttons()[index].tooltip_text == expected_tooltips[index],
+			"%s menu card has its concise trait tooltip" % expected_tooltips[index]
+		)
 	_check(app.current_match == null, "Match does not run behind the launch menu")
 
 	menu.select_team(&"green")
