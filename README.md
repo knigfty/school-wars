@@ -73,7 +73,7 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 ## Technical architecture
 
 - `GameFlowController` owns the menu → match → result → menu lifecycle. Matches are instantiated only after color selection and are disposed before returning to the menu.
-- `GameMenu` draws the responsive reference-inspired title treatment, uniformed student portraits, four team cards, and trait labels while real Button controls provide input.
+- `GameMenu` draws the responsive reference-inspired title treatment, uniformed student portraits, four team cards, concise trait tooltips, and an animated team-color hover glow while real Button controls provide input.
 - `TeamDefinition` resources are the source of truth for team identity, color, exact base spawn interval, unit cap, starting health, damage per second, and takedown growth.
 - `StudentController` is a command-driven `CharacterBody2D` motor and combatant. It owns health, contact detection, target pursuit, attack cadence, damage contribution, takedown rewards, and combat feedback without reading player input.
 - `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
