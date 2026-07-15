@@ -55,17 +55,16 @@ func _run_tests() -> void:
 		"HUD/HelpButton"
 	) as HelpToggleButton
 	_check(not instructions.visible, "How-to-play instructions start hidden")
-	_check(
-		status_panel.size.is_equal_approx(instructions.size),
-		"Team status %s matches instructions %s" % [
-			status_panel.size,
-			instructions.size,
-		]
-	)
+	_check(status_panel.size.y == 36.0, "Team status uses one line of screen space")
 	_check(
 		team_status.get_theme_font_size("font_size") == 12,
 		"Team status uses readable high-resolution text"
 	)
+	_check(
+		team_status.text == "Purple: 2 · Green: 2 · Black: 2 · Yellow: 2",
+		"Team status shows only each color and its live unit count"
+	)
+	_check(not team_status.text.contains("\n"), "Team status remains on one line")
 	help_button.set_help_visible(true)
 	_check(instructions.visible, "Question-mark button can show instructions")
 	help_button.set_help_visible(false)
