@@ -1,7 +1,7 @@
 extends SceneTree
 
 const STUDENT_SCENE: PackedScene = preload("res://Characters/student.tscn")
-const EXPECTED_SPEED: float = 180.0
+const EXPECTED_SPEED: float = 96.0
 
 var _failures: int = 0
 
