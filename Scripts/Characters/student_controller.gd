@@ -15,6 +15,8 @@ const ATTACK_FLASH_DURATION: float = 0.12
 
 @export var stats: StudentStats
 @export var team: TeamDefinition
+@export_range(20.0, 80.0, 2.0) var separation_radius: float = 34.0
+@export_range(0.0, 1.0, 0.05) var separation_weight: float = 0.45
 
 var current_health: float = 0.0
 var maximum_health: float = 0.0
@@ -56,9 +58,10 @@ func _physics_process(delta: float) -> void:
 			_move_intent = Vector2.ZERO
 			_perform_attack(combat_target)
 		elif combat_target == _attack_target:
-			_move_intent = _get_crisscross_direction(target_offset)
+			_move_intent = target_offset.normalized()
 
-	var target_velocity: Vector2 = _move_intent * stats.movement_speed
+	var steered_intent: Vector2 = _get_separated_move_intent()
+	var target_velocity: Vector2 = steered_intent * stats.movement_speed
 	var change_rate: float = (
 		stats.acceleration
 		if not _move_intent.is_zero_approx()
@@ -186,18 +189,20 @@ func _find_contact_enemy() -> StudentController:
 	return nearest_enemy
 
 
-func _get_crisscross_direction(offset: Vector2) -> Vector2:
-	var diagonal_down_amount: float = (offset.x + offset.y) * 0.5
-	var diagonal_up_amount: float = (offset.x - offset.y) * 0.5
-	if absf(diagonal_down_amount) >= absf(diagonal_up_amount):
-		return Vector2(
-			signf(diagonal_down_amount),
-			signf(diagonal_down_amount)
-		).normalized()
-	return Vector2(
-		signf(diagonal_up_amount),
-		-signf(diagonal_up_amount)
-	).normalized()
+func _get_separated_move_intent() -> Vector2:
+	if _move_intent.is_zero_approx():
+		return Vector2.ZERO
+	var separation: Vector2 = Vector2.ZERO
+	for node: Node in get_tree().get_nodes_in_group(STUDENT_GROUP):
+		var other: StudentController = node as StudentController
+		if other == null or other == self or other.get_team_id() != get_team_id():
+			continue
+		var away: Vector2 = global_position - other.global_position
+		var distance: float = away.length()
+		if distance <= 0.01 or distance >= separation_radius:
+			continue
+		separation += away.normalized() * (1.0 - distance / separation_radius)
+	return (_move_intent + separation * separation_weight).limit_length(1.0)
 
 
 func _perform_attack(target: StudentController) -> void:
