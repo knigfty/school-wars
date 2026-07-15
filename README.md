@@ -23,16 +23,15 @@ Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://k
 - Students collide only with other students and the invisible four-edge circumference, so they cannot leave the floating diamond.
 - Enemy students automatically fight one opposing student at a time when they collide. Damage is applied once per second at each team's listed rate and health bars remain visible.
 - A selected squad can pursue a specific enemy. Students who contributed damage receive their team's takedown benefit when that enemy is defeated.
-- A new movement order overrides combat and remains the student's priority until the destination is reached. Explicit attack orders still cancel movement and begin pursuit.
-- A team is permanently eliminated as soon as its last student is killed, regardless of how many squares it owns. Its spawning stops, its old squares cannot award victory, and a four-second `<Color> has been eliminated` announcement appears, but the match continues. Elimination alone never opens a result screen.
-- Capturing eight of the twelve squares is the only match-ending condition. It produces Victory for the player or Defeat when an active AI team reaches the threshold.
+- A new movement order overrides combat and remains the student's priority until the destination is reached or the route is blocked. Units steer directly, separate from nearby teammates, and slow smoothly on arrival. Explicit attack orders still cancel movement and begin pursuit.
+- A team is permanently eliminated as soon as its last student is killed, regardless of how many squares it owns. Its spawning stops and a four-second `<Color> has been eliminated` announcement appears. The player wins only after all three opponents are eliminated and loses immediately when their own team is eliminated.
 - Victory and Defeat screens stop the finished simulation and provide a return button to start again from the color-selection menu.
 
 ## Controls
 
 - **Choose a team:** select Black, Green, Yellow, or Purple from the launch menu. Only the chosen color is player-selectable during that match.
 - **Select students:** left-click one student, or hold and drag the left mouse button around a group.
-- **Direct selected students:** after selecting, left-click empty ground. Students follow two-leg isometric crisscross routes and the command system assigns formation slots so the group does not target one identical point.
+- **Direct selected students:** after selecting, left-click empty ground. Students steer smoothly toward individual formation slots so the group does not target one identical point.
 - **Capture a square:** with students selected, left-click a territory diamond. The squad is ordered to the square's center and captures after stopping there.
 - **Attack an enemy:** with students selected, left-click an enemy student. The squad pursues that target and attacks at contact range.
 - **Pan the map:** hold and drag the right mouse button. Screen-edge panning and optional IJKL camera panning are also available.
@@ -77,7 +76,7 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 - `TeamDefinition` resources are the source of truth for team identity, color, exact base spawn interval, unit cap, starting health, damage per second, and takedown growth.
 - `StudentController` is a command-driven `CharacterBody2D` motor and combatant. It owns health, contact detection, target pursuit, attack cadence, damage contribution, takedown rewards, and combat feedback without reading player input.
 - `SelectableComponent` exposes selection state. `UnitSelectionController` owns click and marquee selection in screen coordinates.
-- `StudentMoveOrderComponent` decomposes destinations into alternating isometric diagonal legs, producing crisscross movement instead of direct straight-line cuts. `UnitCommandController` distributes formation movement, territory-center, and explicit enemy-target orders.
+- `StudentMoveOrderComponent` provides direct steering, smooth arrival, and blocked-route cancellation. `StudentController` adds light teammate separation, while `UnitCommandController` distributes formation movement, territory-center, and explicit enemy-target orders.
 - `RTSCameraController` owns right-drag and edge panning, pointer-centered wheel zoom, smoothing, and viewport-aware constraints.
 - `FourSquareArena` renders the gray four-tip platform with directional top-edge lighting, a raised north bevel, asymmetric side faces, a deep lower rim, and a floating shadow. Four rotated invisible collision shapes form its circumference.
 - `TerritoryField` uses a randomized seed to place neutral tiles within the diamond while enforcing tile spacing and base clearance.
@@ -86,7 +85,7 @@ To run without installing Godot, download the `school-wars-web` artifact from a 
 - `TeamReinforcementSpawner` counts owned territories and live students per team, subtracts one second per tile from the team's base interval, enforces its individual unit cap, and instantiates new students at the matching base.
 - `TeamStatusLabel` displays each team's territory count, current reinforcement interval, and trait.
 - `TeamAIController` periodically applies four trait-specific strategies, reserves defenders on owned tiles, and selects a team-dependent fraction of free units to chase enemies while leaving the player's units untouched.
-- `MatchManager` disables zero-unit teams without ending the simulation and emits a final result only when an active team reaches the conquest threshold.
+- `MatchManager` permanently disables zero-unit teams, ends immediately on player elimination, and awards victory only after all three opponents are eliminated. Territory control affects reinforcements but never ends the match.
 
 ## Automated checks
 
@@ -110,4 +109,4 @@ Some installations name the executable `godot4`.
 
 ## Current scope
 
-This prototype implements the complete menu-to-result loop, player-team selection, opponent territory AI, navigation, constrained camera control, capture, combat, health, team traits, conquest/elimination results, and reinforcement economy. Sound, advanced tactical AI, and full frame-by-frame sprite animation remain future work.
+This prototype implements the complete menu-to-result loop, player-team selection, opponent territory AI, navigation, constrained camera control, capture, combat, health, team traits, elimination results, and reinforcement economy. Sound, advanced tactical AI, and full frame-by-frame sprite animation remain future work.
