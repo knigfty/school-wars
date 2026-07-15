@@ -78,12 +78,6 @@ func _run_tests() -> void:
 		purple_students[1].get_attack_target() == black_target,
 		"AI can send another student chasing a fleeing enemy"
 	)
-	for index: int in manager.victory_territory_count:
-		var eliminated_team_tile: TerritoryTile = (
-			tactical_territories[index] as TerritoryTile
-		)
-		eliminated_team_tile._set_owner(PURPLE_TEAM)
-
 	for node: Node in get_nodes_in_group(StudentController.STUDENT_GROUP):
 		var student: StudentController = node as StudentController
 		if student != null and student.get_team_id() == &"purple":
@@ -112,12 +106,21 @@ func _run_tests() -> void:
 	_check(not announcement.visible, "Elimination announcement hides after four seconds")
 
 	var territories: Array[Node] = get_nodes_in_group(TerritoryTile.TERRITORY_GROUP)
-	for index: int in manager.victory_territory_count:
+	for index: int in mini(8, territories.size()):
 		var territory: TerritoryTile = territories[index] as TerritoryTile
 		territory._set_owner(BLACK_TEAM)
 	manager.evaluate_match()
-	_check(manager.has_ended(), "Controlling the conquest threshold ends the match")
-	_check(_match_results == [true], "Player conquest emits a Victory result")
+	_check(not manager.has_ended(), "Territory control alone does not end the match")
+	_check(_match_results.is_empty(), "Territory control emits no Victory result")
+
+	for node: Node in get_nodes_in_group(StudentController.STUDENT_GROUP):
+		var opponent: StudentController = node as StudentController
+		if opponent == null or opponent.get_team_id() == &"black":
+			continue
+		opponent.free()
+	manager.evaluate_match()
+	_check(manager.has_ended(), "Eliminating all three opponents ends the match")
+	_check(_match_results == [true], "Last surviving player team receives Victory")
 
 	match_scene.free()
 	_match_results.clear()
@@ -132,20 +135,8 @@ func _run_tests() -> void:
 			student.free()
 	defeat_manager.evaluate_match()
 	_check(defeat_manager.is_team_eliminated(&"black"), "Player reaches eliminated state")
-	_check(
-		not defeat_manager.has_ended(),
-		"Player elimination leaves the simulation running"
-	)
-	_check(_match_results.is_empty(), "Player elimination does not emit a match result")
-	var defeat_territories: Array[Node] = get_nodes_in_group(
-		TerritoryTile.TERRITORY_GROUP
-	)
-	for index: int in defeat_manager.victory_territory_count:
-		var territory: TerritoryTile = defeat_territories[index] as TerritoryTile
-		territory._set_owner(GREEN_TEAM)
-	defeat_manager.evaluate_match()
-	_check(defeat_manager.has_ended(), "Territory conquest still ends the match")
-	_check(_match_results == [false], "Opponent conquest emits a Defeat result")
+	_check(defeat_manager.has_ended(), "Player elimination ends the match immediately")
+	_check(_match_results == [false], "Player elimination emits a Defeat result")
 
 	defeat_scene.queue_free()
 	if _failures == 0:
