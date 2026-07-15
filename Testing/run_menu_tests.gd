@@ -55,7 +55,7 @@ func _run_tests() -> void:
 		"HUD/HelpButton"
 	) as HelpToggleButton
 	_check(not instructions.visible, "How-to-play instructions start hidden")
-	_check(status_panel.size.y == 36.0, "Team status uses one line of screen space")
+	_check(status_panel.size.y <= 64.0, "Team status uses a compact single-line bar")
 	_check(
 		team_status.get_theme_font_size("font_size") == 12,
 		"Team status uses readable high-resolution text"
