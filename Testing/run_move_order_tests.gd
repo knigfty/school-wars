@@ -103,6 +103,26 @@ func _run_tests() -> void:
 		"Active movement takes priority over automatic contact combat"
 	)
 
+	first_order.cancel_order()
+	first_order.stall_timeout = 0.1
+	first_order.set_destination(
+		first_student.global_position + Vector2(400.0, 300.0)
+	)
+	_check(
+		first_order.get_waypoints().size() == 2,
+		"Blocked route starts with a crisscross waypoint"
+	)
+	first_order._physics_process(0.11)
+	_check(
+		first_order.has_active_order(),
+		"A stalled crisscross leg retries the final destination directly"
+	)
+	first_order._physics_process(0.11)
+	_check(
+		not first_order.has_active_order() and first_student.velocity.is_zero_approx(),
+		"A fully blocked move order cancels instead of hanging forever"
+	)
+
 	first_student.queue_free()
 	second_student.queue_free()
 	enemy_student.queue_free()
