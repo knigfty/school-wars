@@ -60,6 +60,8 @@ The legacy `Scenes/main.tscn`, `Scenes/movement_test.tscn`, public classes, reso
 
 No manual scene wiring, autoloads, addons, or resource assignments are required. Install matching Web export templates for HTML5, then use the existing launch tools. The renderer remains GL Compatibility and the Web preset remains threadless. Pull requests test and export without deploying Pages. Merging to `main` uses the existing Pages deployment.
 
+For Vercel, `vercel.json` selects the static `export/web` output. `Tools/build_vercel.sh` downloads checksum-pinned Godot 4.3 tools, imports the project, and exports the native Web build. It needs no API keys, Node dependencies, or manual Godot installation. The hosting configuration sets same-origin isolation headers and explicit WebAssembly/PCK content types. A deployment can target the revamp branch for playtesting before merging.
+
 ## Asset provenance and reproducibility
 
 Source: user-supplied `schwar.swf`, SHA-256 `5994d74c67d46a96ab1f6f74926fada050b06df07d2dffd3b9fc5ff605e70e8a`.
