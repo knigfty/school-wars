@@ -377,10 +377,10 @@ func _fighting(student: ClassicStudent) -> void:
 
 
 func _dying(student: ClassicStudent) -> void:
-	student.counter -= 1
 	if student.counter > 0:
 		if student.fight_phase == 1:
 			student.pattern = 23 if student.counter % 2 else 24
+		student.counter -= 1
 		return
 	if student.fight_phase == 0:
 		student.pattern += 1
@@ -388,6 +388,7 @@ func _dying(student: ClassicStudent) -> void:
 		if student.pattern >= 23:
 			student.fight_phase = 1
 			student.counter = 12
+		student.counter -= 1
 		return
 	student.state = ClassicStudent.State.UNUSED
 	occupancy.erase(student.cell)

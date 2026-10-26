@@ -57,6 +57,11 @@ func _run() -> void:
 	healing.owner = -1
 	sim._sitting(student)
 	_check(is_equal_approx(student.health, 5.1), "Neutral hearts do not heal")
+	var saved_progress: int = healing.progress[student.team]
+	student.cell = old_cell
+	sim._sitting(student)
+	_check(healing.progress[student.team] == saved_progress, "Leaving retains partial capture progress")
+	student.cell = healing.tile * 4
 	student.state = ClassicStudent.State.WALK
 	var before: int = healing.progress[student.team]
 	# Normal ticks only call sitting() for seated students.
@@ -97,6 +102,11 @@ func _test_fight() -> void:
 	_check(attacker.maximum_health == 21 and attacker.level == 1, "Killer gains exactly one maximum HP")
 	_check(attacker.health == 10, "Level-up does not restore current HP")
 	_check(sim.get_count(target.team) == 3, "Dying student counts until death animation completes")
+	for i: int in 28:
+		sim._dying(target)
+	_check(target.state == ClassicStudent.State.DEAD, "Death animation keeps its slot for 28 complete ticks")
+	sim._dying(target)
+	_check(target.state == ClassicStudent.State.UNUSED, "Death releases its slot on the twenty-ninth tick")
 	for i: int in 40:
 		if target.state == ClassicStudent.State.DEAD:
 			sim._dying(target)
@@ -160,7 +170,10 @@ func _test_shell() -> void:
 		app.board.select_all()
 		_check(app.board.selected.size() == 3, "Select all respects chosen school")
 		app._show_help()
+		await process_frame
 		_check(app.board.paused and app.modal.visible, "Help pauses simulation")
+		var dialog: Control = app.modal.get_node("Dialog")
+		_check(dialog.get_rect().end.y <= app.size.y, "Help dialog stays inside viewport")
 		app._resume()
 		_check(not app.board.paused and not app.modal.visible, "Resume closes overlay")
 		app._show_result(true)

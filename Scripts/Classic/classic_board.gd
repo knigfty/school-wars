@@ -91,6 +91,8 @@ func set_camera(world: Vector2) -> void:
 
 
 func cancel_selection() -> void:
+	if not selected.is_empty():
+		_on_sound("cancel", camera_center)
 	selected.clear()
 	_selecting = false
 	_panning = false

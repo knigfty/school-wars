@@ -49,6 +49,10 @@ async function run() {
       await page.mouse.wheel(0, -120);
       await delay(300);
       await page.screenshot({ path: `${output}/${team}-orders.png` });
+      await page.mouse.click(650, 26);
+      await delay(200);
+      await page.screenshot({ path: `${output}/${team}-help.png` });
+      await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
       await delay(350);
       const paused = await page.screenshot({ path: `${output}/${team}-paused.png` });
@@ -57,12 +61,21 @@ async function run() {
       await page.keyboard.press('Escape');
       await delay(150);
       assert(!paused.equals(await page.screenshot()), `${team} Escape must resume the match`);
+      await page.mouse.click(910, 26);
+      await delay(150);
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Enter');
+      await delay(200);
+      const returned = await page.screenshot({ path: `${output}/${team}-returned-menu.png` });
+      assert(menu.equals(returned), `${team} quit must return to school selection`);
     }
+    await page.mouse.click(790, 465);
+    await delay(200);
     await page.setViewportSize({ width: 1280, height: 720 });
     await delay(200);
     await page.screenshot({ path: `${output}/wide-match.png` });
     assert.deepEqual(errors, [], 'Web build must have no browser or GDScript errors');
-    console.log('Chromium: all four schools, selection, movement, pan, zoom, pause/resume, and resize passed.');
+    console.log('Chromium: all four schools, selection, orders, pan, zoom, help, pause/resume, quit/menu, and resize passed.');
   } finally {
     writeFileSync(`${output}/errors.json`, JSON.stringify(errors, null, 2));
     if (browser) await browser.close();

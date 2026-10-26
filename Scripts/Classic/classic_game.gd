@@ -11,10 +11,12 @@ var modal: Control
 var cards: Array[Button] = []
 var status: RichTextLabel
 var selection_label: Label
+var hint_panel: PanelContainer
 var announcement_label: Label
 var cancel_button: Button
 var modal_title: Label
 var modal_body: Label
+var modal_scroll: ScrollContainer
 var resume_button: Button
 var replay_button: Button
 var quit_button: Button
@@ -22,6 +24,7 @@ var _announcement_time: float = 0.0
 var _team: int = 0
 var _seed: int = 0
 var _muted: bool = false
+var _dialog_height: float = 280.0
 
 
 func _ready() -> void:
@@ -141,7 +144,16 @@ func _build_hud() -> void:
 	buttons.add_child(_button("Quit", _show_quit))
 	selection_label = _label("Drag around students to select.", 14)
 	selection_label.name = "SelectionHint"
-	hud.add_child(selection_label)
+	hint_panel = PanelContainer.new()
+	hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint_style: StyleBoxFlat = _panel(Color(0.04, 0.04, 0.04, 0.86))
+	hint_style.content_margin_left = 10
+	hint_style.content_margin_right = 10
+	hint_style.content_margin_top = 6
+	hint_style.content_margin_bottom = 6
+	hint_panel.add_theme_stylebox_override("panel", hint_style)
+	hint_panel.add_child(selection_label)
+	hud.add_child(hint_panel)
 	cancel_button = _button("Cancel selection", board.cancel_selection)
 	hud.add_child(cancel_button)
 	minimap = ClassicMinimap.new()
@@ -178,7 +190,12 @@ func _build_modal() -> void:
 	box.add_child(modal_title)
 	modal_body = _label("", 15)
 	modal_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(modal_body)
+	modal_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	modal_scroll = ScrollContainer.new()
+	modal_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	modal_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	modal_scroll.add_child(modal_body)
+	box.add_child(modal_scroll)
 	resume_button = _button("Resume", _resume)
 	box.add_child(resume_button)
 	replay_button = _button("Play again", func() -> void: _start_match(_team))
@@ -218,8 +235,8 @@ func _layout() -> void:
 	status.size = Vector2(maxf(270, size.x - 540), 30)
 	hud.get_node("Actions").position = Vector2(size.x - 330, 7)
 	hud.get_node("Actions").size = Vector2(318, 38)
-	selection_label.position = Vector2(18, size.y - 42)
-	selection_label.size = Vector2(size.x - 220, 30)
+	hint_panel.position = Vector2(14, size.y - 46)
+	hint_panel.size = Vector2(minf(size.x - 228, 680), 32)
 	cancel_button.position = Vector2(18, size.y - 88)
 	cancel_button.size = Vector2(160, 36)
 	minimap.position = size - Vector2(190, 122)
@@ -228,8 +245,8 @@ func _layout() -> void:
 	announcement_label.size = Vector2(size.x, 40)
 	if modal != null:
 		var dialog: Control = modal.get_node("Dialog")
-		dialog.position = Vector2((size.x - 560) * 0.5, (size.y - 460) * 0.5)
-		dialog.size = Vector2(560, 460)
+		dialog.position = Vector2((size.x - 560) * 0.5, (size.y - _dialog_height) * 0.5)
+		dialog.size = Vector2(560, _dialog_height)
 
 
 func _start_match(team: int) -> void:
@@ -262,6 +279,10 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 	board.cancel_selection()
 	modal_title.text = title
 	modal_body.text = body
+	_dialog_height = 460.0 if title == "How to play" else 280.0
+	# Bound text layout before wrapping, including platforms with different font metrics.
+	modal_scroll.custom_minimum_size.y = 140.0 if title == "How to play" else 32.0
+	modal_scroll.scroll_vertical = 0
 	resume_button.visible = can_resume
 	replay_button.visible = can_replay
 	modal.show()
