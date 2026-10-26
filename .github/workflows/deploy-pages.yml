@@ -1,6 +1,7 @@
 name: Export and deploy Web build
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -61,12 +62,29 @@ jobs:
             run_reinforcement_tests.gd \
             run_combat_tests.gd \
             run_menu_tests.gd \
-            run_match_tests.gd; do
+            run_match_tests.gd \
+            run_classic_tests.gd; do
             "$godot" --headless --path . --script "res://Testing/$test_script"
           done
           rm -rf export/web
           mkdir -p export/web
           "$godot" --headless --path . --export-release Web export/web/index.html
+
+      - name: Smoke-test Classic in Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/school-wars-browser playwright@1.48.2
+          /tmp/school-wars-browser/node_modules/.bin/playwright install --with-deps chromium
+          NODE_PATH=/tmp/school-wars-browser/node_modules node Tools/smoke_classic_web.cjs
+
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-browser-checks
+          path: Testing/browser-output
+          if-no-files-found: ignore
 
       - name: Validate and prepare Web build
         shell: bash
@@ -89,6 +107,7 @@ jobs:
           retention-days: 30
 
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload GitHub Pages artifact
@@ -99,6 +118,7 @@ jobs:
   deploy:
     name: Deploy GitHub Pages
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

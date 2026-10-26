@@ -1,5 +1,17 @@
 # School Wars
 
+The default game is now the SWF-based Classic revamp. See [Classic rules and architecture](Docs/CLASSIC.md) for the recovered game rules, controls, asset provenance, and validation. The earlier prototype remains available by running `Scenes/main.tscn` directly; the prototype documentation below describes that legacy mode.
+
+## Classic quick start
+
+Open `project.godot` in Godot 4.3+ and press **F5**. No nodes, autoloads, or plugins need manual setup. For HTML5, install the matching Web export templates and run `./Tools/run_web.sh`.
+
+Classic uses the original 400 directional animation frames, fist/heart tiles, and six sound cues. It restores three students per school, the shared 12-student cap, randomized corner bases, seated capture and healing, and the source recruitment/combat rules. Space-drag, the minimap, and click-then-order selection follow the original, with optional right-drag, zoom, pause, and keyboard controls.
+
+Run the new suite with `godot --headless --path . --script res://Testing/run_classic_tests.gd`. Pull requests run this suite, the eleven legacy suites, the Web export, and Chromium smoke checks. The existing Pages deployment remains limited to `main` or manual workflow runs.
+
+## Legacy prototype
+
 School Wars is a browser-first Godot 4 RTS prototype. Choose a school color from the launch menu, then fight three autonomous teams for territory on a floating isometric platform using mouse-driven squad control, stationary capture, close-contact combat, and territory-scaled reinforcements.
 
 Play the current GitHub Pages build at [knigfty.github.io/school-wars](https://knigfty.github.io/school-wars/).
