@@ -3,3 +3,4 @@ export/
 __pycache__/
 *.py[cod]
 *.tmp
+Testing/browser-output/

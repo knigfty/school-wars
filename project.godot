@@ -5,17 +5,17 @@ config_version=5
 [application]
 
 config/name="School Wars"
-run/main_scene="res://Scenes/main.tscn"
+run/main_scene="res://Scenes/Classic/classic_game.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 
 [display]
 
 window/size/viewport_width=960
-window/size/viewport_height=540
+window/size/viewport_height=600
 window/size/window_width_override=960
-window/size/window_height_override=540
+window/size/window_height_override=600
 window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/aspect="keep"
 
 [input]
 

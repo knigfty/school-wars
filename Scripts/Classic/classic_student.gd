@@ -1,0 +1,33 @@
+class_name ClassicStudent
+extends RefCounted
+
+enum State { UNUSED, DEAD, WALK, STAND, SIT, WAIT, FIGHT }
+
+var id: int
+var team: int
+var cell: Vector2i
+var previous_cell: Vector2i
+var destination: Vector2i
+var target_id: int = -1
+var state: State = State.UNUSED
+var direction: int = 0
+var pattern: int = 10
+var counter: int = 0
+var walk_tick: int = 0
+var fight_phase: int = 0
+var idle_ticks: int = 0
+var level: int = 0
+var level_ticks: int = 0
+var health: float
+var maximum_health: float
+var history: Array[Vector2i] = []
+
+
+func is_alive() -> bool:
+	return state > State.DEAD
+
+
+func world_position() -> Vector2:
+	if state == State.WALK:
+		return ClassicRules.cell_to_world(Vector2(previous_cell).lerp(Vector2(cell), float(walk_tick) / 6.0))
+	return ClassicRules.cell_to_world(Vector2(cell))
