@@ -1,0 +1,32 @@
+name: Verify live playtest
+
+on:
+  push:
+    branches: [revamp/swf-classic]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium checker
+        run: |
+          npm install --prefix /tmp/school-wars-browser playwright@1.48.2
+          /tmp/school-wars-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Exercise public Vercel site
+        env:
+          NODE_PATH: /tmp/school-wars-browser/node_modules
+          SCHOOL_WARS_SMOKE_BASE_URL: https://school-wars-playtest.vercel.app
+        run: node Tools/smoke_classic_web.cjs
+      - name: Upload live screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-playtest-browser-checks
+          path: Testing/browser-output
+          if-no-files-found: ignore

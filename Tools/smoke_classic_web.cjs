@@ -8,13 +8,14 @@ const assert = require('node:assert/strict');
 async function run() {
   const output = 'Testing/browser-output';
   mkdirSync(output, { recursive: true });
-  const server = spawn('python3', ['Tools/serve_web.py', '--directory', 'export/web', '--port', '8061'], { stdio: 'ignore' });
+  const baseUrl = process.env.SCHOOL_WARS_SMOKE_BASE_URL || 'http://127.0.0.1:8061';
+  const server = process.env.SCHOOL_WARS_SMOKE_BASE_URL ? null : spawn('python3', ['Tools/serve_web.py', '--directory', 'export/web', '--port', '8061'], { stdio: 'ignore' });
   let browser;
   const errors = [];
   try {
     for (let attempt = 0; attempt < 40; attempt++) {
       try {
-        if ((await fetch('http://127.0.0.1:8061')).ok) break;
+        if ((await fetch(baseUrl)).ok) break;
       } catch { /* server is starting */ }
       await delay(100);
     }
@@ -25,7 +26,7 @@ async function run() {
       if (message.type() === 'error' || /SCRIPT ERROR|Parse Error/.test(message.text())) errors.push(message.text());
     });
     for (const [team, x] of [['black', 172], ['green', 378], ['yellow', 584], ['purple', 790]]) {
-      await page.goto('http://127.0.0.1:8061');
+      await page.goto(baseUrl);
       await page.waitForSelector('canvas');
       await page.waitForFunction(() => {
         const status = document.querySelector('#status');
@@ -79,7 +80,7 @@ async function run() {
   } finally {
     writeFileSync(`${output}/errors.json`, JSON.stringify(errors, null, 2));
     if (browser) await browser.close();
-    server.kill();
+    if (server) server.kill();
   }
 }
 
