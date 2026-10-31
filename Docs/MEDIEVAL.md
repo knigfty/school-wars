@@ -93,3 +93,8 @@ Range is Manhattan distance in movement grid cells, not the larger capture tiles
 Orc conversion replaces the dead enemy with a fresh full-health orc of the killer's team, with a new unit ID and no inherited stats, selection, or targeting orders. The death cell is transferred immediately without an overlapping corpse. Conversions can exceed the normal population cap; regular recruitment still respects the cap. Converting a team's last unit triggers elimination and unlocks its bases.
 
 Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, assist expiration and duplicate prevention, dead/reused contributors, real ranged damage and pursuit, sustained movement speed, deterministic conversion rolls and death-cell occupancy, elimination and fresh-spawn resets. Classic rules remain unchanged.
+
+
+## Floating reward text
+
+Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans show "+2 HP", "+2 PUNCH", and "+3 RANGE" at their first three kill milestones; successful orc conversions show "ORCS RISE!" above the killer; elves show "+1 HP" and demons "+1 PUNCH" for rewarded kills or assists. Later human kills and failed orc conversion rolls do not trigger another notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.

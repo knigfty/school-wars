@@ -268,8 +268,11 @@ func _draw() -> void:
 			draw_rect(Rect2(health_pos, Vector2(student.health, 1) * view_zoom), Color("66ff00"))
 		if student.id in selected and student.is_alive():
 			draw_string(ThemeDB.fallback_font, pos + Vector2(-4, -39) * view_zoom, "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 13 * view_zoom, Color.WHITE)
-		if student.level_ticks > 0:
-			draw_string(ThemeDB.fallback_font, pos + Vector2(-20, -45) * view_zoom, "Level up!", HORIZONTAL_ALIGNMENT_LEFT, -1, 9 * view_zoom, Color.WHITE)
+		if student.level_ticks > 0 and not student.event_text.is_empty():
+			var text_offset: float = -20.0
+			if simulation.medieval:
+				text_offset = -ThemeDB.fallback_font.get_string_size(student.event_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x * 0.5
+			draw_string(ThemeDB.fallback_font, pos + Vector2(text_offset, -45) * view_zoom, student.event_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9 * view_zoom, Color.WHITE)
 	if not selected.is_empty() and not _selecting:
 		var enemy: int = pick_student(_pointer, true)
 		if enemy >= 0:

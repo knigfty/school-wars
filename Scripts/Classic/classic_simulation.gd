@@ -159,6 +159,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.punch_bonus = 0
 	student.level = 0
 	student.level_ticks = 0
+	student.event_text = ""
 	student.walk_tick = 0.0
 	student.direction = rng.randi_range(0, 3)
 	student.target_id = -1
@@ -576,6 +577,7 @@ func _fighting(student: ClassicStudent) -> void:
 				sound_requested.emit("dead", target.world_position())
 				if medieval and student.team == 1 and rng.randf() < 0.5:
 					_convert_to_orc(target)
+					student.show_event("ORCS RISE!")
 			else:
 				if _can_attack_priority(target) and target.priority_target_id != student.id:
 					sound_requested.emit("punch", target.world_position())
@@ -842,15 +844,19 @@ func _attack_positions(student: ClassicStudent, target_cell: Vector2i) -> Array[
 
 func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 	killer.level += 1
-	killer.level_ticks = 30
 	if not medieval:
+		killer.show_event("Level up!")
 		killer.maximum_health += 1.0
 		return
 	if killer.team == 0:
 		if killer.level == 1:
 			killer.maximum_health += 2.0
+			killer.show_event("+2 HP")
 		elif killer.level == 2:
 			killer.punch_bonus += 2
+			killer.show_event("+2 PUNCH")
+		elif killer.level == 3:
+			killer.show_event("+3 RANGE")
 	# Damage records include the killing blow, so each contributor is rewarded once.
 	for id: int in victim.damage_contributors:
 		var record: Dictionary = victim.damage_contributors[id]
@@ -859,10 +865,10 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			continue
 		if contributor.team == 2:
 			contributor.maximum_health += 1.0
-			contributor.level_ticks = 30
+			contributor.show_event("+1 HP")
 		elif contributor.team == 3:
 			contributor.punch_bonus += 1
-			contributor.level_ticks = 30
+			contributor.show_event("+1 PUNCH")
 	victim.damage_contributors.clear()
 
 

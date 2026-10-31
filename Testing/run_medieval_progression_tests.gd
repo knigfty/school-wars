@@ -64,6 +64,8 @@ func _test_humans() -> void:
 		var victim: ClassicStudent = _unit(sim, kill, 2, Vector2i(21, 20))
 		victim.health = 1
 		_hit(sim, human, victim)
+		if kill <= 3:
+			_check(human.event_text == ["+2 HP", "+2 PUNCH", "+3 RANGE"][kill - 1] and human.level_ticks == 30, "Human milestone shows actual reward")
 		_check(human.level == kill, "Human kill count increments")
 		_check(human.maximum_health == 22, "Human first-kill HP milestone applies once")
 		_check(human.health == 5, "Human max HP reward does not instantly heal")
@@ -92,6 +94,8 @@ func _test_assists() -> void:
 		_hit(sim, killer, victim)
 		_check(elf.maximum_health == (26 if elapsed <= 54 else 25), "Elf assist window includes exactly three seconds")
 		_check(demon.punch_bonus == (1 if elapsed <= 54 else 0), "Demon assist window includes exactly three seconds")
+		_check(elf.event_text == ("+1 HP" if elapsed <= 54 else ""), "Elf event only appears for awarded HP")
+		_check(demon.event_text == ("+1 PUNCH" if elapsed <= 54 else ""), "Demon event only appears for awarded punch")
 		_check(elf.health == 5 and elf.level == 0 and demon.level == 0, "Assists grant stats without healing or counting as kills")
 		_check(victim.damage_contributors.is_empty(), "Victim damage ledger cleared after death")
 
@@ -232,6 +236,7 @@ func _test_conversion() -> void:
 			_check(victim.health == 1 and victim.damage_contributors.is_empty(), "Misses never grant credit or conversion")
 			continue
 		kills += 1
+		_check(orc.event_text == ("ORCS RISE!" if convert else "") and orc.level_ticks == (30 if convert else 0), "Orc celebrates only successful conversion")
 		_check(victim.state == (ClassicStudent.State.UNUSED if convert else ClassicStudent.State.DEAD), "Conversion uses seeded 50 percent roll")
 		_check(watcher.target_id == -1 and watcher.priority_target_id == -1, "Dead target orders cleared before conversion")
 		if convert:
@@ -261,10 +266,12 @@ func _test_reset() -> void:
 		unit.level = 10
 		unit.punch_bonus = 20
 		unit.maximum_health = 50
+		unit.show_event("old reward")
 		unit.walk_tick = 1.5
 		unit.damage_contributors[20] = {"tick": 0, "lifetime": 1}
 		sim._initialize_student(unit, team, Vector2i(team, 5))
 		_check(unit.level == 0 and unit.punch_bonus == 0 and unit.damage_contributors.is_empty(), "Fresh units reset progression and assist history")
+		_check(unit.event_text.is_empty() and unit.level_ticks == 0, "Fresh units clear event text")
 		_check(unit.walk_tick == 0 and sim.get_attack_range(unit) == 1 and sim.get_movement_multiplier(unit) == 1.0, "Fresh units reset range and movement")
 
 

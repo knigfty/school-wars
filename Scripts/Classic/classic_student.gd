@@ -25,6 +25,7 @@ var damage_contributors: Dictionary = {}
 var punch_bonus: int = 0
 var level: int = 0
 var level_ticks: int = 0
+var event_text: String = ""
 var health: float
 var maximum_health: float
 var history: Array[Vector2i] = []
@@ -38,3 +39,8 @@ func world_position() -> Vector2:
 	if state == State.WALK:
 		return ClassicRules.cell_to_world(Vector2(previous_cell).lerp(Vector2(cell), float(walk_tick) / 6.0))
 	return ClassicRules.cell_to_world(Vector2(cell))
+
+
+func show_event(message: String) -> void:
+	event_text = message
+	level_ticks = 30
