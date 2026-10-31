@@ -478,6 +478,21 @@ func _test_shell() -> void:
 		_check(app.menu.visible and not app.board.visible, "Menu safely disposes active view")
 	app.queue_free()
 	await process_frame
+	var medieval_app: Control = scene.instantiate()
+	medieval_app.medieval = true
+	root.add_child(medieval_app)
+	medieval_app._muted = true
+	await process_frame
+	_check(medieval_app.menu_title.text == "MEDIEVAL WARS", "Medieval variant has independent title")
+	_check(medieval_app.board.team_names == ["Humans", "Orcs", "Elves", "Demons"], "Medieval races retain team order")
+	_check(medieval_app.board.student_texture == medieval_app.MEDIEVAL_STUDENTS, "Race atlas is used in menu and match")
+	_check(is_instance_valid(medieval_app.extras_button), "Variant has return navigation")
+	for team: int in 4:
+		medieval_app._start_match(team)
+		_check(medieval_app.board.simulation.get_count(team) == 3, "Every race starts with unchanged gameplay")
+		medieval_app._show_menu()
+	medieval_app.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, description: String) -> void:

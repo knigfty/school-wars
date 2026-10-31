@@ -3,6 +3,16 @@ extends Control
 ## Application shell for the faithful ruleset. Legacy main.tscn stays runnable.
 const MENU_ART: Texture2D = preload("res://Assets/Classic/menu.png")
 
+const MEDIEVAL_ART: Texture2D = preload("res://Assets/Medieval/menu.jpg")
+const MEDIEVAL_STUDENTS: Texture2D = preload("res://Assets/Medieval/students.png")
+const RACE_NAMES: Array[String] = ["Humans", "Orcs", "Elves", "Demons"]
+
+var medieval: bool = false
+var extras_button: Button
+var menu_title: Label
+var menu_subtitle: Label
+var _pop_time: float = 0.0
+var _reduce_motion: bool = false
 var board: ClassicBoard
 var minimap: ClassicMinimap
 var menu: Control
@@ -27,8 +37,16 @@ var _dialog_height: float = 280.0
 
 
 func _ready() -> void:
+	if OS.has_feature("web"):
+		medieval = bool(JavaScriptBridge.eval("window.location.pathname == '/v2' || window.location.pathname.startsWith('/v2/')"))
+		_reduce_motion = bool(JavaScriptBridge.eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches"))
+		if medieval:
+			JavaScriptBridge.eval("document.title = 'Medieval Wars'")
 	_build_theme()
 	board = ClassicBoard.new()
+	if medieval:
+		board.student_texture = MEDIEVAL_STUDENTS
+		board.team_names.assign(RACE_NAMES)
 	add_child(board)
 	_full_rect(board)
 	board.match_finished.connect(_show_result)
@@ -70,23 +88,43 @@ func _build_menu() -> void:
 	_full_rect(background)
 	var art: TextureRect = TextureRect.new()
 	art.name = "OriginalTitleArt"
-	art.texture = MENU_ART
+	art.texture = MEDIEVAL_ART if medieval else MENU_ART
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED if medieval else TextureRect.STRETCH_SCALE
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu.add_child(art)
+	if medieval:
+		var shade: ColorRect = ColorRect.new()
+		shade.name = "TitleShade"
+		shade.color = Color(0, 0, 0, 0.32)
+		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		menu.add_child(shade)
+		menu_title = _label("MEDIEVAL WARS", 56)
+		menu_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		menu_title.add_theme_color_override("font_color", Color("f6e4b5"))
+		menu_title.add_theme_color_override("font_shadow_color", Color.BLACK)
+		menu_title.add_theme_constant_override("shadow_offset_x", 3)
+		menu_title.add_theme_constant_override("shadow_offset_y", 4)
+		menu.add_child(menu_title)
+		menu_subtitle = _label("FOUR RACES. ONE BATTLEFIELD.", 15)
+		menu_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		menu_subtitle.add_theme_color_override("font_color", Color("f6e4b5"))
+		menu.add_child(menu_subtitle)
+	extras_button = _button("School Wars" if medieval else "Extras", _navigate_variant)
+	extras_button.name = "ExtrasButton"
+	menu.add_child(extras_button)
 	for team: int in 4:
 		var button: Button = Button.new()
-		button.name = "%sSchool" % ClassicRules.TEAM_NAMES[team]
+		button.name = "%sSchool" % board.team_names[team]
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		button.tooltip_text = "%s: %d HP · %d punch · 12 starting capacity" % [ClassicRules.TEAM_NAMES[team], ClassicRules.HEALTH[team], ClassicRules.PUNCH[team]]
+		button.tooltip_text = "%s: %d HP · %d punch · 12 starting capacity" % [board.team_names[team], ClassicRules.HEALTH[team], ClassicRules.PUNCH[team]]
 		button.pressed.connect(_start_match.bind(team))
 		menu.add_child(button)
 		cards.append(button)
 		var icon: TextureRect = TextureRect.new()
 		icon.name = "Portrait"
 		var atlas: AtlasTexture = AtlasTexture.new()
-		atlas.atlas = ClassicBoard.STUDENTS
+		atlas.atlas = board.student_texture
 		var index: int = team * 100 + 10
 		atlas.region = Rect2(Vector2(index % 20 * 32, index / 20 * 48), Vector2(32, 48))
 		icon.texture = atlas
@@ -94,7 +132,7 @@ func _build_menu() -> void:
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(icon)
-		var title: Label = _label(ClassicRules.TEAM_NAMES[team], 20)
+		var title: Label = _label(board.team_names[team], 20)
 		title.name = "SchoolName"
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.add_child(title)
@@ -103,7 +141,7 @@ func _build_menu() -> void:
 		trait_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		trait_label.modulate = ClassicRules.COLORS[team].lightened(0.55)
 		button.add_child(trait_label)
-	var footer: Label = _label("Choose your school colour. Eliminate the other three schools.", 13)
+	var footer: Label = _label("Choose your race. Eliminate the other three races." if medieval else "Choose your school colour. Eliminate the other three schools.", 13)
 	footer.name = "Footer"
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	footer.add_theme_color_override("font_color", Color("252525"))
@@ -120,7 +158,7 @@ func _build_hud() -> void:
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_theme_stylebox_override("panel", _panel(Color(0.04, 0.04, 0.04, 0.92)))
 	hud.add_child(bar)
-	var title: Label = _label("SCHOOL WARS", 17)
+	var title: Label = _label("MEDIEVAL WARS" if medieval else "SCHOOL WARS", 17)
 	title.position = Vector2(18, 12)
 	bar.add_child(title)
 	status = RichTextLabel.new()
@@ -206,6 +244,15 @@ func _layout() -> void:
 		return
 	var art: Control = menu.get_node("OriginalTitleArt")
 	art.size = Vector2(size.x, size.y * 0.64)
+	extras_button.position = Vector2(size.x - 168, 24)
+	extras_button.size = Vector2(140, 44)
+	extras_button.pivot_offset = extras_button.size * 0.5
+	if medieval:
+		menu.get_node("TitleShade").size = art.size
+		menu_title.position = Vector2(20, size.y * 0.25)
+		menu_title.size = Vector2(size.x - 40, 80)
+		menu_subtitle.position = Vector2(20, size.y * 0.25 + 85)
+		menu_subtitle.size = Vector2(size.x - 40, 30)
 	var width: float = minf(size.x - 64, 820)
 	var card_width: float = (width - 36) / 4
 	var card_height: float = size.y * 0.28
@@ -273,7 +320,7 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 	board.stop_audio()
 	board.cancel_selection()
 	modal_title.text = title
-	modal_body.text = body
+	modal_body.text = body.replace("Green", "Orcs").replace("school", "race").replace("student", "warrior") if medieval else body
 	_dialog_height = 460.0 if title == "How to play" else 280.0
 	# Bound text layout before wrapping, including platforms with different font metrics.
 	modal_scroll.custom_minimum_size.y = 140.0 if title == "How to play" else 32.0
@@ -306,7 +353,7 @@ func _resume() -> void:
 
 
 func _show_result(won: bool) -> void:
-	_show_dialog("You win !!" if won else "You lose...", "%s school eliminated all three opponents." % ClassicRules.TEAM_NAMES[_team] if won else "Your last student has been defeated. Choose a school and try again.", false, true)
+	_show_dialog("You win !!" if won else "You lose...", "%s school eliminated all three opponents." % board.team_names[_team] if won else "Your last student has been defeated. Choose a school and try again.", false, true)
 
 
 func _announce(text: String) -> void:
@@ -319,12 +366,16 @@ func _update_selection() -> void:
 
 
 func _process(delta: float) -> void:
+	if menu.visible and not medieval and not _reduce_motion:
+		_pop_time += delta
+		var pop: float = 1.0 + 0.07 * maxf(0.0, sin(_pop_time * 3.0))
+		extras_button.scale = Vector2.ONE * pop
 	if not hud.visible or board.simulation == null:
 		return
 	var segments: Array[String] = []
 	for team: int in 4:
 		var color: Color = ClassicRules.COLORS[team].lightened(0.45)
-		var label: String = "%s %d/%d" % [ClassicRules.TEAM_NAMES[team], board.simulation.get_count(team), board.simulation.get_team_capacity(team)]
+		var label: String = "%s %d/%d" % [board.team_names[team], board.simulation.get_count(team), board.simulation.get_team_capacity(team)]
 		if team == _team:
 			label = "[b]" + label + "[/b]"
 		segments.append("[color=#%s]%s[/color]" % [color.to_html(false), label])
@@ -358,6 +409,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_instance_valid(hud) and hud.visible and not modal.visible:
 		_show_pause()
+
+
+func _navigate_variant() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.location.assign('/')" if medieval else "window.location.assign('/v2')")
 
 
 func _button(text: String, action: Callable) -> Button:

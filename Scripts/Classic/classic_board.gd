@@ -16,6 +16,9 @@ const CUES: Dictionary = {
 	"cancel": preload("res://Assets/Classic/cancel.wav"),
 }
 
+var student_texture: Texture2D = STUDENTS
+var team_names: Array[String] = ClassicRules.TEAM_NAMES.duplicate()
+
 var simulation: ClassicSimulation
 var selected: Array[int] = []
 var camera_center: Vector2 = Vector2(0, 384)
@@ -243,7 +246,7 @@ func _draw() -> void:
 		if not Rect2(Vector2(-100, -100), size + Vector2(200, 200)).has_point(pos):
 			continue
 		var index: int = student.team * 100 + student.direction * 25 + student.pattern
-		draw_texture_rect_region(STUDENTS, Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), Rect2(Vector2(index % 20 * 32, index / 20 * 48), Vector2(32, 48)))
+		draw_texture_rect_region(student_texture, Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), Rect2(Vector2(index % 20 * 32, index / 20 * 48), Vector2(32, 48)))
 		var health_pos: Vector2 = pos + Vector2(-student.maximum_health * 0.5, -34) * view_zoom
 		draw_rect(Rect2(health_pos, Vector2(student.maximum_health, 1) * view_zoom), Color("ed1d24"))
 		if student.is_alive():
@@ -312,5 +315,5 @@ func _on_sound(cue: String, world: Vector2) -> void:
 
 
 func _on_eliminated(team: int) -> void:
-	announcement.emit("%s is annihilated." % ClassicRules.TEAM_NAMES[team])
+	announcement.emit("%s is annihilated." % team_names[team])
 	_on_sound("message", camera_center)
