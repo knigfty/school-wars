@@ -343,10 +343,52 @@ func _focus_step(student: ClassicStudent) -> void:
 					continue
 				parent[next] = cell
 				queue.append(next)
+	# All melee slots may be claimed or unreachable. Still close to the nearest
+	# reachable free cell instead of leaving extra attackers at their origin.
+	if _close_on_focus(student, target.cell):
+		return
 	student.approach_cell = Vector2i(-1, -1)
 	student.state = ClassicStudent.State.WAIT
 	student.counter = 2
 	student.pattern = 10
+
+
+func _close_on_focus(student: ClassicStudent, target_cell: Vector2i) -> bool:
+	var queue: Array[Vector2i] = [student.cell]
+	var parent: Dictionary = {student.cell: student.cell}
+	var cursor: int = 0
+	var best: Vector2i = student.cell
+	var best_distance: int = absi(best.x - target_cell.x) + absi(best.y - target_cell.y)
+	if best_distance <= 2:
+		return false
+	while cursor < queue.size():
+		var cell: Vector2i = queue[cursor]
+		cursor += 1
+		var distance: int = absi(cell.x - target_cell.x) + absi(cell.y - target_cell.y)
+		if distance < best_distance:
+			best = cell
+			best_distance = distance
+			# Adjacent cells were handled above; two cells away is the closest queue.
+			if best_distance <= 2:
+				break
+		for direction: Vector2i in ClassicRules.DIRECTIONS:
+			var next: Vector2i = cell + direction
+			if not ClassicRules.in_grid(next) or occupancy.has(next) or parent.has(next):
+				continue
+			parent[next] = cell
+			queue.append(next)
+	if best == student.cell:
+		return false
+	var next: Vector2i = best
+	while parent[next] != student.cell:
+		next = parent[next]
+	student.approach_cell = Vector2i(-1, -1)
+	student.destination = target_cell
+	for index: int in 4:
+		if student.cell + ClassicRules.DIRECTIONS[index] == next:
+			_reserve_step(student, index)
+			return true
+	return false
 
 
 func _reserve_step(student: ClassicStudent, direction: int) -> void:

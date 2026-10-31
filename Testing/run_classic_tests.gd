@@ -77,6 +77,7 @@ func _run() -> void:
 	_check(cap_sim.spawn_student(1) == null, "Eliminated schools cannot recruit")
 	_test_blocked_focus_retaliation()
 	_test_new_orders_and_capacity()
+	_test_close_on_surrounded_target()
 	_test_surround()
 	_test_orders()
 	_test_fight()
@@ -185,6 +186,68 @@ func _test_new_orders_and_capacity() -> void:
 	_check(mover.state == ClassicStudent.State.WALK and mover.cell == Vector2i(11, 10), "Pursuer continues moving after target dies")
 
 
+func _test_close_on_surrounded_target() -> void:
+	for barrier: bool in [false, true]:
+		var sim: ClassicSimulation = ClassicSimulation.new()
+		sim.setup(0, 333)
+		sim.ai_enabled = false
+		sim.occupancy.clear()
+		for unit: ClassicStudent in sim.students:
+			unit.state = ClassicStudent.State.UNUSED
+		var target: ClassicStudent = sim.students[10]
+		target.team = 1
+		target.cell = Vector2i(20, 20)
+		target.state = ClassicStudent.State.STAND
+		target.health = 100000
+		sim.occupancy[target.cell] = target.id
+		var ids: Array[int] = []
+		for i: int in 6:
+			var unit: ClassicStudent = sim.students[i]
+			unit.team = 0
+			unit.state = ClassicStudent.State.STAND
+			unit.health = 1000
+			unit.cell = target.cell + ClassicRules.DIRECTIONS[i] if i < 4 else Vector2i(10, 19 + i)
+			unit.previous_cell = unit.cell
+			sim.occupancy[unit.cell] = unit.id
+			ids.append(i)
+		if barrier:
+			# An occupied wall forces a detour around y=27, away from the target.
+			for y: int in range(0, 27):
+				sim.occupancy[Vector2i(15, y)] = -100
+		sim.command(ids, Vector2i(5, 5), target.id)
+		for tick: int in 600:
+			for id: int in ids:
+				var unit: ClassicStudent = sim.students[id]
+				if unit.state == ClassicStudent.State.WALK:
+					sim._walking(unit)
+				elif unit.state == ClassicStudent.State.WAIT:
+					unit.counter -= 1
+					if unit.counter < 0:
+						sim._start_turn(unit)
+		var seen: Dictionary = {}
+		for id: int in ids:
+			var unit: ClassicStudent = sim.students[id]
+			_check(not seen.has(unit.cell), "Six attackers never overlap")
+			seen[unit.cell] = true
+			var distance: int = absi(unit.cell.x - target.cell.x) + absi(unit.cell.y - target.cell.y)
+			_check(distance == (1 if id < 4 else 2), "Extra attackers close to second ring with blocked=%s" % barrier)
+			_check(unit.priority_target_id == target.id, "Closing retains focused target")
+		# Free one attack side and verify a queued unit takes it.
+		var departed: ClassicStudent = sim.students[0]
+		sim.occupancy.erase(departed.cell)
+		departed.state = ClassicStudent.State.UNUSED
+		for tick: int in 150:
+			for id: int in [4, 5]:
+				var unit: ClassicStudent = sim.students[id]
+				if unit.state == ClassicStudent.State.WALK:
+					sim._walking(unit)
+				elif unit.state == ClassicStudent.State.WAIT:
+					unit.counter -= 1
+					if unit.counter < 0:
+						sim._start_turn(unit)
+		_check(sim._adjacent(sim.students[4].cell, target.cell) or sim._adjacent(sim.students[5].cell, target.cell), "Queued attacker fills newly open attack position")
+
+
 func _test_surround() -> void:
 	for scenario: int in 5:
 		var sim: ClassicSimulation = ClassicSimulation.new()
@@ -206,7 +269,7 @@ func _test_surround() -> void:
 			blocker.state = ClassicStudent.State.STAND
 			sim.occupancy[blocker.cell] = blocker.id
 		var ids: Array[int] = []
-		var count: int = 5 if scenario == 3 else 4
+		var count: int = 6 if scenario == 3 else 4
 		for i: int in count:
 			var unit: ClassicStudent = sim.students[i]
 			unit.team = 0
@@ -247,6 +310,10 @@ func _test_surround() -> void:
 				sides += 1
 		_check(sides == (3 if scenario in [1, 2] else 4), "Attackers fill every accessible target side, scenario %d" % scenario)
 		_check(target.health < 100000, "Surrounding attackers land damage, scenario %d" % scenario)
+		if scenario == 3:
+			for id: int in ids:
+				var offset: Vector2i = sim.students[id].cell - target.cell
+				_check(absi(offset.x) + absi(offset.y) <= 2, "All six initially distant attackers reach target vicinity")
 
 
 func _test_orders() -> void:
