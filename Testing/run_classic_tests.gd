@@ -499,11 +499,18 @@ func _test_shell() -> void:
 	_check(medieval_app.board.team_names == ["Humans", "Orcs", "Elves", "Demons"], "Medieval races retain team order")
 	_check(medieval_app.board.student_texture == medieval_app.MEDIEVAL_STUDENTS, "Race atlas is used in menu and match")
 	var atlas_image: Image = medieval_app.MEDIEVAL_STUDENTS.get_image()
+	var classic_image: Image = ClassicBoard.STUDENTS.get_image()
 	for index: int in 400:
 		if index % 25 >= 23:
 			continue
 		var region: Rect2i = Rect2i(Vector2i(index % 20 * 64, (index / 20) * 96), Vector2i(64, 96))
 		_check(atlas_image.get_region(region).get_used_rect().has_area(), "Every live animation frame contains a sprite: %d" % index)
+		var classic_region: Rect2i = Rect2i(Vector2i(index % 20 * 32, (index / 20) * 48), Vector2i(32,48))
+		var old_bounds: Rect2i = classic_image.get_region(classic_region).get_used_rect()
+		var bounds: Rect2i = atlas_image.get_region(region).get_used_rect()
+		var envelope: Rect2i = Rect2i(old_bounds.position * 2, old_bounds.size * 2)
+		_check(envelope.encloses(bounds), "Race frame fits original silhouette bounds: %d" % index)
+		_check(bounds.end.y == envelope.end.y, "Race frame keeps original foot anchor: %d" % index)
 		_check(medieval_app.board.student_frame(index).filter_clip, "Atlas frames clip neighbouring cells")
 	_check(is_instance_valid(medieval_app.extras_button), "Variant has return navigation")
 	for team: int in 4:

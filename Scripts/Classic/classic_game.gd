@@ -4,7 +4,7 @@ extends Control
 const MENU_ART: Texture2D = preload("res://Assets/Classic/menu.png")
 
 const MEDIEVAL_ART: Texture2D = preload("res://Assets/Medieval/menu.jpg")
-const MEDIEVAL_STUDENTS: Texture2D = preload("res://Assets/Medieval/students_hd.webp")
+const MEDIEVAL_STUDENTS: Texture2D = preload("res://Assets/Medieval/races.png")
 const RACE_NAMES: Array[String] = ["Humans", "Orcs", "Elves", "Demons"]
 
 var medieval: bool = false

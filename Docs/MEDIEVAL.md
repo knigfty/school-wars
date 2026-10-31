@@ -23,3 +23,7 @@ HD art prompt: clearer high-resolution remaster of the original medieval atlas, 
 Six empty live medieval atlas frames (19,79,119,179,219,319) were replaced with the adjacent valid pose in the same directional sequence. Death-blink frames remain intentionally blank. Both variants use cached filter-clipped atlas textures to prevent sampling neighbouring frames. Regression checks cover all 368 live-state frames.
 
 The spawning panel is now 225x48, bottom-left (75% of the previous width and height), labelled Spawning. Battlefield control tips are hidden and appear first in the concise bulleted help dialog. The minimap is restored to bottom-right.
+
+## Registered races.png replacement
+
+The active atlas is now `Assets/Medieval/races.png`; `students_hd.webp` is removed. Image generation used the original Classic/students.png as the pose reference. Tools/register_race_atlas.py isolates the dominant connected character in each generated frame and fits it to approximately 99% of the classic frame's visible width and height, at 2x resolution. All output is contained within the original scaled per-frame bounds, centred horizontally and aligned to the original foot anchor. Original blank frames remain transparent. Tests check visible frames, bounds, foot anchors and clipped sampling. Generation remains an artistic reinterpretation of poses, not exact pixel tracing.
