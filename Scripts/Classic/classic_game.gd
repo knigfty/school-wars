@@ -372,7 +372,7 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 
 func _show_help() -> void:
 	if medieval:
-		_show_dialog("How to play", "CONTROLS\n• L-click or drag a box to select; click a tile to move or an enemy to focus.\n• R-click drag / Space-drag: pan · Wheel: zoom · A: select all · Esc: pause\n\nCAPTURE & HEAL\n• Seated warriors capture spades and hearts; more allies capture faster.\n• Humans capture 20% faster: one human takes about 13.9 seconds; others 16.7.\n• Partial capture progress stays when you leave. Bases cannot be captured.\n• Owned spades speed spawning. Owned hearts and bases heal seated warriors at 1.8 HP/sec.\n• Elves heal at 3.6 HP/sec on owned hearts; base healing is unchanged.\n\nSPAWNING & COMBAT\n• Orcs spawn twice as fast. All races start with 12 capacity.\n• Orcs gain +1 capacity per two owned spades; hearts do not count. Losing spades lowers the cap without removing warriors.\n• Four attackers can surround a target; others wait for openings.\n• Each additional orc engaged on the same target deals +1 punch damage.\n• Killing blows: demons permanently gain +1 punch; elves gain +1 max HP without instant healing. Humans and orcs gain no kill stats.\n• Bonuses belong to the killer and reset on respawn. Eliminate all opponents to win.", true, false)
+		_show_dialog("How to play", "CONTROLS\n• L-click or drag a box to select; click a tile to move or an enemy to focus.\n• R-click drag / Space-drag: pan · Wheel: zoom · A: select all · Esc: pause\n\nCAPTURE & HEAL\n• Seated warriors capture spades and hearts; more allies capture faster.\n• Human capture times: 1/2/3/4/5/6+ seated warriors take 12/7/4/3/2/1 seconds. Other races: 16.7 seconds divided by seated warriors.\n• Partial capture progress stays when you leave. Bases can be captured only after their current owner is eliminated.\n• Captured bases change colour and independently spawn your race at your current rate, sharing your team capacity.\n• Owned spades speed spawning. Owned hearts and bases heal seated warriors at 1.8 HP/sec.\n• Elves heal at 3.6 HP/sec on owned hearts; base healing is unchanged.\n\nSPAWNING & COMBAT\n• Orcs spawn twice as fast. All races start with 12 capacity.\n• Orcs gain +1 capacity per two owned spades; hearts do not count. Losing spades lowers the cap without removing warriors.\n• Four attackers can surround a target; others wait for openings.\n• Each additional orc engaged on the same target deals +1 punch damage.\n• Killing blows: demons permanently gain +1 punch; elves gain +1 max HP without instant healing. Humans and orcs gain no kill stats.\n• Bonuses belong to the killer and reset on respawn. Eliminate all opponents to win.", true, false)
 		return
 	_show_dialog("How to play", "CONTROLS\n• L-click to select · R-click drag to pan · Wheel to zoom\n• Drag a box to select a squad; click a tile to move or an enemy to focus attacks.\n• Space: clear selection · Space-drag: pan\n• A: select all · Esc: cancel / pause · Minimap: click or drag\n\nCAPTURE & HEAL\n• Sit on spade or heart tiles to capture them; more seated allies capture faster.\n• One student takes about 16.7 seconds. Moving or fighting does not count.\n• Grey = neutral; colours = owner. Partial progress stays when you leave.\n• Spades speed team spawning, even after you leave. They do not boost damage.\n• Friendly hearts and bases heal seated students: 1.8 HP/sec.\n• Bases cannot be captured. Capture and healing rates are equal for all teams.\n\nSPAWNING & COMBAT\n• The spawn bar shows the next cycle; full capacity or a blocked base prevents spawning.\n• Green spawns three times as fast. All teams start with 12 capacity.\n• Green gains +1 capacity per two owned spade/heart tiles. Lost tiles lower the cap without removing units.\n• Four attackers can surround a target; others close in and wait for openings.\n• Out-of-range attackers can fight back nearby, then resume their focus order.\n• Kill: +1 max HP, no instant heal. Eliminate all opponents to win.", true, false)
 
@@ -408,7 +408,7 @@ func _update_recruitment() -> void:
 	if sim == null:
 		return
 	var threshold: int = sim.get_recruit_threshold(_team)
-	var progress: int = sim.recruit_progress[_team]
+	var progress: int = sim.get_next_spawn_progress(_team)
 	recruit_bar.value = clampf(float(progress) / threshold, 0.0, 1.0)
 	var population: int = sim.get_count(_team)
 	var capacity: int = sim.get_team_capacity(_team)
@@ -417,16 +417,12 @@ func _update_recruitment() -> void:
 	elif population >= capacity:
 		recruit_label.text = "Capacity full · %d/%d" % [population, capacity]
 	else:
-		var free_base_cell: bool = false
-		for y: int in 4:
-			for x: int in 4:
-				if not sim.occupancy.has(sim.bases[_team] * 4 + Vector2i(x, y)):
-					free_base_cell = true
+		var free_base_cell: bool = sim.has_spawn_space(_team)
 		if not free_base_cell:
 			recruit_label.text = "Base blocked · clear space to recruit"
 		else:
 			var seconds: float = float(threshold + 1 - progress) / (2 + sim.get_recruit_tiles(_team)) / 18.0
-			recruit_label.text = "Spawning · next unit in %.1fs" % seconds
+			recruit_label.text = "Spawning · next cycle in %.1fs" % seconds
 
 
 func _process(delta: float) -> void:

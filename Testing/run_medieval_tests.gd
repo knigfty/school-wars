@@ -28,11 +28,17 @@ func _run() -> void:
 		human.cell = Vector2i(20, 20)
 		human.counter = 1000
 		human.state = ClassicStudent.State.SIT
-		var duration: int = 250 if variant else 300
+		var duration: int = 216 if variant else 300
 		for tick: int in duration - 1:
-			sim._sitting(human)
+			if variant:
+				sim._capture_areas()
+			else:
+				sim._sitting(human)
 		_check(sim.areas[0].owner == -1, "Capture does not finish early")
-		sim._sitting(human)
+		if variant:
+			sim._capture_areas()
+		else:
+			sim._sitting(human)
 		_check(sim.areas[0].owner == 0, "Capture completes at expected tick")
 
 		for kind: int in [ClassicRules.AreaKind.HEAL, ClassicRules.AreaKind.BASE]:
@@ -74,6 +80,8 @@ func _run() -> void:
 		sim.students[4].target_id = sim.students[9].id
 		_check(sim.get_punch_damage(sim.students[5], target) == 2, "Different targets do not support")
 
+		for team: int in 4:
+			sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
 		for team: int in 4:
 			var attacker: ClassicStudent = sim.students[team * 3]
 			target = sim.students[((team + 1) % 4) * 3]

@@ -21,6 +21,7 @@ var finished: bool = false
 var ai_enabled: bool = true
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
+const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 7, 4, 3, 2, 1]
 
 
 func setup(team: int, map_seed: int) -> void:
@@ -68,7 +69,7 @@ func setup(team: int, map_seed: int) -> void:
 
 func _add_area(tile: Vector2i, kind: int, owner: int) -> void:
 	area_at[tile] = areas.size()
-	areas.append({"tile": tile, "kind": kind, "owner": owner, "progress": [0.0, 0.0, 0.0, 0.0]})
+	areas.append({"tile": tile, "kind": kind, "owner": owner, "progress": [0.0, 0.0, 0.0, 0.0], "spawn_progress": 0})
 
 
 func get_count(team: int) -> int:
@@ -113,13 +114,17 @@ func _target_died(target: ClassicStudent) -> void:
 			unit.priority_target_id = -1
 
 
-func spawn_student(team: int) -> ClassicStudent:
+func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> ClassicStudent:
 	if not active[team] or get_count(team) >= get_team_capacity(team):
+		return null
+	if base_tile == Vector2i(-1, -1):
+		base_tile = bases[team]
+	if medieval and base_tile not in get_spawn_bases(team):
 		return null
 	var slots: Array[Vector2i] = []
 	for y: int in 4:
 		for x: int in 4:
-			var cell: Vector2i = bases[team] * 4 + Vector2i(x, y)
+			var cell: Vector2i = base_tile * 4 + Vector2i(x, y)
 			if not occupancy.has(cell):
 				slots.append(cell)
 	if slots.is_empty():
@@ -164,6 +169,8 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
+	if medieval:
+		_capture_areas()
 	for student: ClassicStudent in students:
 		student.level_ticks = maxi(0, student.level_ticks - 1)
 		match student.state:
@@ -191,6 +198,14 @@ func step() -> void:
 			if recruit_progress[color] > get_recruit_threshold(color):
 				recruit_progress[color] -= get_recruit_threshold(color)
 				spawn_student(color)
+	if medieval:
+		for area: Dictionary in areas:
+			if area.kind != ClassicRules.AreaKind.BASE or not active[area.owner] or area.tile == bases[area.owner]:
+				continue
+			area.spawn_progress += 2 + get_recruit_tiles(area.owner)
+			if area.spawn_progress > get_recruit_threshold(area.owner):
+				area.spawn_progress -= get_recruit_threshold(area.owner)
+				spawn_student(area.owner, area.tile)
 
 
 func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
@@ -280,8 +295,8 @@ func _sitting(student: ClassicStudent) -> void:
 	var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
 	if area_at.has(tile):
 		var area: Dictionary = areas[area_at[tile]]
-		if area.kind >= ClassicRules.AreaKind.RECRUIT and area.owner != student.team:
-			area.progress[student.team] += 1.2 if medieval and student.team == 0 else 1.0
+		if not medieval and area.kind >= ClassicRules.AreaKind.RECRUIT and area.owner != student.team:
+			area.progress[student.team] += 1.0
 			if area.progress[student.team] >= ClassicRules.CAPTURE_TICKS - 0.000001:
 				area.owner = student.team
 				for color: int in 4:
@@ -615,10 +630,12 @@ func _com_order(student: ClassicStudent) -> void:
 		if healthy:
 			if area.owner == student.team:
 				continue
-			if area.kind == ClassicRules.AreaKind.BASE and not active[area.owner]:
-				continue
+			if area.kind == ClassicRules.AreaKind.BASE:
+				if (medieval and not can_capture_area(area, student.team)) or (not medieval and not active[area.owner]):
+					continue
 			if leader >= 0 and student.team != leader and area.owner != leader:
-				continue
+				if not (medieval and area.kind == ClassicRules.AreaKind.BASE and can_capture_area(area, student.team)):
+					continue
 		elif area.owner != student.team or area.kind == ClassicRules.AreaKind.RECRUIT:
 			continue
 		var offset: Vector2i = area.tile - tile
@@ -672,3 +689,74 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 				damage += 1.0
 				break
 	return damage
+
+
+func get_spawn_bases(team: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not medieval:
+		result.append(bases[team])
+		return result
+	for area: Dictionary in areas:
+		if area.kind == ClassicRules.AreaKind.BASE and area.owner == team:
+			result.append(area.tile)
+	return result
+
+
+func has_spawn_space(team: int) -> bool:
+	for tile: Vector2i in get_spawn_bases(team):
+		for y: int in 4:
+			for x: int in 4:
+				if not occupancy.has(tile * 4 + Vector2i(x, y)):
+					return true
+	return false
+
+
+func get_next_spawn_progress(team: int) -> int:
+	var progress: int = recruit_progress[team]
+	if medieval:
+		for area: Dictionary in areas:
+			if area.kind == ClassicRules.AreaKind.BASE and area.owner == team and area.tile != bases[team]:
+				progress = maxi(progress, area.spawn_progress)
+	return progress
+
+
+func can_capture_area(area: Dictionary, team: int) -> bool:
+	if area.owner == team:
+		return false
+	if area.kind != ClassicRules.AreaKind.BASE:
+		return true
+	# A conquered base belongs to its current owner, including this protection.
+	# Wait for elimination cleanup so corpses cannot trigger premature capture.
+	return medieval and area.owner >= 0 and not active[area.owner] and get_count(area.owner) == 0
+
+
+func _capture_areas() -> void:
+	# Snapshot seated counts once per tick, independent of unit processing order.
+	var seated: Dictionary = {}
+	for student: ClassicStudent in students:
+		if student.state != ClassicStudent.State.SIT:
+			continue
+		var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
+		if not area_at.has(tile):
+			continue
+		if not seated.has(tile):
+			seated[tile] = [0, 0, 0, 0]
+		seated[tile][student.team] += 1
+	for area: Dictionary in areas:
+		if not seated.has(area.tile):
+			continue
+		for team: int in 4:
+			var count: int = seated[area.tile][team]
+			if count == 0 or not can_capture_area(area, team):
+				continue
+			var gain: float = float(count)
+			if team == 0:
+				var seconds: int = HUMAN_CAPTURE_SECONDS[mini(count, HUMAN_CAPTURE_SECONDS.size()) - 1]
+				gain = float(ClassicRules.CAPTURE_TICKS) / (seconds * ClassicRules.TICKS_PER_SECOND)
+			area.progress[team] += gain
+			if area.progress[team] >= ClassicRules.CAPTURE_TICKS - 0.000001:
+				area.owner = team
+				area.progress = [0.0, 0.0, 0.0, 0.0]
+				area.spawn_progress = 0
+				_update_leader()
+				break

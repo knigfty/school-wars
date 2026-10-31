@@ -64,7 +64,8 @@ jobs:
             run_menu_tests.gd \
             run_match_tests.gd \
             run_classic_tests.gd \
-            run_medieval_tests.gd; do
+            run_medieval_tests.gd \
+            run_medieval_capture_tests.gd; do
             "$godot" --headless --path . --script "res://Testing/$test_script"
           done
           rm -rf export/web

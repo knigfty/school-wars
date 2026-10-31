@@ -42,7 +42,7 @@ Generation prompt: redraw the supplied 96-pose template as sharp hand-painted HD
 
 The game passes its medieval flag through ClassicBoard into ClassicSimulation before setup. Classic remains the default; no Godot scene setup is required.
 
-- Humans contribute 1.2 capture progress per seated tick: 250 ticks (13.9 seconds) alone instead of 300.
+- Human capture uses the fixed table below, based on seated humans on the same tile. This replaces the earlier 20% capture bonus.
 - Orc recruitment threshold is 750 instead of classic Green's 500; other races remain at 1500. At equal spade ownership, orcs recruit twice as fast.
 - Orc capacity increases by one per two owned spades, rounded down. Hearts do not count. Losing spades lowers capacity without removing existing units.
 - Against one target, the first engaged orc (stable unit-ID order) deals base damage, and each additional engaged orc deals +1 on successful punches. Two deal 5 combined; three deal 8. Support requires a living orc fighting that same enemy in melee contact; misses retain the existing combat rules.
@@ -51,3 +51,22 @@ The game passes its medieval flag through ClassicBoard into ClassicSimulation be
 - Elves heal 0.2 HP per seated tick on owned hearts (3.6 HP/sec). Their base healing and all other races' healing remain 0.1 per tick.
 
 The recruitment HUD uses the variant's actual threshold; medieval help describes these rules. Run Godot headless with --script res://Testing/run_medieval_tests.gd for balance and variant-wiring regression checks.
+
+## Fixed human capture and conquered bases
+
+| Seated humans on one tile | Full capture time |
+| --- | --- |
+| 1 | 12 seconds |
+| 2 | 7 seconds |
+| 3 | 4 seconds |
+| 4 | 3 seconds |
+| 5 | 2 seconds |
+| 6 or more | 1 second |
+
+These times apply to spades, hearts and eligible bases from zero progress. Only seated units contribute. Partial progress remains when units leave; changing the seated count changes the rate for the remaining progress. All medieval capture is evaluated once per tick from a snapshot of seated units. Other races retain 300 total seated ticks (16.7 seconds for one unit).
+
+A medieval base becomes capturable only after its current owning team is eliminated and its last unit finishes death cleanup. Changing ownership changes the base's colour in the existing board and minimap renderers. Captured bases heal their new owner's seated units and each independently recruits that owner's race, using the same race threshold and current spade bonus as the home base. Each new base starts with an empty spawn meter; spade ownership changes immediately affect every owned base's rate. Multiple bases share the existing team population cap, and a blocked base does not block other bases. Captured bases add no population capacity.
+
+Protection follows the current owner: a captured base can be conquered again after its new owner is eliminated. AI teams can pursue eligible bases. Existing player defeat and last-team-standing victory conditions remain unchanged; there is no post-victory capture phase. Classic capture, bases and recruitment remain unchanged.
+
+The recruitment HUD checks space across every owned base and displays the next spawn cycle. No manual Godot setup is required. Testing/run_medieval_capture_tests.gd checks all human timing tiers on all capturable tile types, other-race timing, changing squad sizes, elimination protection, base ownership and recruitment, dynamic spade bonuses, blocked bases, shared capacity, and classic base protection.

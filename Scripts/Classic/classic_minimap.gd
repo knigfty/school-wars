@@ -47,6 +47,11 @@ func _draw() -> void:
 	for point: Vector2 in [Vector2.ZERO, Vector2(768, 384), Vector2(0, 768), Vector2(-768, 384)]:
 		diamond.append(_point(point))
 	draw_colored_polygon(diamond, Color("393939"))
+	if board.simulation.medieval:
+		for area: Dictionary in board.simulation.areas:
+			if area.kind == ClassicRules.AreaKind.BASE:
+				var base_center: Vector2 = ClassicRules.cell_to_world(Vector2(area.tile * 4) + Vector2(1.5, 1.5))
+				draw_rect(Rect2(_point(base_center) - Vector2(3, 3), Vector2(6, 6)), ClassicRules.COLORS[area.owner])
 	for student: ClassicStudent in board.simulation.students:
 		if student.is_alive():
 			draw_rect(Rect2(_point(student.world_position()) - Vector2.ONE, Vector2(3, 3)), ClassicRules.COLORS[student.team].lightened(0.2))
