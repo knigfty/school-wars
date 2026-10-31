@@ -152,13 +152,39 @@ func _run() -> void:
 			sim.recruit_progress[team] = sim.get_recruit_threshold(team)
 			var before: int = sim.get_count(team)
 			sim.step()
-			_check(sim.get_count(team) == before and sim.get_priority_spawn_base(team) == blocked, "Blocked turn waits without skipping bases")
+			_check(sim.get_count(team) == before + 1 and sim.last_spawn_base[team] != blocked, "Full base is skipped so another base can spawn")
 			sim.areas[0].owner = (team + 1) % 4
-			_check(sim.get_priority_spawn_base(team) != blocked, "Losing next base removes it from rotation")
+			_check(sim.get_priority_spawn_base(team) != blocked, "Lost base stays outside rotation")
 			_check(is_equal_approx(sim.get_spawn_seconds(team), original_seconds), "Losing base leaves interval unchanged")
 			# Lose a conquered base as well, checking capacity reverses immediately.
 			sim.areas[1].owner = (team + 1) % 4
 			_check(sim.get_team_capacity(team) == 12 + (base_count - 2) * 6, "Losing conquered base removes six capacity")
+
+	# Reproduce real capture with a crowded home: new capacity must be usable.
+	sim = _empty_sim()
+	sim._add_area(sim.bases[0], ClassicRules.AreaKind.BASE, 0)
+	sim._add_area(sim.bases[1], ClassicRules.AreaKind.BASE, 1)
+	sim.active[1] = false
+	_seat(sim, 16, 0, sim.bases[0])
+	var captor: ClassicStudent = sim.students[16]
+	sim._initialize_student(captor, 0, sim.bases[1] * 4 + Vector2i(1, 1))
+	captor.state = ClassicStudent.State.SIT
+	captor.counter = 10000
+	for tick: int in 216:
+		sim._capture_areas()
+	_check(sim.areas[1].owner == 0, "Crowded-home fixture captures eliminated base")
+	_check(sim.get_priority_spawn_base(0) == sim.bases[1] and sim.has_spawn_space(0), "Captured base offers spawn space when home is full")
+	sim.recruit_progress[0] = sim.get_recruit_threshold(0)
+	sim.step()
+	_check(sim.get_count(0) == 18 and sim.last_spawn_base[0] == sim.bases[1], "Captured base recruits after real ownership transfer despite full home")
+	# All full: no population change or timer loss.
+	for spawn_tile: Vector2i in sim.get_spawn_bases(0):
+		for y: int in 4:
+			for x: int in 4:
+				sim.occupancy[spawn_tile * 4 + Vector2i(x, y)] = -1
+	sim.recruit_progress[0] = sim.get_recruit_threshold(0)
+	sim.step()
+	_check(not sim.has_spawn_space(0) and sim.get_count(0) == 18 and sim.recruit_progress[0] == sim.get_recruit_threshold(0), "All full bases hold ready timer without spawning")
 
 	sim = _empty_sim()
 	sim.medieval = false

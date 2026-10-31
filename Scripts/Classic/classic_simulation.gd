@@ -812,8 +812,15 @@ func get_priority_spawn_base(team: int) -> Vector2i:
 	var owned: Array[Vector2i] = get_spawn_bases(team)
 	if owned.is_empty():
 		return Vector2i(-1, -1)
-	# Advance only after a successful scheduled spawn; blocked turns stay ready.
+	# Keep round-robin order, but never let a full base starve other owned bases.
 	var previous: int = owned.find(last_spawn_base[team])
+	for offset: int in range(1, owned.size() + 1):
+		var tile: Vector2i = owned[(previous + offset) % owned.size()]
+		for y: int in 4:
+			for x: int in 4:
+				if not occupancy.has(tile * 4 + Vector2i(x, y)):
+					return tile
+	# All bases are full: retain the next turn and hold the ready timer.
 	return owned[(previous + 1) % owned.size()]
 
 
