@@ -109,9 +109,10 @@ race and persists when returning to race selection or replaying a match.
 
 - **Easy:** original individual AI.
 - **Normal:** persistent squads of 2–4 where population allows, with strategic
-  decisions every two seconds.
+  decisions every two seconds. It shares Easy's 400-tick opening wait (about
+  22.2 seconds); this wait applies only at match start, not to reinforcements.
 - **Expert:** squad decisions every second and whole-map enemy awareness for every
-  AI race. Normal scans four tiles around each squad. Awareness informs each race's
+  AI race, with no opening wait. Normal scans four tiles around each squad. Awareness informs each race's
   existing strategy; orcs still assess being outnumbered locally. No stat bonuses.
 
 Squads share capture destinations and focus targets. Separated members rally

@@ -15,6 +15,7 @@ func _fixture(player: int = 3) -> ClassicSimulation:
 	sim.medieval = true
 	sim.difficulty = ClassicSimulation.Difficulty.NORMAL
 	sim.setup(player, 1234)
+	sim.ticks = ClassicSimulation.AI_START_DELAY_TICKS
 	for unit: ClassicStudent in sim.students:
 		unit.state = ClassicStudent.State.UNUSED
 	sim.occupancy.clear()
@@ -29,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_start_delay_tests()
 	_retreat_timing_tests()
 	var sim: ClassicSimulation = _fixture()
 	sim.difficulty = ClassicSimulation.Difficulty.EASY
@@ -56,7 +58,7 @@ func _run() -> void:
 		unit.state = ClassicStudent.State.SIT
 	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.areas[0].owner = 0
-	sim.ticks = 36
+	sim.ticks = 436
 	sim.squad_ai.update(sim)
 	_check(Vector2i(sim.students[0].destination.x / 4, sim.students[0].destination.y / 4) == Vector2i(8, 8), "Humans advance after capture")
 
@@ -106,7 +108,7 @@ func _run() -> void:
 	weak.state = ClassicStudent.State.UNUSED
 	# Reused slots must not leave recruits in a squad of another race.
 	sim._initialize_student(a, 1, Vector2i(10, 10))
-	sim.ticks = 36
+	sim.ticks = 436
 	sim.squad_ai.update(sim)
 	for squad: Array in sim.squad_ai.squads:
 		for member: ClassicStudent in squad:
@@ -174,7 +176,7 @@ func _retreat_timing_tests() -> void:
 		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 		elf = _unit(sim, 0, 2, Vector2i(20, 20))
 		elf.health = 2
-		elf.last_attacked_tick = 0
+		elf.last_attacked_tick = sim.ticks
 		enemy = _unit(sim, 1, 0, Vector2i(21, 20))
 		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
 		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
@@ -192,7 +194,7 @@ func _retreat_timing_tests() -> void:
 		sim.rng.seed = seed_value
 		elf = _unit(sim, 0, 2, Vector2i(20, 20))
 		elf.health = 2
-		elf.last_attacked_tick = 0
+		elf.last_attacked_tick = sim.ticks
 		_unit(sim, 1, 0, Vector2i(21, 20))
 		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
 		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
@@ -204,20 +206,43 @@ func _retreat_timing_tests() -> void:
 	_unit(sim, 1, 0, Vector2i(21, 20))
 	_unit(sim, 2, 0, Vector2i(21, 21))
 	sim.squad_ai.update(sim)
-	_check(orc.ai_flee_until == 54 and orc.ai_flee_ready_at == 540, "Orc flee lasts three seconds with thirty-second reuse")
-	sim.ticks = 53
+	_check(orc.ai_flee_until == 454 and orc.ai_flee_ready_at == 940, "Orc flee lasts three seconds with thirty-second reuse")
+	sim.ticks = 453
 	sim.squad_ai.update(sim)
 	_check(orc.ai_retreating, "Orc can flee before three seconds elapse")
-	sim.ticks = 54
+	sim.ticks = 454
 	sim.squad_ai.update(sim)
 	_check(not orc.ai_retreating and orc.priority_target_id >= 0, "Orc returns to combat at three seconds despite outnumbering")
-	sim.ticks = 539
+	sim.ticks = 939
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
 	_check(not orc.ai_retreating, "Orc cannot flee during cooldown")
-	sim.ticks = 540
+	sim.ticks = 940
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
-	_check(orc.ai_retreating and orc.ai_flee_until == 594, "Orc may flee again after thirty seconds")
+	_check(orc.ai_retreating and orc.ai_flee_until == 994, "Orc may flee again after thirty seconds")
 	sim._initialize_student(orc, 1, Vector2i(20, 20))
 	_check(orc.ai_flee_ready_at == 0 and not orc.ai_retreating, "New orc lifetime resets flee cooldown")
+
+
+func _start_delay_tests() -> void:
+	for mode: int in [ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		var sim: ClassicSimulation = _fixture(3)
+		sim.difficulty = mode
+		sim.ticks = 0
+		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(4, 4))
+		sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
+		sim.squad_ai.update(sim)
+		_check((human.state == ClassicStudent.State.WALK) == (mode == ClassicSimulation.Difficulty.EXPERT), "Only Expert issues opening orders immediately")
+		if mode == ClassicSimulation.Difficulty.NORMAL:
+			sim.ticks = ClassicSimulation.AI_START_DELAY_TICKS - 1
+			sim.squad_ai.update(sim)
+			_check(human.state == ClassicStudent.State.SIT, "Normal waits through opening delay")
+			sim.ticks += 1
+			sim.squad_ai.update(sim)
+			_check(human.state == ClassicStudent.State.WALK, "Normal starts at opening delay boundary")
+			# Fresh reinforcements after the opening are immediately eligible.
+			var recruit: ClassicStudent = _unit(sim, 1, 0, Vector2i(5, 4))
+			sim.ticks += 36
+			sim.squad_ai.update(sim)
+			_check(recruit.state == ClassicStudent.State.WALK, "Opening delay is not reapplied to recruits")

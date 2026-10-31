@@ -27,6 +27,7 @@ var squad_ai = SQUAD_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
+const AI_START_DELAY_TICKS: int = 400
 
 
 func setup(team: int, map_seed: int) -> void:
@@ -706,7 +707,7 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
-	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < 400:
+	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS:
 		return
 	var healthy: bool = is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF

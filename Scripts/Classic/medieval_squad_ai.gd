@@ -8,6 +8,8 @@ var lifetimes: Dictionary = {}
 
 
 func update(sim) -> void:
+	if sim.difficulty == sim.Difficulty.NORMAL and sim.ticks < sim.AI_START_DELAY_TICKS:
+		return
 	for unit: ClassicStudent in sim.students:
 		if not unit.is_alive() or unit.team == sim.player_team:
 			continue
