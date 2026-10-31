@@ -128,52 +128,46 @@ func _run() -> void:
 	sim._com_order(ai)
 	_check(ai.state != ClassicStudent.State.SIT, "AI pursues an eliminated base even during leader targeting")
 
-	# Each base independently recruits, even with another base blocked.
+	# Conquered bases stack reversible bonuses; only the threatened base recruits.
 	for team: int in 4:
 		sim = _empty_sim()
 		sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
-		var captured: Vector2i = sim.bases[(team + 1) % 4]
-		sim._add_area(captured, ClassicRules.AreaKind.BASE, team)
-		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, team)
+		var original_seconds: float = sim.get_spawn_seconds(team)
+		for n: int in range(1, 4):
+			sim._add_area(sim.bases[(team + n) % 4], ClassicRules.AreaKind.BASE, team)
+			_check(sim.get_team_capacity(team) == 12 + n * 6, "Captured bases stack capacity")
+			_check(is_equal_approx(sim.get_spawn_seconds(team), maxf(1.0, original_seconds - 5 * n)), "Captured bases stack five-second speed bonus")
+		sim.areas.back().owner = (team + 1) % 4
+		_check(sim.get_team_capacity(team) == 24, "Losing base removes six capacity")
+		_check(is_equal_approx(sim.get_spawn_seconds(team), maxf(1.0, original_seconds - 10)), "Losing base removes speed bonus")
+		var frontline: Vector2i = sim.areas[1].tile
+		enemy = sim.students[20]
+		sim._initialize_student(enemy, (team + 1) % 4, frontline * 4 + Vector2i(5, 2))
+		enemy.state = ClassicStudent.State.SIT
+		enemy.counter = 10000
+		_check(sim.get_priority_spawn_base(team) == frontline, "Enemy proximity selects frontline base")
 		sim.recruit_progress[team] = sim.get_recruit_threshold(team) - 2
-		sim.areas[1].spawn_progress = sim.get_recruit_threshold(team) - 2
 		sim.step()
-		_check(sim.get_count(team) == 2, "Both owned bases spawn at owner threshold")
-		var from_home: int = 0
-		var from_captured: int = 0
+		_check(sim.get_count(team) == 1, "Only one team spawn per cycle")
 		for unit: ClassicStudent in sim.students:
-			if not unit.is_alive() or unit.team != team:
-				continue
-			var spawned_tile: Vector2i = Vector2i(unit.cell.x / 4, unit.cell.y / 4)
-			from_home += int(spawned_tile == sim.bases[team])
-			from_captured += int(spawned_tile == captured)
-		_check(from_home == 1 and from_captured == 1, "Spawned units use both base locations")
-		_check(sim.areas[1].spawn_progress == 1, "Spades affect captured base rate")
-		sim.areas[2].owner = -1
-		sim.step()
-		_check(sim.areas[1].spawn_progress == 3, "Losing spade immediately slows captured base")
+			if unit.is_alive() and unit.team == team:
+				_check(Vector2i(unit.cell.x / 4, unit.cell.y / 4) == frontline, "Spawn uses threatened base only")
 		for y: int in 4:
 			for x: int in 4:
-				sim.occupancy[sim.bases[team] * 4 + Vector2i(x, y)] = -1
-		_check(sim.has_spawn_space(team), "HUD finds space in captured base")
-		sim.areas[1].spawn_progress = sim.get_recruit_threshold(team)
+				sim.occupancy[frontline * 4 + Vector2i(x, y)] = -1
+		_check(not sim.has_spawn_space(team), "Blocked priority base blocks recruitment despite other space")
 		var before: int = sim.get_count(team)
-		sim.step()
-		_check(sim.get_count(team) == before + 1, "Blocked home does not block captured base")
 		sim.recruit_progress[team] = sim.get_recruit_threshold(team)
-		sim.areas[1].spawn_progress = sim.get_recruit_threshold(team)
-		for unit: ClassicStudent in sim.students:
-			if unit.state == ClassicStudent.State.UNUSED and sim.get_count(team) < sim.get_team_capacity(team):
-				unit.team = team
-				unit.state = ClassicStudent.State.STAND
-				unit.counter = 10000
-		before = sim.get_count(team)
 		sim.step()
-		_check(sim.get_count(team) == before, "Multiple bases obey shared team capacity")
-		sim.active[team] = false
-		var progress: int = sim.areas[1].spawn_progress
+		_check(sim.get_count(team) == before, "Blocked priority base does not spawn elsewhere")
+		_check(sim.recruit_progress[team] == sim.get_recruit_threshold(team), "Blocked recruitment retains ready timer")
+		# Enemy movement changes the chosen base without resetting team progress.
+		sim.occupancy.erase(enemy.cell)
+		enemy.cell = sim.bases[team] * 4 + Vector2i(5, 2)
+		sim.occupancy[enemy.cell] = enemy.id
+		_check(sim.get_priority_spawn_base(team) == sim.bases[team], "Priority follows moving enemies")
 		sim.step()
-		_check(sim.areas[1].spawn_progress == progress, "Eliminated owners do not recruit from captured bases")
+		_check(sim.get_count(team) == before + 1, "Ready spawn follows updated threat")
 
 	sim = _empty_sim()
 	sim.medieval = false

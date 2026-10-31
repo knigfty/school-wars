@@ -65,7 +65,9 @@ The recruitment HUD uses the variant's actual threshold; medieval help describes
 
 These times apply to spades, hearts and eligible bases from zero progress. Only seated units contribute. Partial progress remains when units leave; changing the seated count changes the rate for the remaining progress. All medieval capture is evaluated once per tick from a snapshot of seated units. Other races retain 300 total seated ticks (16.7 seconds for one unit).
 
-A medieval base becomes capturable only after its current owning team is eliminated and its last unit finishes death cleanup. Changing ownership changes the base's colour in the existing board and minimap renderers. Captured bases heal their new owner's seated units and each independently recruits that owner's race, using the same race threshold and current spade bonus as the home base. Each new base starts with an empty spawn meter; spade ownership changes immediately affect every owned base's rate. Multiple bases share the existing team population cap, and a blocked base does not block other bases. Captured bases add no population capacity.
+A medieval base becomes capturable only after its current owning team is eliminated and its last unit finishes death cleanup. Ownership changes its colour and healing allegiance. Each owned enemy base adds six team capacity and subtracts five seconds from the team's spawn interval, stacking per base with a one-second minimum. Losing a base immediately removes its bonuses without deleting existing warriors. Spades still affect the underlying interval.
+
+Medieval teams use one shared recruitment timer. Each living enemy votes for the owned base closest to it (distance to base centre); only the base with the most votes receives the next spawn. Ties use stable map order, including when no enemies remain. A blocked priority base holds a ready timer instead of spawning elsewhere. Enemy movement and base ownership changes update priority on the next tick.
 
 Protection follows the current owner: a captured base can be conquered again after its new owner is eliminated. AI teams can pursue eligible bases. Existing player defeat and last-team-standing victory conditions remain unchanged; there is no post-victory capture phase. Classic capture, bases and recruitment remain unchanged.
 
@@ -78,7 +80,7 @@ The recruitment HUD checks space across every owned base and displays the next s
 | Human | First killing blow | +2 maximum HP, once |
 | Human | Second killing blow | +2 punch, once |
 | Human | Third killing blow | Total attack reach becomes 3 grid cells |
-| Orc | Each killing blow | Seeded 50% chance to spawn a fresh orc at the death location |
+| Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
 | Elf | 30 / 35 / 40 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
 | Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |

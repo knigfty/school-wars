@@ -95,7 +95,20 @@ func get_recruit_tiles(team: int) -> int:
 
 
 func get_recruit_threshold(team: int) -> int:
-	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
+	var baseline: int = 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
+	if not medieval:
+		return baseline
+	var rate: int = 2 + get_recruit_tiles(team)
+	return maxi(rate * ClassicRules.TICKS_PER_SECOND, baseline - get_conquered_base_count(team) * 5 * ClassicRules.TICKS_PER_SECOND * rate)
+
+
+func get_conquered_base_count(team: int) -> int:
+	var count: int = 0
+	if medieval:
+		for area: Dictionary in areas:
+			if area.kind == ClassicRules.AreaKind.BASE and area.owner == team and area.tile != bases[team]:
+				count += 1
+	return count
 
 
 func get_spawn_seconds(team: int) -> float:
@@ -108,7 +121,7 @@ func get_team_capacity(team: int) -> int:
 		for area: Dictionary in areas:
 			if area.owner == team and (area.kind == ClassicRules.AreaKind.RECRUIT if medieval else area.kind != ClassicRules.AreaKind.BASE):
 				captured += 1
-	return ClassicRules.TEAM_CAP + captured / 2
+	return ClassicRules.TEAM_CAP + captured / 2 + get_conquered_base_count(team) * 6
 
 
 func _target_died(target: ClassicStudent) -> void:
@@ -225,17 +238,16 @@ func step() -> void:
 	for color: int in 4:
 		if active[color]:
 			recruit_progress[color] += 2 + get_recruit_tiles(color)
-			if recruit_progress[color] > get_recruit_threshold(color):
-				recruit_progress[color] -= get_recruit_threshold(color)
+			var threshold: int = get_recruit_threshold(color)
+			if medieval:
+				recruit_progress[color] = mini(recruit_progress[color], threshold)
+				if recruit_progress[color] >= threshold:
+					var base: Vector2i = get_priority_spawn_base(color)
+					if base.x >= 0 and spawn_student(color, base) != null:
+						recruit_progress[color] = 0
+			elif recruit_progress[color] > threshold:
+				recruit_progress[color] -= threshold
 				spawn_student(color)
-	if medieval:
-		for area: Dictionary in areas:
-			if area.kind != ClassicRules.AreaKind.BASE or not active[area.owner] or area.tile == bases[area.owner]:
-				continue
-			area.spawn_progress += 2 + get_recruit_tiles(area.owner)
-			if area.spawn_progress > get_recruit_threshold(area.owner):
-				area.spawn_progress -= get_recruit_threshold(area.owner)
-				spawn_student(area.owner, area.tile)
 
 
 func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
@@ -603,7 +615,7 @@ func _fighting(student: ClassicStudent) -> void:
 			target.fight_phase = 3
 			target.counter = 5
 			if medieval:
-				target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime}
+				target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime, "team": student.team}
 				target.last_attacked_tick = ticks
 			target.health -= get_punch_damage(student, target)
 			if target.health <= 0.0:
@@ -613,9 +625,10 @@ func _fighting(student: ClassicStudent) -> void:
 				target.pattern = 20
 				target.counter = 10
 				target.fight_phase = 0
+				var conversion_chance: float = get_orc_conversion_chance(target)
 				_reward_defeat(student, target)
 				sound_requested.emit("dead", target.world_position())
-				if medieval and student.team == 1 and rng.randf() < 0.5:
+				if medieval and student.team == 1 and rng.randf() < conversion_chance:
 					_convert_to_orc(target)
 					student.show_event("ORCS RISE!")
 			else:
@@ -778,7 +791,12 @@ func get_spawn_bases(team: int) -> Array[Vector2i]:
 
 
 func has_spawn_space(team: int) -> bool:
-	for tile: Vector2i in get_spawn_bases(team):
+	var spawn_bases: Array[Vector2i] = get_spawn_bases(team)
+	if medieval:
+		spawn_bases.assign([get_priority_spawn_base(team)])
+	for tile: Vector2i in spawn_bases:
+		if tile.x < 0:
+			continue
 		for y: int in 4:
 			for x: int in 4:
 				if not occupancy.has(tile * 4 + Vector2i(x, y)):
@@ -787,12 +805,38 @@ func has_spawn_space(team: int) -> bool:
 
 
 func get_next_spawn_progress(team: int) -> int:
-	var progress: int = recruit_progress[team]
-	if medieval:
-		for area: Dictionary in areas:
-			if area.kind == ClassicRules.AreaKind.BASE and area.owner == team and area.tile != bases[team]:
-				progress = maxi(progress, area.spawn_progress)
-	return progress
+	return recruit_progress[team]
+
+
+func get_priority_spawn_base(team: int) -> Vector2i:
+	var owned: Array[Vector2i] = get_spawn_bases(team)
+	if owned.is_empty():
+		return Vector2i(-1, -1)
+	var votes: Array[int] = []
+	votes.resize(owned.size())
+	votes.fill(0)
+	for enemy: ClassicStudent in students:
+		if not enemy.is_alive() or enemy.team == team:
+			continue
+		var nearest: int = 0
+		for i: int in range(1, owned.size()):
+			if enemy.cell.distance_squared_to(owned[i] * 4 + Vector2i(2, 2)) < enemy.cell.distance_squared_to(owned[nearest] * 4 + Vector2i(2, 2)):
+				nearest = i
+		votes[nearest] += 1
+	var best: int = 0
+	for i: int in range(1, owned.size()):
+		if votes[i] > votes[best]:
+			best = i
+	return owned[best]
+
+
+func get_orc_conversion_chance(victim: ClassicStudent) -> float:
+	var count: int = 0
+	for id: int in victim.damage_contributors:
+		var record: Dictionary = victim.damage_contributors[id]
+		if record.get("team", students[id].team) == 1 and ticks - int(record.tick) <= 3 * ClassicRules.TICKS_PER_SECOND:
+			count += 1
+	return minf(1.0, count * 0.25)
 
 
 func can_capture_area(area: Dictionary, team: int) -> bool:
