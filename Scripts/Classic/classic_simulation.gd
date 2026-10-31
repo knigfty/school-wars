@@ -19,15 +19,18 @@ var ticks: int = 0
 var leader: int = -1
 var finished: bool = false
 var ai_enabled: bool = true
-# Selection is retained per match; advanced behavior will be introduced incrementally.
+# Selection is retained per match; Easy preserves the original individual AI.
 enum Difficulty { EASY, NORMAL, EXPERT }
 var difficulty: int = Difficulty.EASY
+const SQUAD_AI = preload("res://Scripts/Classic/medieval_squad_ai.gd")
+var squad_ai = SQUAD_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 7, 4, 3, 2, 1]
 
 
 func setup(team: int, map_seed: int) -> void:
+	squad_ai = SQUAD_AI.new()
 	player_team = clampi(team, 0, 3)
 	rng.seed = map_seed
 	students.clear()
@@ -151,6 +154,8 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 
 
 func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
+	student.ai_retreating = false
+	student.ai_flee_until = 0
 	student.lifetime += 1
 	student.damage_contributors.clear()
 	student.team = team
@@ -181,6 +186,8 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
+	if uses_squad_ai():
+		squad_ai.update(self)
 	if medieval:
 		_capture_areas()
 	for student: ClassicStudent in students:
@@ -202,7 +209,7 @@ func step() -> void:
 				_fighting(student)
 			ClassicStudent.State.DEAD:
 				_dying(student)
-	if ai_enabled:
+	if ai_enabled and not uses_squad_ai():
 		_com_order(students[ticks % students.size()])
 	for color: int in 4:
 		if active[color]:
@@ -260,6 +267,8 @@ func _can_attack_priority(student: ClassicStudent) -> bool:
 
 
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
+	if target.ai_retreating:
+		return
 	if _can_attack_priority(target):
 		return
 	if target.state == ClassicStudent.State.FIGHT and _valid_enemy(target, target.target_id):
@@ -288,6 +297,11 @@ func _start_stand(student: ClassicStudent) -> void:
 func _start_sit(student: ClassicStudent) -> void:
 	if _valid_enemy(student, student.priority_target_id):
 		start_walk(student, Vector2i.ZERO, student.priority_target_id)
+		return
+	if uses_squad_ai() and student.team != player_team:
+		student.state = ClassicStudent.State.SIT
+		student.counter = 40
+		student.pattern = 13
 		return
 	var targets: Array[ClassicStudent] = []
 	for other: ClassicStudent in students:
@@ -582,6 +596,9 @@ func _fighting(student: ClassicStudent) -> void:
 					_convert_to_orc(target)
 					student.show_event("ORCS RISE!")
 			else:
+				if target.ai_retreating:
+					sound_requested.emit("punch", target.world_position())
+					return
 				if _can_attack_priority(target) and target.priority_target_id != student.id:
 					sound_requested.emit("punch", target.world_position())
 					return
@@ -646,6 +663,10 @@ func _update_leader() -> void:
 	for team: int in 4:
 		if values[team] > total * 0.4:
 			leader = team
+
+
+func uses_squad_ai() -> bool:
+	return ai_enabled and medieval and difficulty != Difficulty.EASY
 
 
 func _com_order(student: ClassicStudent) -> void:

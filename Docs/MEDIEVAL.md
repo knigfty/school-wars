@@ -98,3 +98,33 @@ Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, ass
 ## Floating reward text
 
 Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans show "+2 HP", "+2 PUNCH", and "+3 RANGE" at their first three kill milestones; successful orc conversions show "ORCS RISE!" above the killer; elves show their previous maximum HP followed by " + 1 HP", and demons show their previous total punch (base plus earned bonus) followed by " + 1 PUNCH" for rewarded kills or assists. For example, "30 + 1 HP" means maximum HP increased from 30 to 31; "30 + 1 PUNCH" means punch increased from 30 to 31. Later human kills and failed orc conversion rolls do not trigger another notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.
+
+
+## Difficulty and coordinated opponents
+
+The title menu defaults to **Easy**. The selection applies to every opposing
+race and persists when returning to race selection or replaying a match.
+
+- **Easy:** original individual AI.
+- **Normal:** persistent squads of 2–4 where population allows, with strategic
+  decisions every two seconds.
+- **Expert:** squad decisions every second; demons scan six tiles around their
+  squad instead of Normal's four. These are map-state observations, not stat bonuses.
+
+Squads share capture destinations and focus targets. Separated members rally
+before advancing; recruits fill squads, and a group of five splits into 3/2.
+Single surviving warriors can still act until another recruit is available.
+Humans capture together and choose their next objective once ownership changes.
+Elves below 20% HP disengage to the nearest owned heart or base, suppressing
+retaliation and opportunistic attacks until 80% HP. If no healing tile remains,
+they escape until one becomes available. Retreat does not grant immunity.
+Orcs focus a shared victim; when locally outnumbered they escape for six seconds,
+choosing space away from their base to buy recruitment time. Demons favour low-HP
+prey and compare their squad's health, damage and reach against nearby defenders
+before selecting an attack. Orcs value spades; elves value hearts.
+
+`Scripts/Classic/medieval_squad_ai.gd` owns planning. The simulation enables it only
+for Medieval Normal/Expert with AI enabled. Player orders and Classic rules remain
+unchanged. Unit reuse resets retreat flags and reassigns squad membership.
+Run `Testing/run_squad_ai_tests.gd` for race decisions, recovery, difficulty gates,
+respawn membership and seeded simulation occupancy checks.

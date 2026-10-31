@@ -19,6 +19,8 @@ var counter: int = 0
 var walk_tick: float = 0.0
 var fight_phase: int = 0
 var idle_ticks: int = 0
+var ai_retreating: bool = false
+var ai_flee_until: int = 0
 var lifetime: int = 0
 # Per-victim successful damage: attacker ID -> tick and attacker lifetime.
 var damage_contributors: Dictionary = {}
