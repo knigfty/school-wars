@@ -4,7 +4,7 @@ extends Control
 const MENU_ART: Texture2D = preload("res://Assets/Classic/menu.png")
 
 const MEDIEVAL_ART: Texture2D = preload("res://Assets/Medieval/menu.jpg")
-const MEDIEVAL_STUDENTS: Texture2D = preload("res://Assets/Medieval/students.png")
+const MEDIEVAL_STUDENTS: Texture2D = preload("res://Assets/Medieval/students_hd.webp")
 const RACE_NAMES: Array[String] = ["Humans", "Orcs", "Elves", "Demons"]
 
 var medieval: bool = false
@@ -21,6 +21,9 @@ var modal: Control
 var cards: Array[Button] = []
 var status: RichTextLabel
 var selection_label: Label
+var recruit_panel: PanelContainer
+var recruit_bar: ProgressBar
+var recruit_label: Label
 var hint_panel: PanelContainer
 var announcement_label: Label
 var modal_title: Label
@@ -126,10 +129,11 @@ func _build_menu() -> void:
 		var atlas: AtlasTexture = AtlasTexture.new()
 		atlas.atlas = board.student_texture
 		var index: int = team * 100 + 10
-		atlas.region = Rect2(Vector2(index % 20 * 32, index / 20 * 48), Vector2(32, 48))
+		var frame_size: Vector2 = board.student_texture.get_size() / 20.0
+		atlas.region = Rect2(Vector2(index % 20, index / 20) * frame_size, frame_size)
 		icon.texture = atlas
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if medieval else CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		button.add_child(icon)
 		var title: Label = _label(board.team_names[team], 20)
@@ -191,6 +195,29 @@ func _build_hud() -> void:
 	hint_panel.add_theme_stylebox_override("panel", hint_style)
 	hint_panel.add_child(selection_label)
 	hud.add_child(hint_panel)
+	recruit_panel = PanelContainer.new()
+	recruit_panel.name = "RecruitmentProgress"
+	recruit_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var recruit_style: StyleBoxFlat = _panel(Color(0.04, 0.04, 0.04, 0.9))
+	recruit_style.content_margin_left = 10
+	recruit_style.content_margin_right = 10
+	recruit_style.content_margin_top = 6
+	recruit_style.content_margin_bottom = 6
+	recruit_panel.add_theme_stylebox_override("panel", recruit_style)
+	var recruit_box: VBoxContainer = VBoxContainer.new()
+	recruit_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recruit_panel.add_child(recruit_box)
+	recruit_label = _label("Recruiting", 12)
+	recruit_box.add_child(recruit_label)
+	recruit_bar = ProgressBar.new()
+	recruit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recruit_bar.custom_minimum_size = Vector2(0, 10)
+	recruit_bar.max_value = 1.0
+	recruit_bar.step = 0.0
+	recruit_bar.show_percentage = false
+	recruit_bar.add_theme_stylebox_override("background", _panel(Color("303030")))
+	recruit_box.add_child(recruit_bar)
+	hud.add_child(recruit_panel)
 	minimap = ClassicMinimap.new()
 	minimap.board = board
 	hud.add_child(minimap)
@@ -279,9 +306,11 @@ func _layout() -> void:
 	status.size = Vector2(maxf(270, size.x - 540), 30)
 	hud.get_node("Actions").position = Vector2(size.x - 330, 7)
 	hud.get_node("Actions").size = Vector2(318, 38)
-	hint_panel.position = Vector2(14, size.y - 46)
-	hint_panel.size = Vector2(minf(size.x - 228, 680), 32)
-	minimap.position = size - Vector2(190, 122)
+	hint_panel.position = Vector2(size.x - minf(size.x - 28, 520) - 14, size.y - 46)
+	hint_panel.size = Vector2(minf(size.x - 28, 520), 32)
+	recruit_panel.position = Vector2(size.x - 314, size.y - 120)
+	recruit_panel.size = Vector2(300, 64)
+	minimap.position = size - Vector2(190, 242)
 	minimap.size = Vector2(176, 104)
 	announcement_label.position = Vector2(0, 68)
 	announcement_label.size = Vector2(size.x, 40)
@@ -293,6 +322,7 @@ func _layout() -> void:
 
 func _start_match(team: int) -> void:
 	_team = team
+	recruit_bar.add_theme_stylebox_override("fill", _panel(ClassicRules.COLORS[_team].lightened(0.3)))
 	_seed = int(Time.get_unix_time_from_system() * 1000000.0) ^ Time.get_ticks_usec()
 	board.muted = _muted
 	board.start(team, _seed)
@@ -302,6 +332,7 @@ func _start_match(team: int) -> void:
 	_announcement_time = 0.0
 	announcement_label.text = ""
 	_update_selection()
+	_update_recruitment()
 	board.grab_focus()
 
 
@@ -362,7 +393,33 @@ func _announce(text: String) -> void:
 
 
 func _update_selection() -> void:
-	selection_label.text = "%d selected · Click a tile to move or an enemy to attack." % board.selected.size() if not board.selected.is_empty() else "Click or drag to select · Space / right-drag to pan · Wheel to zoom"
+	selection_label.text = "L-click to select · R-click drag to pan · Wheel to zoom"
+
+
+func _update_recruitment() -> void:
+	var sim: ClassicSimulation = board.simulation
+	if sim == null:
+		return
+	var threshold: int = ClassicRules.RECRUIT_THRESHOLD[_team]
+	var progress: int = sim.recruit_progress[_team]
+	recruit_bar.value = clampf(float(progress) / threshold, 0.0, 1.0)
+	var population: int = sim.get_count(_team)
+	var capacity: int = sim.get_team_capacity(_team)
+	if not sim.active[_team]:
+		recruit_label.text = "Recruitment ended"
+	elif population >= capacity:
+		recruit_label.text = "Capacity full · %d/%d" % [population, capacity]
+	else:
+		var free_base_cell: bool = false
+		for y: int in 4:
+			for x: int in 4:
+				if not sim.occupancy.has(sim.bases[_team] * 4 + Vector2i(x, y)):
+					free_base_cell = true
+		if not free_base_cell:
+			recruit_label.text = "Base blocked · clear space to recruit"
+		else:
+			var seconds: float = float(threshold + 1 - progress) / (2 + sim.get_recruit_tiles(_team)) / 18.0
+			recruit_label.text = "Recruiting · next unit in %.1fs" % seconds
 
 
 func _process(delta: float) -> void:
@@ -385,6 +442,7 @@ func _process(delta: float) -> void:
 		if _announcement_time <= 0.0:
 			announcement_label.text = ""
 	_update_selection()
+	_update_recruitment()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

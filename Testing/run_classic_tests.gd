@@ -458,6 +458,12 @@ func _test_shell() -> void:
 	for team: int in 4:
 		app._start_match(team)
 		_check(app.board.simulation.player_team == team, "Every team starts a playable match")
+		app.board.simulation.recruit_progress[team] = ClassicRules.RECRUIT_THRESHOLD[team] / 2
+		app._update_recruitment()
+		_check(is_equal_approx(app.recruit_bar.value, 0.5), "Recruit bar follows real team-specific timer")
+		_check(app.selection_label.text == "L-click to select · R-click drag to pan · Wheel to zoom", "Exact gameplay tips are displayed")
+		_check(app.recruit_panel.position.y + app.recruit_panel.size.y <= app.hint_panel.position.y, "Recruitment bar is above gameplay tips")
+		app.board.simulation.recruit_progress[team] = 0
 		app.board.select_all()
 		_check(app.board.selected.size() == 3, "Select all respects chosen school")
 		var space: InputEventKey = InputEventKey.new()
@@ -465,6 +471,11 @@ func _test_shell() -> void:
 		space.pressed = true
 		app._unhandled_key_input(space)
 		_check(app.board.selected.is_empty(), "Space clears selection")
+		var before_spawn: int = app.board.simulation.get_count(team)
+		app.board.simulation.recruit_progress[team] = ClassicRules.RECRUIT_THRESHOLD[team]
+		app.board.simulation.step()
+		app._update_recruitment()
+		_check(app.board.simulation.get_count(team) == before_spawn + 1 and app.recruit_bar.value < 0.01, "Recruit bar restarts when actual recruitment cycle spawns a unit")
 		app._show_help()
 		await process_frame
 		_check(app.board.paused and app.modal.visible, "Help pauses simulation")

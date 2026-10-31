@@ -39,7 +39,7 @@ var _audio_index: int = 0
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if student_texture != STUDENTS else CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	for i: int in 8:
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
@@ -246,7 +246,7 @@ func _draw() -> void:
 		if not Rect2(Vector2(-100, -100), size + Vector2(200, 200)).has_point(pos):
 			continue
 		var index: int = student.team * 100 + student.direction * 25 + student.pattern
-		draw_texture_rect_region(student_texture, Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), Rect2(Vector2(index % 20 * 32, index / 20 * 48), Vector2(32, 48)))
+		draw_texture_rect_region(student_texture, Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), Rect2(Vector2(index % 20, index / 20) * (student_texture.get_size() / 20.0), student_texture.get_size() / 20.0))
 		var health_pos: Vector2 = pos + Vector2(-student.maximum_health * 0.5, -34) * view_zoom
 		draw_rect(Rect2(health_pos, Vector2(student.maximum_health, 1) * view_zoom), Color("ed1d24"))
 		if student.is_alive():
