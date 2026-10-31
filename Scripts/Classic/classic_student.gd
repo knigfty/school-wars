@@ -16,9 +16,12 @@ var state: State = State.UNUSED
 var direction: int = 0
 var pattern: int = 10
 var counter: int = 0
-var walk_tick: int = 0
+var walk_tick: float = 0.0
 var fight_phase: int = 0
 var idle_ticks: int = 0
+var lifetime: int = 0
+# Per-victim successful damage: attacker ID -> tick and attacker lifetime.
+var damage_contributors: Dictionary = {}
 var punch_bonus: int = 0
 var level: int = 0
 var level_ticks: int = 0

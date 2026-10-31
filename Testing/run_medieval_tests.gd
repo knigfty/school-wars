@@ -80,34 +80,35 @@ func _run() -> void:
 		sim.students[4].target_id = sim.students[9].id
 		_check(sim.get_punch_damage(sim.students[5], target) == 2, "Different targets do not support")
 
-		for team: int in 4:
-			sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
-		for team: int in 4:
-			var attacker: ClassicStudent = sim.students[team * 3]
-			target = sim.students[((team + 1) % 4) * 3]
-			attacker.cell = Vector2i(20, 20)
-			attacker.direction = 0
-			attacker.health = 5
-			var old_max: float = attacker.maximum_health
-			for kill: int in 2:
-				target.cell = attacker.cell + Vector2i.RIGHT
-				target.health = 1
-				target.state = ClassicStudent.State.STAND
-				for attempt: int in 100:
-					attacker.state = ClassicStudent.State.FIGHT
-					attacker.target_id = target.id
-					attacker.fight_phase = 2
-					attacker.counter = 0
-					sim._fighting(attacker)
-					if target.state == ClassicStudent.State.DEAD:
-						break
-				_check(target.state == ClassicStudent.State.DEAD, "Killing blow resolves")
-			_check(attacker.maximum_health == old_max + (2 if not variant or team == 2 else 0), "Only medieval elves gain max HP on kill")
-			_check(attacker.punch_bonus == (2 if variant and team == 3 else 0), "Only medieval demons gain stacking punch")
-			_check(attacker.health == 5, "Kills do not instantly heal")
-			attacker.state = ClassicStudent.State.UNUSED
-			var spawned: ClassicStudent = sim.spawn_student(team)
-			_check(spawned == attacker and spawned.punch_bonus == 0 and spawned.maximum_health == ClassicRules.HEALTH[team], "Respawn resets individual bonuses")
+		if not variant:
+			for team: int in 4:
+				sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
+			for team: int in 4:
+				var attacker: ClassicStudent = sim.students[team * 3]
+				target = sim.students[((team + 1) % 4) * 3]
+				attacker.cell = Vector2i(20, 20)
+				attacker.direction = 0
+				attacker.health = 5
+				var old_max: float = attacker.maximum_health
+				for kill: int in 2:
+					target.cell = attacker.cell + Vector2i.RIGHT
+					target.health = 1
+					target.state = ClassicStudent.State.STAND
+					for attempt: int in 100:
+						attacker.state = ClassicStudent.State.FIGHT
+						attacker.target_id = target.id
+						attacker.fight_phase = 2
+						attacker.counter = 0
+						sim._fighting(attacker)
+						if target.state == ClassicStudent.State.DEAD:
+							break
+					_check(target.state == ClassicStudent.State.DEAD, "Killing blow resolves")
+				_check(attacker.maximum_health == old_max + (2 if not variant or team == 2 else 0), "Only medieval elves gain max HP on kill")
+				_check(attacker.punch_bonus == (2 if variant and team == 3 else 0), "Only medieval demons gain stacking punch")
+				_check(attacker.health == 5, "Kills do not instantly heal")
+				attacker.state = ClassicStudent.State.UNUSED
+				var spawned: ClassicStudent = sim.spawn_student(team)
+				_check(spawned == attacker and spawned.punch_bonus == 0 and spawned.maximum_health == ClassicRules.HEALTH[team], "Respawn resets individual bonuses")
 
 	var scene: PackedScene = load("res://Scenes/Classic/classic_game.tscn")
 	var app: Control = scene.instantiate()

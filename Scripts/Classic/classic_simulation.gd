@@ -142,27 +142,35 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 	for student: ClassicStudent in students:
 		if student.state != ClassicStudent.State.UNUSED:
 			continue
-		student.team = team
-		student.cell = slots[rng.randi_range(0, slots.size() - 1)]
-		student.previous_cell = student.cell
-		student.destination = student.cell
-		student.health = ClassicRules.HEALTH[team]
-		student.maximum_health = student.health
-		student.punch_bonus = 0
-		student.level = 0
-		student.level_ticks = 0
-		student.direction = rng.randi_range(0, 3)
-		student.target_id = -1
-		student.priority_target_id = -1
-		student.approach_cell = Vector2i(-1, -1)
-		student.pattern = 10
-		student.counter = rng.randi_range(10, 29)
-		student.idle_ticks = 0
-		student.history.clear()
-		student.state = ClassicStudent.State.STAND
-		occupancy[student.cell] = student.id
+		_initialize_student(student, team, slots[rng.randi_range(0, slots.size() - 1)])
 		return student
 	return null
+
+
+func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
+	student.lifetime += 1
+	student.damage_contributors.clear()
+	student.team = team
+	student.cell = cell
+	student.previous_cell = cell
+	student.destination = cell
+	student.health = ClassicRules.HEALTH[team]
+	student.maximum_health = student.health
+	student.punch_bonus = 0
+	student.level = 0
+	student.level_ticks = 0
+	student.walk_tick = 0.0
+	student.direction = rng.randi_range(0, 3)
+	student.target_id = -1
+	student.priority_target_id = -1
+	student.approach_cell = Vector2i(-1, -1)
+	student.pattern = 10
+	student.counter = rng.randi_range(10, 29)
+	student.fight_phase = 0
+	student.idle_ticks = 0
+	student.history.clear()
+	student.state = ClassicStudent.State.STAND
+	occupancy[cell] = student.id
 
 
 func step() -> void:
@@ -228,7 +236,7 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 	if student.target_id >= 0:
 		var target: ClassicStudent = students[student.target_id]
 		student.destination = target.cell
-		if _adjacent(student.cell, target.cell):
+		if _within_attack_range(student, target):
 			_start_fight(student, target)
 			_engage_defender(target, student)
 			return
@@ -244,7 +252,7 @@ func _can_attack_priority(student: ClassicStudent) -> bool:
 	if not _valid_enemy(student, student.priority_target_id):
 		return false
 	var priority: ClassicStudent = students[student.priority_target_id]
-	return _adjacent(student.cell, priority.cell) and priority.state != ClassicStudent.State.WALK
+	return _within_attack_range(student, priority) and priority.state != ClassicStudent.State.WALK
 
 
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
@@ -259,7 +267,10 @@ func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
 	# Flash remembers the attacker while the defender completes its reserved step.
 	target.target_id = attacker.id
 	if target.state != ClassicStudent.State.WALK:
-		_start_fight(target, attacker)
+		if medieval and not _within_attack_range(target, attacker):
+			start_walk(target, Vector2i.ZERO, attacker.id)
+		else:
+			_start_fight(target, attacker)
 
 
 func _start_stand(student: ClassicStudent) -> void:
@@ -313,7 +324,7 @@ func _sitting(student: ClassicStudent) -> void:
 
 func _focus_step(student: ClassicStudent) -> void:
 	var target: ClassicStudent = students[student.priority_target_id]
-	if _adjacent(student.cell, target.cell):
+	if _within_attack_range(student, target):
 		_start_fight(student, target)
 		_engage_defender(target, student)
 		return
@@ -324,14 +335,13 @@ func _focus_step(student: ClassicStudent) -> void:
 			continue
 		if ally.priority_target_id != target.id or ally.target_id != target.id:
 			continue
-		if _adjacent(ally.cell, target.cell):
+		if _within_attack_range(ally, target):
 			claimed[ally.cell] = true
-		elif _adjacent(ally.approach_cell, target.cell):
+		elif _cell_in_range(ally.approach_cell, target.cell, get_attack_range(ally)):
 			if not occupancy.has(ally.approach_cell) or occupancy[ally.approach_cell] == ally.id:
 				claimed[ally.approach_cell] = true
 	var goals: Dictionary = {}
-	for direction: Vector2i in ClassicRules.DIRECTIONS:
-		var cell: Vector2i = target.cell + direction
+	for cell: Vector2i in _attack_positions(student, target.cell):
 		if ClassicRules.in_grid(cell) and not occupancy.has(cell) and not claimed.has(cell):
 			goals[cell] = true
 	# Keep a reachable assignment stable, but allow reassignment when blocked.
@@ -419,7 +429,7 @@ func _reserve_step(student: ClassicStudent, direction: int) -> void:
 	student.previous_cell = student.cell
 	student.cell += ClassicRules.DIRECTIONS[direction]
 	occupancy[student.cell] = student.id
-	student.walk_tick = 0
+	student.walk_tick = maxf(0.0, student.walk_tick - 6.0) if medieval and student.state == ClassicStudent.State.WALK else 0.0
 	student.state = ClassicStudent.State.WALK
 
 
@@ -440,6 +450,10 @@ func _start_turn(student: ClassicStudent) -> void:
 			_target_died(students[student.target_id])
 		else:
 			student.destination = students[student.target_id].cell
+			if medieval and _within_attack_range(student, students[student.target_id]):
+				_start_fight(student, students[student.target_id])
+				_engage_defender(students[student.target_id], student)
+				return
 	var offset: Vector2i = student.destination - student.cell
 	var choices: Array[int] = []
 	var preferred: int = -1
@@ -470,12 +484,12 @@ func _start_turn(student: ClassicStudent) -> void:
 	student.previous_cell = student.cell
 	student.cell += ClassicRules.DIRECTIONS[student.direction]
 	occupancy[student.cell] = student.id
-	student.walk_tick = 0
+	student.walk_tick = maxf(0.0, student.walk_tick - 6.0) if medieval and student.state == ClassicStudent.State.WALK else 0.0
 	student.state = ClassicStudent.State.WALK
 
 
 func _walking(student: ClassicStudent) -> void:
-	student.walk_tick += 1
+	student.walk_tick += get_movement_multiplier(student)
 	student.pattern = (student.pattern + 1) % 10
 	if student.walk_tick < 6:
 		return
@@ -485,7 +499,7 @@ func _walking(student: ClassicStudent) -> void:
 			_start_turn(student)
 			return
 		var target: ClassicStudent = students[student.target_id]
-		if _adjacent(student.cell, target.cell):
+		if _within_attack_range(student, target):
 			_start_fight(student, target)
 			_engage_defender(target, student)
 			return
@@ -521,6 +535,10 @@ func _fighting(student: ClassicStudent) -> void:
 		_start_stand(student)
 		return
 	var target: ClassicStudent = students[student.target_id]
+	if medieval and not _within_attack_range(student, target):
+		student.state = ClassicStudent.State.STAND
+		start_walk(student, Vector2i.ZERO, target.id)
+		return
 	if student.fight_phase == 0:
 		if target.state != ClassicStudent.State.WALK:
 			student.pattern = 17
@@ -544,6 +562,8 @@ func _fighting(student: ClassicStudent) -> void:
 			target.pattern = 20
 			target.fight_phase = 3
 			target.counter = 5
+			if medieval:
+				target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime}
 			target.health -= get_punch_damage(student, target)
 			if target.health <= 0.0:
 				target.health = 0.0
@@ -552,21 +572,20 @@ func _fighting(student: ClassicStudent) -> void:
 				target.pattern = 20
 				target.counter = 10
 				target.fight_phase = 0
-				# Only medieval elves retain max-HP growth; kills never instantly heal.
-				if not medieval or student.team == 2:
-					student.maximum_health += 1.0
-				if medieval and student.team == 3:
-					student.punch_bonus += 1
-				student.level += 1
-				student.level_ticks = 30
+				_reward_defeat(student, target)
 				sound_requested.emit("dead", target.world_position())
+				if medieval and student.team == 1 and rng.randf() < 0.5:
+					_convert_to_orc(target)
 			else:
 				if _can_attack_priority(target) and target.priority_target_id != student.id:
 					sound_requested.emit("punch", target.world_position())
 					return
 				target.target_id = student.id
 				_face_target(target, student)
-				if target.state != ClassicStudent.State.FIGHT:
+				if medieval and not _within_attack_range(target, student):
+					target.state = ClassicStudent.State.STAND
+					start_walk(target, Vector2i.ZERO, student.id)
+				elif target.state != ClassicStudent.State.FIGHT:
 					_start_fight(target, student)
 				sound_requested.emit("punch", target.world_position())
 		3:
@@ -594,9 +613,14 @@ func _dying(student: ClassicStudent) -> void:
 		return
 	student.state = ClassicStudent.State.UNUSED
 	occupancy.erase(student.cell)
-	if get_count(student.team) == 0:
-		active[student.team] = false
-		team_eliminated.emit(student.team)
+	_check_elimination(student.team)
+	_update_leader()
+
+
+func _check_elimination(team: int) -> void:
+	if active[team] and get_count(team) == 0:
+		active[team] = false
+		team_eliminated.emit(team)
 		var survivors: int = active.count(true)
 		if not active[player_team] or survivors == 1:
 			finished = true
@@ -668,6 +692,8 @@ func _valid_enemy(student: ClassicStudent, target_id: int) -> bool:
 
 
 func _contact_target(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and get_attack_range(student) > 1:
+		return target.is_alive() and target.state != ClassicStudent.State.WALK and _within_attack_range(student, target)
 	return target.is_alive() and target.state != ClassicStudent.State.WALK and student.cell + ClassicRules.DIRECTIONS[student.direction] == target.cell
 
 
@@ -760,3 +786,95 @@ func _capture_areas() -> void:
 				area.spawn_progress = 0
 				_update_leader()
 				break
+
+
+func get_attack_range(student: ClassicStudent) -> int:
+	if not medieval:
+		return 1
+	if student.team == 0 and student.level >= 3:
+		return 3
+	if student.team == 2:
+		if student.maximum_health >= 40.0:
+			return 4
+		if student.maximum_health >= 35.0:
+			return 3
+		if student.maximum_health >= 30.0:
+			return 2
+	return 1
+
+
+func get_movement_multiplier(student: ClassicStudent) -> float:
+	if medieval and student.team == 3:
+		var punch: float = ClassicRules.PUNCH[student.team] + student.punch_bonus
+		if punch >= 18.0:
+			return 1.4
+		if punch >= 12.0:
+			return 1.3
+		if punch >= 8.0:
+			return 1.2
+	return 1.0
+
+
+func _cell_in_range(cell: Vector2i, target: Vector2i, reach: int) -> bool:
+	var delta: Vector2i = target - cell
+	var distance: int = absi(delta.x) + absi(delta.y)
+	return distance > 0 and distance <= reach
+
+
+func _within_attack_range(student: ClassicStudent, target: ClassicStudent) -> bool:
+	return _cell_in_range(student.cell, target.cell, get_attack_range(student))
+
+
+func _attack_positions(student: ClassicStudent, target_cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var reach: int = get_attack_range(student)
+	if reach == 1:
+		for direction: Vector2i in ClassicRules.DIRECTIONS:
+			result.append(target_cell + direction)
+	else:
+		for y: int in range(-reach, reach + 1):
+			for x: int in range(-reach, reach + 1):
+				var cell: Vector2i = target_cell + Vector2i(x, y)
+				if _cell_in_range(cell, target_cell, reach):
+					result.append(cell)
+	return result
+
+
+func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
+	killer.level += 1
+	killer.level_ticks = 30
+	if not medieval:
+		killer.maximum_health += 1.0
+		return
+	if killer.team == 0:
+		if killer.level == 1:
+			killer.maximum_health += 2.0
+		elif killer.level == 2:
+			killer.punch_bonus += 2
+	# Damage records include the killing blow, so each contributor is rewarded once.
+	for id: int in victim.damage_contributors:
+		var record: Dictionary = victim.damage_contributors[id]
+		var contributor: ClassicStudent = students[id]
+		if not contributor.is_alive() or contributor.lifetime != record.lifetime or ticks - int(record.tick) > 3 * ClassicRules.TICKS_PER_SECOND:
+			continue
+		if contributor.team == 2:
+			contributor.maximum_health += 1.0
+			contributor.level_ticks = 30
+		elif contributor.team == 3:
+			contributor.punch_bonus += 1
+			contributor.level_ticks = 30
+	victim.damage_contributors.clear()
+
+
+func _convert_to_orc(victim: ClassicStudent) -> void:
+	var former_team: int = victim.team
+	var cell: Vector2i = victim.cell
+	victim.state = ClassicStudent.State.UNUSED
+	occupancy.erase(cell)
+	# Fresh ID avoids transferring selection or orders aimed at the dead enemy.
+	var converted: ClassicStudent = ClassicStudent.new()
+	converted.id = students.size()
+	students.append(converted)
+	_initialize_student(converted, 1, cell)
+	_check_elimination(former_team)
+	_update_leader()

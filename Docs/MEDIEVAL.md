@@ -46,8 +46,8 @@ The game passes its medieval flag through ClassicBoard into ClassicSimulation be
 - Orc recruitment threshold is 750 instead of classic Green's 500; other races remain at 1500. At equal spade ownership, orcs recruit twice as fast.
 - Orc capacity increases by one per two owned spades, rounded down. Hearts do not count. Losing spades lowers capacity without removing existing units.
 - Against one target, the first engaged orc (stable unit-ID order) deals base damage, and each additional engaged orc deals +1 on successful punches. Two deal 5 combined; three deal 8. Support requires a living orc fighting that same enemy in melee contact; misses retain the existing combat rules.
-- Only elves gain +1 maximum HP per killing blow, without instantly healing. Other medieval races gain no HP from kills.
-- Demons gain +1 permanent punch damage per killing blow, stacking for that unit's lifetime. Respawning resets kill bonuses.
+- Elves gain +1 maximum HP per killing blow or recent damaging assist, without instantly healing. Humans have the kill milestones below.
+- Demons gain +1 permanent punch damage per killing blow or recent damaging assist, stacking for that unit's lifetime. Respawning resets all progression.
 - Elves heal 0.2 HP per seated tick on owned hearts (3.6 HP/sec). Their base healing and all other races' healing remain 0.1 per tick.
 
 The recruitment HUD uses the variant's actual threshold; medieval help describes these rules. Run Godot headless with --script res://Testing/run_medieval_tests.gd for balance and variant-wiring regression checks.
@@ -70,3 +70,26 @@ A medieval base becomes capturable only after its current owning team is elimina
 Protection follows the current owner: a captured base can be conquered again after its new owner is eliminated. AI teams can pursue eligible bases. Existing player defeat and last-team-standing victory conditions remain unchanged; there is no post-victory capture phase. Classic capture, bases and recruitment remain unchanged.
 
 The recruitment HUD checks space across every owned base and displays the next spawn cycle. No manual Godot setup is required. Testing/run_medieval_capture_tests.gd checks all human timing tiers on all capturable tile types, other-race timing, changing squad sizes, elimination protection, base ownership and recruitment, dynamic spade bonuses, blocked bases, shared capacity, and classic base protection.
+
+## Race progression and recent-damage assists
+
+| Race | Trigger | Bonus |
+| --- | --- | --- |
+| Human | First killing blow | +2 maximum HP, once |
+| Human | Second killing blow | +2 punch, once |
+| Human | Third killing blow | Total attack reach becomes 3 grid cells |
+| Orc | Each killing blow | Seeded 50% chance to spawn a fresh orc at the death location |
+| Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
+| Elf | 30 / 35 / 40 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
+| Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |
+| Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
+
+Human milestones are cumulative and stop after three kills. Elf range and demon speed use the highest unlocked tier rather than adding tiers together. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
+
+Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves and demons each receive one reward at death; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
+
+Range is Manhattan distance in movement grid cells, not the larger capture tiles. Ranged pursuit, focus-position pathfinding, priority attacks and retaliation use the same per-unit reach. Melee defenders close the gap against ranged attackers. The existing rule that moving targets cannot be punched remains. Demon movement accumulates fractional progress across consecutive walk steps so +30% and +40% remain distinct at 18 Hz, with rendering using that same progress.
+
+Orc conversion replaces the dead enemy with a fresh full-health orc of the killer's team, with a new unit ID and no inherited stats, selection, or targeting orders. The death cell is transferred immediately without an overlapping corpse. Conversions can exceed the normal population cap; regular recruitment still respects the cap. Converting a team's last unit triggers elimination and unlocks its bases.
+
+Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, assist expiration and duplicate prevention, dead/reused contributors, real ranged damage and pursuit, sustained movement speed, deterministic conversion rolls and death-cell occupancy, elimination and fresh-spawn resets. Classic rules remain unchanged.
