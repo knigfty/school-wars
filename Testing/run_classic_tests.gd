@@ -462,7 +462,8 @@ func _test_shell() -> void:
 		app._update_recruitment()
 		_check(is_equal_approx(app.recruit_bar.value, 0.5), "Recruit bar follows real team-specific timer")
 		_check(app.selection_label.text == "L-click to select · R-click drag to pan · Wheel to zoom", "Exact gameplay tips are displayed")
-		_check(app.recruit_panel.position.y + app.recruit_panel.size.y <= app.hint_panel.position.y, "Recruitment bar is above gameplay tips")
+		_check(app.recruit_panel.position.x == 14 and app.recruit_panel.size.x == 225 and app.recruit_panel.size.y <= 48, "Spawn box is bottom-left and 25 percent smaller")
+		_check(not app.hint_panel.visible, "Controls are removed from battlefield")
 		app.board.simulation.recruit_progress[team] = 0
 		app.board.select_all()
 		_check(app.board.selected.size() == 3, "Select all respects chosen school")
@@ -497,6 +498,13 @@ func _test_shell() -> void:
 	_check(medieval_app.menu_title.text == "MEDIEVAL WARS", "Medieval variant has independent title")
 	_check(medieval_app.board.team_names == ["Humans", "Orcs", "Elves", "Demons"], "Medieval races retain team order")
 	_check(medieval_app.board.student_texture == medieval_app.MEDIEVAL_STUDENTS, "Race atlas is used in menu and match")
+	var atlas_image: Image = medieval_app.MEDIEVAL_STUDENTS.get_image()
+	for index: int in 400:
+		if index % 25 >= 23:
+			continue
+		var region: Rect2i = Rect2i(Vector2i(index % 20 * 64, (index / 20) * 96), Vector2i(64, 96))
+		_check(atlas_image.get_region(region).get_used_rect().has_area(), "Every live animation frame contains a sprite: %d" % index)
+		_check(medieval_app.board.student_frame(index).filter_clip, "Atlas frames clip neighbouring cells")
 	_check(is_instance_valid(medieval_app.extras_button), "Variant has return navigation")
 	for team: int in 4:
 		medieval_app._start_match(team)

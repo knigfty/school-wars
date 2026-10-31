@@ -17,3 +17,9 @@ The active medieval atlas is `Assets/Medieval/students_hd.webp`, 1280x1920 with 
 The bottom-right HUD shows the exact requested mouse tips, with the recruitment progress bar above and minimap above that. The progress bar reads actual per-team recruitment progress/threshold; owned recruitment tiles and the Green/Orc threshold naturally affect fill speed. Capacity-full and blocked-base labels explain why a recruitment cycle may not produce a unit. No recruitment rules have changed.
 
 HD art prompt: clearer high-resolution remaster of the original medieval atlas, preserving all 400 slots, poses, directions and race colour blocks; improve armor edges, faces, elf ears, orc tusks and demon horns; transparent background. Built-in image generation was used, followed by atlas normalization and WebP encoding.
+
+## Animation and compact HUD repair
+
+Six empty live medieval atlas frames (19,79,119,179,219,319) were replaced with the adjacent valid pose in the same directional sequence. Death-blink frames remain intentionally blank. Both variants use cached filter-clipped atlas textures to prevent sampling neighbouring frames. Regression checks cover all 368 live-state frames.
+
+The spawning panel is now 225x48, bottom-left (75% of the previous width and height), labelled Spawning. Battlefield control tips are hidden and appear first in the concise bulleted help dialog. The minimap is restored to bottom-right.

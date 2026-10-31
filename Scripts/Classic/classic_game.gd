@@ -130,7 +130,8 @@ func _build_menu() -> void:
 		atlas.atlas = board.student_texture
 		var index: int = team * 100 + 10
 		var frame_size: Vector2 = board.student_texture.get_size() / 20.0
-		atlas.region = Rect2(Vector2(index % 20, index / 20) * frame_size, frame_size)
+		atlas.region = Rect2(Vector2(index % 20, floori(float(index) / 20.0)) * frame_size, frame_size)
+		atlas.filter_clip = true
 		icon.texture = atlas
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if medieval else CanvasItem.TEXTURE_FILTER_NEAREST
@@ -195,23 +196,25 @@ func _build_hud() -> void:
 	hint_panel.add_theme_stylebox_override("panel", hint_style)
 	hint_panel.add_child(selection_label)
 	hud.add_child(hint_panel)
+	hint_panel.hide()
 	recruit_panel = PanelContainer.new()
 	recruit_panel.name = "RecruitmentProgress"
 	recruit_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var recruit_style: StyleBoxFlat = _panel(Color(0.04, 0.04, 0.04, 0.9))
-	recruit_style.content_margin_left = 10
-	recruit_style.content_margin_right = 10
-	recruit_style.content_margin_top = 6
-	recruit_style.content_margin_bottom = 6
+	recruit_style.content_margin_left = 7
+	recruit_style.content_margin_right = 7
+	recruit_style.content_margin_top = 3
+	recruit_style.content_margin_bottom = 3
 	recruit_panel.add_theme_stylebox_override("panel", recruit_style)
 	var recruit_box: VBoxContainer = VBoxContainer.new()
 	recruit_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	recruit_panel.add_child(recruit_box)
-	recruit_label = _label("Recruiting", 12)
+	recruit_label = _label("Spawning", 10)
 	recruit_box.add_child(recruit_label)
 	recruit_bar = ProgressBar.new()
 	recruit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	recruit_bar.custom_minimum_size = Vector2(0, 10)
+	recruit_bar.custom_minimum_size = Vector2(0, 7)
+	recruit_bar.add_theme_font_size_override("font_size", 8)
 	recruit_bar.max_value = 1.0
 	recruit_bar.step = 0.0
 	recruit_bar.show_percentage = false
@@ -308,9 +311,9 @@ func _layout() -> void:
 	hud.get_node("Actions").size = Vector2(318, 38)
 	hint_panel.position = Vector2(size.x - minf(size.x - 28, 520) - 14, size.y - 46)
 	hint_panel.size = Vector2(minf(size.x - 28, 520), 32)
-	recruit_panel.position = Vector2(size.x - 314, size.y - 120)
-	recruit_panel.size = Vector2(300, 64)
-	minimap.position = size - Vector2(190, 242)
+	recruit_panel.position = Vector2(14, size.y - 62)
+	recruit_panel.size = Vector2(225, 48)
+	minimap.position = size - Vector2(190, 122)
 	minimap.size = Vector2(176, 104)
 	announcement_label.position = Vector2(0, 68)
 	announcement_label.size = Vector2(size.x, 40)
@@ -367,7 +370,7 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 
 
 func _show_help() -> void:
-	_show_dialog("How to play", "CONTROLS\nClick or drag to select students, then press on a tile to move or an enemy to focus attacks. Orders clear selection. Students outside their target's melee range can fight nearby attackers, then resume the original order.\n\nCAPTURING TILES\nGrey symbols are neutral; team colours show ownership. Students must sit on a tile to capture it. One student needs about 16.7 seconds of sitting; more seated allies capture faster. Moving and fighting do not count. Partial progress remains when you leave; a capture resets other teams' progress.\n\nSPADE / FIST TILE: FASTER RECRUITMENT\nEach owned spade-shaped recruitment tile speeds up recruitment for your whole team at its home base. The bonus stays after students leave. It does not increase attack damage or heal. Base production is 2 points per tick; each owned tile adds 1. Green needs 500 points per recruit; other teams need 1,500. Teams start with capacity for 12 students. Green gains +1 capacity per two currently owned spade or heart tiles (home base excluded); losing tiles lowers capacity but never removes existing students. This bonus does not change recruitment speed; a full or blocked base can prevent spawning.\n\nHEART TILE: HEALING\nStudents sitting on a friendly heart or their home base heal 1.8 HP per second, up to their maximum HP. Hearts do not speed recruitment. Capture speed and healing rate are the same for every team. Home bases cannot be captured.\n\nSpace + drag or right-drag: pan · Wheel: zoom\nMinimap: click or drag · A: select all · Space: clear selection · Esc: cancel / pause\n\nEliminate every opposing student to win. Capturing tiles alone does not win.", true, false)
+	_show_dialog("How to play", "CONTROLS\n• L-click to select · R-click drag to pan · Wheel to zoom\n• Drag a box to select a squad; click a tile to move or an enemy to focus attacks.\n• Space: clear selection · Space-drag: pan\n• A: select all · Esc: cancel / pause · Minimap: click or drag\n\nCAPTURE & HEAL\n• Sit on spade or heart tiles to capture them; more seated allies capture faster.\n• One student takes about 16.7 seconds. Moving or fighting does not count.\n• Grey = neutral; colours = owner. Partial progress stays when you leave.\n• Spades speed team spawning, even after you leave. They do not boost damage.\n• Friendly hearts and bases heal seated students: 1.8 HP/sec.\n• Bases cannot be captured. Capture and healing rates are equal for all teams.\n\nSPAWNING & COMBAT\n• The spawn bar shows the next cycle; full capacity or a blocked base prevents spawning.\n• Green spawns three times as fast. All teams start with 12 capacity.\n• Green gains +1 capacity per two owned spade/heart tiles. Lost tiles lower the cap without removing units.\n• Four attackers can surround a target; others close in and wait for openings.\n• Out-of-range attackers can fight back nearby, then resume their focus order.\n• Kill: +1 max HP, no instant heal. Eliminate all opponents to win.", true, false)
 
 
 func _show_pause() -> void:
@@ -406,7 +409,7 @@ func _update_recruitment() -> void:
 	var population: int = sim.get_count(_team)
 	var capacity: int = sim.get_team_capacity(_team)
 	if not sim.active[_team]:
-		recruit_label.text = "Recruitment ended"
+		recruit_label.text = "Spawning ended"
 	elif population >= capacity:
 		recruit_label.text = "Capacity full · %d/%d" % [population, capacity]
 	else:
@@ -419,7 +422,7 @@ func _update_recruitment() -> void:
 			recruit_label.text = "Base blocked · clear space to recruit"
 		else:
 			var seconds: float = float(threshold + 1 - progress) / (2 + sim.get_recruit_tiles(_team)) / 18.0
-			recruit_label.text = "Recruiting · next unit in %.1fs" % seconds
+			recruit_label.text = "Spawning · next unit in %.1fs" % seconds
 
 
 func _process(delta: float) -> void:

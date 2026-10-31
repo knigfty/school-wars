@@ -19,6 +19,8 @@ const CUES: Dictionary = {
 var student_texture: Texture2D = STUDENTS
 var team_names: Array[String] = ClassicRules.TEAM_NAMES.duplicate()
 
+var _frame_cache: Dictionary = {}
+
 var simulation: ClassicSimulation
 var selected: Array[int] = []
 var camera_center: Vector2 = Vector2(0, 384)
@@ -226,6 +228,17 @@ func _clamp_camera() -> void:
 	camera_center.y = clampf(camera_center.y, minf(384.0, -80.0 + half.y), maxf(384.0, 848.0 - half.y))
 
 
+func student_frame(index: int) -> AtlasTexture:
+	if not _frame_cache.has(index):
+		var frame: AtlasTexture = AtlasTexture.new()
+		frame.atlas = student_texture
+		var frame_size: Vector2 = student_texture.get_size() / 20.0
+		frame.region = Rect2(Vector2(index % 20, floori(float(index) / 20.0)) * frame_size, frame_size)
+		frame.filter_clip = true
+		_frame_cache[index] = frame
+	return _frame_cache[index]
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color("454545"))
 	if simulation == null:
@@ -246,7 +259,7 @@ func _draw() -> void:
 		if not Rect2(Vector2(-100, -100), size + Vector2(200, 200)).has_point(pos):
 			continue
 		var index: int = student.team * 100 + student.direction * 25 + student.pattern
-		draw_texture_rect_region(student_texture, Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), Rect2(Vector2(index % 20, index / 20) * (student_texture.get_size() / 20.0), student_texture.get_size() / 20.0))
+		draw_texture_rect(student_frame(index), Rect2(pos + Vector2(-16, -34) * view_zoom, Vector2(32, 48) * view_zoom), false)
 		var health_pos: Vector2 = pos + Vector2(-student.maximum_health * 0.5, -34) * view_zoom
 		draw_rect(Rect2(health_pos, Vector2(student.maximum_health, 1) * view_zoom), Color("ed1d24"))
 		if student.is_alive():
