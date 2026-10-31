@@ -94,8 +94,8 @@ func _test_assists() -> void:
 		_hit(sim, killer, victim)
 		_check(elf.maximum_health == (26 if elapsed <= 54 else 25), "Elf assist window includes exactly three seconds")
 		_check(demon.punch_bonus == (1 if elapsed <= 54 else 0), "Demon assist window includes exactly three seconds")
-		_check(elf.event_text == ("+1 HP" if elapsed <= 54 else ""), "Elf event only appears for awarded HP")
-		_check(demon.event_text == ("+1 PUNCH" if elapsed <= 54 else ""), "Demon event only appears for awarded punch")
+		_check(elf.event_text == ("25 + 1 HP" if elapsed <= 54 else ""), "Elf event only appears for awarded HP")
+		_check(demon.event_text == ("5 + 1 PUNCH" if elapsed <= 54 else ""), "Demon event only appears for awarded punch")
 		_check(elf.health == 5 and elf.level == 0 and demon.level == 0, "Assists grant stats without healing or counting as kills")
 		_check(victim.damage_contributors.is_empty(), "Victim damage ledger cleared after death")
 
