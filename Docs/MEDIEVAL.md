@@ -57,9 +57,9 @@ The recruitment HUD uses the variant's actual threshold; medieval help describes
 | Seated humans on one tile | Full capture time |
 | --- | --- |
 | 1 | 12 seconds |
-| 2 | 7 seconds |
-| 3 | 4 seconds |
-| 4 | 3 seconds |
+| 2 | 9 seconds |
+| 3 | 6 seconds |
+| 4 | 4 seconds |
 | 5 | 2 seconds |
 | 6 or more | 1 second |
 

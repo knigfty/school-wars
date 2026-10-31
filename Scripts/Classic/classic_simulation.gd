@@ -26,7 +26,7 @@ const SQUAD_AI = preload("res://Scripts/Classic/medieval_squad_ai.gd")
 var squad_ai = SQUAD_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
-const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 7, 4, 3, 2, 1]
+const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
 
 
 func setup(team: int, map_seed: int) -> void:

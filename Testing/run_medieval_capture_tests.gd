@@ -40,7 +40,7 @@ func _seat(sim: ClassicSimulation, count: int, team: int, tile: Vector2i) -> voi
 
 
 func _run() -> void:
-	var durations: Array[int] = [12, 7, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1]
+	var durations: Array[int] = [12, 9, 6, 4, 2, 1, 1, 1, 1, 1, 1, 1]
 	for count: int in range(1, 13):
 		for kind: int in [ClassicRules.AreaKind.RECRUIT, ClassicRules.AreaKind.HEAL, ClassicRules.AreaKind.BASE]:
 			var sim: ClassicSimulation = _empty_sim()
