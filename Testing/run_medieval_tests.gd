@@ -114,6 +114,14 @@ func _run() -> void:
 	var app: Control = scene.instantiate()
 	app.medieval = true
 	root.add_child(app)
+	_check(app.difficulty_selector.get_item_count() == 3, "Menu offers three difficulties")
+	_check(app.difficulty_selector.text == "Difficulty : Easy", "Difficulty defaults to Easy")
+	for difficulty: int in 3:
+		app.difficulty_selector.select(difficulty)
+		app._start_match(1)
+		_check(app.board.simulation.difficulty == difficulty, "Match receives selected difficulty")
+		app._show_menu()
+		_check(app.difficulty_selector.selected == difficulty, "Return to menu retains selection")
 	app._start_match(1)
 	_check(app.board.simulation.medieval, "Menu starts medieval rules")
 	app._show_help()

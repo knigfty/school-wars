@@ -11,6 +11,7 @@ var medieval: bool = false
 var extras_button: Button
 var menu_title: Label
 var menu_subtitle: Label
+var difficulty_selector: OptionButton
 var _pop_time: float = 0.0
 var _reduce_motion: bool = false
 var board: ClassicBoard
@@ -114,6 +115,15 @@ func _build_menu() -> void:
 		menu_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		menu_subtitle.add_theme_color_override("font_color", Color("f6e4b5"))
 		menu.add_child(menu_subtitle)
+	if medieval:
+		difficulty_selector = OptionButton.new()
+		difficulty_selector.name = "DifficultySelector"
+		difficulty_selector.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		for difficulty_name: String in ["Easy", "Normal", "Expert"]:
+			difficulty_selector.add_item("Difficulty : " + difficulty_name)
+		difficulty_selector.select(ClassicSimulation.Difficulty.EASY)
+		difficulty_selector.tooltip_text = "Choose opponent difficulty. Advanced strategies are planned; all levels currently use the original AI."
+		menu.add_child(difficulty_selector)
 	extras_button = _button("School Wars" if medieval else "Extras", _navigate_variant)
 	extras_button.name = "ExtrasButton"
 	menu.add_child(extras_button)
@@ -284,6 +294,8 @@ func _layout() -> void:
 		menu_title.size = Vector2(size.x - 40, 80)
 		menu_subtitle.position = Vector2(20, size.y * 0.25 + 85)
 		menu_subtitle.size = Vector2(size.x - 40, 30)
+		difficulty_selector.size = Vector2(minf(190, size.x - 40), 38)
+		difficulty_selector.position = Vector2((size.x - difficulty_selector.size.x) * 0.5, size.y * 0.52 - 19)
 	var width: float = minf(size.x - 64, 820)
 	var card_width: float = (width - 36) / 4
 	var card_height: float = size.y * 0.28
@@ -329,7 +341,7 @@ func _start_match(team: int) -> void:
 	recruit_bar.add_theme_stylebox_override("fill", _panel(ClassicRules.COLORS[_team].lightened(0.3)))
 	_seed = int(Time.get_unix_time_from_system() * 1000000.0) ^ Time.get_ticks_usec()
 	board.muted = _muted
-	board.start(team, _seed)
+	board.start(team, _seed, difficulty_selector.selected if medieval else ClassicSimulation.Difficulty.EASY)
 	menu.hide()
 	modal.hide()
 	hud.show()

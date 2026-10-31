@@ -51,9 +51,10 @@ func _ready() -> void:
 		_audio.append(player)
 
 
-func start(team: int, map_seed: int) -> void:
+func start(team: int, map_seed: int, difficulty: int = ClassicSimulation.Difficulty.EASY) -> void:
 	simulation = ClassicSimulation.new()
 	simulation.medieval = medieval
+	simulation.difficulty = clampi(difficulty, ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.EXPERT)
 	simulation.setup(team, map_seed)
 	simulation.sound_requested.connect(_on_sound)
 	simulation.team_eliminated.connect(_on_eliminated)

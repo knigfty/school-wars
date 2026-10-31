@@ -19,6 +19,9 @@ var ticks: int = 0
 var leader: int = -1
 var finished: bool = false
 var ai_enabled: bool = true
+# Selection is retained per match; advanced behavior will be introduced incrementally.
+enum Difficulty { EASY, NORMAL, EXPERT }
+var difficulty: int = Difficulty.EASY
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 7, 4, 3, 2, 1]
