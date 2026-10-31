@@ -75,12 +75,70 @@ func _run() -> void:
 	_check(cap_sim.get_count(0) == 12, "All schools enforce the twelve-unit cap")
 	cap_sim.active[1] = false
 	_check(cap_sim.spawn_student(1) == null, "Eliminated schools cannot recruit")
+	_test_orders()
 	_test_fight()
 	_test_determinism_and_occupancy()
 	await _test_shell()
 	if failures == 0:
 		print("Classic SWF rules, simulation invariants, and shell tests passed.")
 	quit(failures)
+
+
+func _test_orders() -> void:
+	var sim: ClassicSimulation = ClassicSimulation.new()
+	sim.setup(0, 43)
+	var attacker: ClassicStudent = sim.students[0]
+	var defender: ClassicStudent = sim.students[3]
+	attacker.cell = Vector2i(20, 20)
+	defender.cell = Vector2i(21, 20)
+	defender.previous_cell = Vector2i(22, 20)
+	defender.state = ClassicStudent.State.WALK
+	defender.walk_tick = 2
+	sim.start_walk(attacker, Vector2i.ZERO, defender.id)
+	_check(defender.state == ClassicStudent.State.WALK and defender.walk_tick == 2, "Engaged moving defender finishes its step")
+	_check(defender.target_id == attacker.id, "Moving defender remembers attacker")
+	defender.walk_tick = 5
+	sim._walking(defender)
+	_check(defender.state == ClassicStudent.State.FIGHT and defender.target_id == attacker.id, "Moving defender retaliates after step")
+	var focus: ClassicStudent = sim.students[6]
+	focus.cell = Vector2i(20, 21)
+	var ids: Array[int] = [attacker.id]
+	sim.command(ids, Vector2i(5, 5), focus.id)
+	_check(attacker.target_id == focus.id and attacker.priority_target_id == focus.id, "Explicit attack replaces existing fight target")
+	_check(attacker.direction == 1, "Retargeted fighter faces new focus")
+	sim._engage_defender(attacker, defender)
+	_check(attacker.target_id == focus.id, "Retaliation cannot replace explicit focus")
+	var health_before: float = attacker.health
+	sim._start_fight(defender, attacker)
+	for tick: int in 200:
+		if attacker.health < health_before:
+			break
+		sim._fighting(defender)
+	_check(attacker.health < health_before and attacker.target_id == focus.id, "Taking damage preserves explicit focus")
+	attacker.state = ClassicStudent.State.STAND
+	sim._start_sit(attacker)
+	_check(attacker.target_id == focus.id, "Blocked focus retries the same target instead of choosing another")
+	focus.state = ClassicStudent.State.DEAD
+	sim._fighting(attacker)
+	_check(attacker.state == ClassicStudent.State.STAND, "Godot immediate recovery after target death retained")
+	sim.command(ids, Vector2i(6, 6))
+	_check(attacker.priority_target_id == -1, "Movement order clears explicit focus")
+	var board: ClassicBoard = ClassicBoard.new()
+	board.size = Vector2(960, 600)
+	board.simulation = sim
+	attacker.state = ClassicStudent.State.STAND
+	board.selected.assign([attacker.id])
+	var press: InputEventMouseButton = InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = board.world_to_screen(ClassicRules.cell_to_world(Vector2(defender.cell)) + Vector2(0, -10))
+	board._gui_input(press)
+	_check(board.selected.is_empty() and attacker.target_id == defender.id, "Mouse-down immediately issues enemy focus order")
+	_check(board._marker_target == defender.id, "Enemy order confirms with target arrow")
+	press.pressed = false
+	board._gui_input(press)
+	_check(board.selected.is_empty(), "Mouse-up after order does not select again")
+	board.free()
 
 
 func _test_fight() -> void:

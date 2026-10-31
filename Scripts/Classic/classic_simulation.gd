@@ -113,6 +113,7 @@ func spawn_student(team: int) -> ClassicStudent:
 		student.level_ticks = 0
 		student.direction = rng.randi_range(0, 3)
 		student.target_id = -1
+		student.priority_target_id = -1
 		student.pattern = 10
 		student.counter = rng.randi_range(10, 29)
 		student.idle_ticks = 0
@@ -164,6 +165,9 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 			continue
 		var student: ClassicStudent = students[id]
 		if student.is_alive() and student.team == player_team:
+			student.priority_target_id = target_id if _valid_enemy(student, target_id) else -1
+			if student.state == ClassicStudent.State.FIGHT:
+				student.state = ClassicStudent.State.STAND
 			start_walk(student, tile, target_id)
 
 
@@ -174,8 +178,7 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 		student.destination = target.cell
 		if _adjacent(student.cell, target.cell):
 			_start_fight(student, target)
-			if target.state != ClassicStudent.State.WALK and target.state != ClassicStudent.State.FIGHT:
-				_start_fight(target, student)
+			_engage_defender(target, student)
 			return
 	else:
 		student.destination = tile * 4 + Vector2i(rng.randi_range(0, 3), rng.randi_range(0, 3))
@@ -183,6 +186,15 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 	if student.state != ClassicStudent.State.WALK:
 		student.pattern = rng.randi_range(0, 9)
 		_start_turn(student)
+
+
+func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
+	if target.state == ClassicStudent.State.FIGHT or _valid_enemy(target, target.priority_target_id):
+		return
+	# Flash remembers the attacker while the defender completes its reserved step.
+	target.target_id = attacker.id
+	if target.state != ClassicStudent.State.WALK:
+		_start_fight(target, attacker)
 
 
 func _start_stand(student: ClassicStudent) -> void:
@@ -194,6 +206,9 @@ func _start_stand(student: ClassicStudent) -> void:
 
 
 func _start_sit(student: ClassicStudent) -> void:
+	if _valid_enemy(student, student.priority_target_id):
+		start_walk(student, Vector2i.ZERO, student.priority_target_id)
+		return
 	var targets: Array[ClassicStudent] = []
 	for other: ClassicStudent in students:
 		if not other.is_alive() or other.team == student.team:
@@ -291,8 +306,7 @@ func _walking(student: ClassicStudent) -> void:
 		var target: ClassicStudent = students[student.target_id]
 		if _adjacent(student.cell, target.cell):
 			_start_fight(student, target)
-			if target.state != ClassicStudent.State.WALK and target.state != ClassicStudent.State.FIGHT:
-				_start_fight(target, student)
+			_engage_defender(target, student)
 			return
 	elif student.cell == student.destination:
 		_start_stand(student)
@@ -352,6 +366,9 @@ func _fighting(student: ClassicStudent) -> void:
 			target.health -= ClassicRules.PUNCH[student.team]
 			if target.health <= 0.0:
 				target.health = 0.0
+				for unit: ClassicStudent in students:
+					if unit.priority_target_id == target.id:
+						unit.priority_target_id = -1
 				target.state = ClassicStudent.State.DEAD
 				target.pattern = 20
 				target.counter = 10
@@ -362,6 +379,9 @@ func _fighting(student: ClassicStudent) -> void:
 				student.level_ticks = 30
 				sound_requested.emit("dead", target.world_position())
 			else:
+				if _valid_enemy(target, target.priority_target_id) and target.priority_target_id != student.id:
+					sound_requested.emit("punch", target.world_position())
+					return
 				target.target_id = student.id
 				_face_target(target, student)
 				if target.state != ClassicStudent.State.FIGHT:

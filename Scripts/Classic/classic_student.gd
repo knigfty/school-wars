@@ -9,6 +9,8 @@ var cell: Vector2i
 var previous_cell: Vector2i
 var destination: Vector2i
 var target_id: int = -1
+# Explicit player focus survives retaliation until the target dies or a new order.
+var priority_target_id: int = -1
 var state: State = State.UNUSED
 var direction: int = 0
 var pattern: int = 10

@@ -35,7 +35,7 @@ The intervals above are nominal threshold/rate values. The source uses a strict 
 ## Controls and interface
 
 - Choose Black, Green, Yellow, or Purple.
-- Click a friendly student or drag a rectangle around a squad. With a selection, click a tile to move or an enemy to attack. As in Flash, issuing the order clears the selection; students choose random destination subcells within that tile.
+- Click a friendly student or drag a rectangle around a squad. With a selection, press the left mouse button on a tile to move or on an enemy to focus attacks. A red arrow identifies the hovered enemy and briefly confirms the attack order. Explicit focus survives retaliation and blocked-path retries until the enemy dies or another player order replaces it. As in Flash, issuing the order clears the selection; students choose random destination subcells within that tile.
 - Space + left-drag pans like the original. Right-drag is an additional option. Click or drag the minimap to relocate the view.
 - Wheel zoom and **A** to select all are convenience additions. **Esc** cancels selection, then opens pause; **Esc** also resumes.
 - Help, pause, sound toggle, quit confirmation, and replay use native Godot controls. Help and browser focus loss pause the simulation. Time spent in a suspended browser tab is never replayed as a burst of simulation steps.
@@ -66,7 +66,7 @@ For Vercel, `vercel.json` selects the static `export/web` output. `Tools/build_v
 
 Source: user-supplied `schwar.swf`, SHA-256 `5994d74c67d46a96ab1f6f74926fada050b06df07d2dffd3b9fc5ff605e70e8a`.
 
-The images and sounds are recovered original game assets, not newly licensed artwork. No change of ownership or license is asserted. The source SWF and decompiler binaries are not added to this repository.
+The images and sounds are recovered original game assets, not newly licensed artwork. No change of ownership or license is asserted. The unmodified source SWF is preserved at `Reference/schwar.swf`, excluded from Godot imports by `Reference/.gdignore`. Decompiler binaries are not added to this repository.
 
 Extraction used JPEXS Free Flash Decompiler 26.4.0:
 
@@ -85,3 +85,11 @@ For the menu crop, remove the `PlaceObject2Tag` referencing character 825 (the r
 Run `godot --headless --path . --script res://Testing/run_classic_tests.gd`. The test suite verifies source constants, placement rules, capture, healing, recruitment, kill rewards, elimination, deterministic replay, and 18,000 total ticks across three seeded AI runs. All eleven legacy suites should still pass. The Actions workflow also exports Web and runs `Tools/smoke_classic_web.cjs`; screenshots are uploaded as `classic-browser-checks`.
 
 Next: side-by-side playtesting against the supplied SWF, focusing on idle/attack cadence, death animation timing, and congested squad routing before adding another major system.
+
+## Mechanics follow-up
+
+Moving defenders remember an adjacent attacker while finishing their current step, matching Flash. Player commands issue on mouse-down; their mouse-up does not begin a second selection. Existing Godot immediate recovery when a combat target dies is retained deliberately.
+
+Box selection retains the Godot six-screen-pixel click/drag threshold and existing forgiving selection margins. This avoids treating hand jitter as a drag. Flash uses exact pointer equality for clicks and asymmetric world-space margins. With a squad selected, pressing left mouse issues its order, including when followed by dragging; cancel with Esc before drawing another selection box. Space-left-drag and right-drag still pan without issuing orders.
+
+Focused attacks are a deliberate stronger player-control rule: clicked enemies remain the priority even when another enemy hits the student. Normal uncommanded retaliation still follows Flash. Navigation remains the original greedy grid movement, so congestion can delay reaching a target; focus does not guarantee immediate contact or bypass occupied cells.

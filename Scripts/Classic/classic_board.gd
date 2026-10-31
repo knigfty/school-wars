@@ -28,6 +28,7 @@ var _panning: bool = false
 var _start: Vector2
 var _pointer: Vector2
 var _marker: Vector2
+var _marker_target: int = -1
 var _marker_life: float = 0.0
 var _audio: Array[AudioStreamPlayer] = []
 var _audio_index: int = 0
@@ -51,6 +52,8 @@ func start(team: int, map_seed: int) -> void:
 	simulation.team_eliminated.connect(_on_eliminated)
 	simulation.match_finished.connect(func(won: bool) -> void: match_finished.emit(won))
 	selected.clear()
+	_marker_target = -1
+	_marker_life = 0.0
 	_accumulator = 0.0
 	view_zoom = 1.5
 	camera_center = ClassicRules.cell_to_world(Vector2(simulation.bases[team] * 4)) + Vector2(0, 18)
@@ -138,8 +141,12 @@ func _gui_input(event: InputEvent) -> void:
 			if not event.pressed and _panning:
 				_panning = false
 			elif event.pressed:
-				_selecting = true
-				_start = event.position
+				if not selected.is_empty():
+					_issue_order(event.position)
+					_selecting = false
+				else:
+					_selecting = true
+					_start = event.position
 			elif _selecting:
 				_finish_selection(event.position)
 				_selecting = false
@@ -177,20 +184,23 @@ func _finish_selection(point: Vector2) -> void:
 		var id: int = pick_student(point, false)
 		if id >= 0 and simulation.students[id].team == simulation.player_team:
 			selected.append(id)
-	else:
-		var world: Vector2 = screen_to_world(point)
-		var cell: Vector2i = ClassicRules.world_to_cell(world)
-		if not ClassicRules.in_grid(cell):
-			return
-		var tile: Vector2i = Vector2i(cell.x / 4, cell.y / 4)
-		simulation.command(selected, tile, pick_student(point, true))
-		selected.clear()
-		_marker = ClassicRules.cell_to_world(Vector2(tile * 4)) + Vector2(0, 24)
-		_marker_life = 0.7
-		_on_sound("tomove", camera_center)
 	selection_changed.emit()
 	if not selected.is_empty():
 		_on_sound("select", camera_center)
+
+
+func _issue_order(point: Vector2) -> void:
+	var cell: Vector2i = ClassicRules.world_to_cell(screen_to_world(point))
+	if not ClassicRules.in_grid(cell):
+		return
+	var tile: Vector2i = Vector2i(cell.x / 4, cell.y / 4)
+	_marker_target = pick_student(point, true)
+	simulation.command(selected, tile, _marker_target)
+	selected.clear()
+	_marker = ClassicRules.cell_to_world(Vector2(tile * 4)) + Vector2(0, 24)
+	_marker_life = 0.7
+	_on_sound("tomove", camera_center)
+	selection_changed.emit()
 
 
 func pick_student(point: Vector2, enemies_only: bool) -> int:
@@ -243,11 +253,21 @@ func _draw() -> void:
 		if student.level_ticks > 0:
 			draw_string(ThemeDB.fallback_font, pos + Vector2(-20, -45) * view_zoom, "Level up!", HORIZONTAL_ALIGNMENT_LEFT, -1, 9 * view_zoom, Color.WHITE)
 	if not selected.is_empty() and not _selecting:
-		var cell: Vector2i = ClassicRules.world_to_cell(screen_to_world(_pointer))
-		if ClassicRules.in_grid(cell):
-			_draw_cursor(ClassicRules.cell_to_world(Vector2(Vector2i(cell.x / 4, cell.y / 4) * 4)), Color("ff3333"))
+		var enemy: int = pick_student(_pointer, true)
+		if enemy >= 0:
+			_draw_target_arrow(enemy, Color("ff3333"))
+		else:
+			var cell: Vector2i = ClassicRules.world_to_cell(screen_to_world(_pointer))
+			if ClassicRules.in_grid(cell):
+				_draw_cursor(ClassicRules.cell_to_world(Vector2(Vector2i(cell.x / 4, cell.y / 4) * 4)), Color("ff3333"))
 	if _marker_life > 0.0:
-		_draw_cursor(_marker - Vector2(0, 24), Color(1, 0.2, 0.2, _marker_life / 0.7))
+		var color: Color = Color(1, 0.2, 0.2, _marker_life / 0.7)
+		if _marker_target >= 0:
+			if simulation.students[_marker_target].is_alive():
+				_draw_target_arrow(_marker_target, color)
+		else:
+			_draw_cursor(_marker - Vector2(0, 24), color)
+
 	if _selecting and _start.distance_to(_pointer) >= 6.0:
 		var rect: Rect2 = Rect2(_start, _pointer - _start).abs()
 		draw_rect(rect, Color(0.4, 1, 0.2, 0.08))
@@ -264,6 +284,13 @@ func students_in_depth_order() -> Array[ClassicStudent]:
 		var depth_b: int = (b.cell.x + b.cell.y) * 64 + b.cell.x
 		return depth_a < depth_b)
 	return ordered
+
+
+func _draw_target_arrow(id: int, color: Color) -> void:
+	var tip: Vector2 = world_to_screen(simulation.students[id].world_position() + Vector2(0, -36))
+	var scale: float = view_zoom
+	draw_line(tip - Vector2(0, 16) * scale, tip - Vector2(0, 5) * scale, color, 3.0)
+	draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-5, -7) * scale, tip + Vector2(5, -7) * scale]), color)
 
 
 func _draw_cursor(origin: Vector2, color: Color) -> void:
