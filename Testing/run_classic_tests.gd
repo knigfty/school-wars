@@ -76,6 +76,7 @@ func _run() -> void:
 	cap_sim.active[1] = false
 	_check(cap_sim.spawn_student(1) == null, "Eliminated schools cannot recruit")
 	_test_blocked_focus_retaliation()
+	_test_new_orders_and_capacity()
 	_test_orders()
 	_test_fight()
 	_test_determinism_and_occupancy()
@@ -141,6 +142,46 @@ func _test_blocked_focus_retaliation() -> void:
 	sim._fighting(fifth)
 	sim._start_sit(fifth)
 	_check(fifth.target_id == focus.id, "Student resumes original focus after local attacker dies")
+
+
+func _test_new_orders_and_capacity() -> void:
+	var sim: ClassicSimulation = ClassicSimulation.new()
+	sim.setup(0, 55)
+	var neutral: Array[Dictionary] = []
+	for area: Dictionary in sim.areas:
+		if area.kind != ClassicRules.AreaKind.BASE:
+			neutral.append(area)
+	_check(sim.get_team_capacity(1) == 12, "Green starts with capacity 12")
+	neutral[0].owner = 1
+	_check(sim.get_team_capacity(1) == 12, "One captured tile gives no capacity bonus")
+	neutral[1].owner = 1
+	_check(sim.get_team_capacity(1) == 13 and sim.get_team_capacity(0) == 12, "Two captured tiles increase only Green capacity")
+	# Capacity depends on ownership, not a change to the recruitment formula.
+	_check(is_equal_approx(sim.get_spawn_seconds(1), 500.0 / (2 + sim.get_recruit_tiles(1)) / 18.0), "Green recruitment formula unchanged")
+	for i: int in 20:
+		sim.spawn_student(1)
+	_check(sim.get_count(1) == 13, "Green can recruit above the old twelve-unit cap")
+	for team: int in [0, 2, 3]:
+		for i: int in 12:
+			sim.spawn_student(team)
+	_check(sim.students.size() == 49 and sim.get_count(1) == 13, "Shared pool supports Green bonus beyond 48 total students")
+	neutral[1].owner = -1
+	_check(sim.get_team_capacity(1) == 12 and sim.get_count(1) == 13 and sim.spawn_student(1) == null, "Territory loss preserves existing units but blocks excess recruitment")
+	var mover: ClassicStudent = sim.students[0]
+	var target: ClassicStudent = sim.students[3]
+	sim.occupancy.clear()
+	mover.cell = Vector2i(10, 10)
+	mover.previous_cell = Vector2i(9, 10)
+	mover.state = ClassicStudent.State.WALK
+	mover.walk_tick = 5
+	mover.target_id = target.id
+	mover.priority_target_id = target.id
+	target.cell = Vector2i(15, 10)
+	target.state = ClassicStudent.State.DEAD
+	sim._target_died(target)
+	_check(mover.target_id == -1 and mover.destination == target.cell, "Target death converts pursuit to last-position move")
+	sim._walking(mover)
+	_check(mover.state == ClassicStudent.State.WALK and mover.cell == Vector2i(11, 10), "Pursuer continues moving after target dies")
 
 
 func _test_orders() -> void:
@@ -268,8 +309,9 @@ func _test_determinism_and_occupancy() -> void:
 						occupied[unit.cell] = unit.id
 				_check(occupied == a.occupancy, "Occupancy has no stale reservations")
 			for team: int in 4:
-				_check(a.get_count(team) <= 12, "Population stays within cap during AI play")
-		for id: int in 48:
+				_check(a.get_count(team) <= (25 if team == 1 else 12), "Population stays within cap during AI play")
+		_check(a.students.size() == b.students.size(), "Dynamic pool size replays deterministically")
+		for id: int in a.students.size():
 			_check(a.students[id].cell == b.students[id].cell and a.students[id].health == b.students[id].health and a.students[id].state == b.students[id].state, "Seed and ticks deterministically replay")
 
 
@@ -286,6 +328,11 @@ func _test_shell() -> void:
 		_check(app.board.simulation.player_team == team, "Every team starts a playable match")
 		app.board.select_all()
 		_check(app.board.selected.size() == 3, "Select all respects chosen school")
+		var space: InputEventKey = InputEventKey.new()
+		space.keycode = KEY_SPACE
+		space.pressed = true
+		app._unhandled_key_input(space)
+		_check(app.board.selected.is_empty(), "Space clears selection")
 		app._show_help()
 		await process_frame
 		_check(app.board.paused and app.modal.visible, "Help pauses simulation")

@@ -13,7 +13,6 @@ var status: RichTextLabel
 var selection_label: Label
 var hint_panel: PanelContainer
 var announcement_label: Label
-var cancel_button: Button
 var modal_title: Label
 var modal_body: Label
 var modal_scroll: ScrollContainer
@@ -80,7 +79,7 @@ func _build_menu() -> void:
 		var button: Button = Button.new()
 		button.name = "%sSchool" % ClassicRules.TEAM_NAMES[team]
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		button.tooltip_text = "%s: %d HP · %d punch · 12 students maximum" % [ClassicRules.TEAM_NAMES[team], ClassicRules.HEALTH[team], ClassicRules.PUNCH[team]]
+		button.tooltip_text = "%s: %d HP · %d punch · 12 starting capacity" % [ClassicRules.TEAM_NAMES[team], ClassicRules.HEALTH[team], ClassicRules.PUNCH[team]]
 		button.pressed.connect(_start_match.bind(team))
 		menu.add_child(button)
 		cards.append(button)
@@ -154,8 +153,6 @@ func _build_hud() -> void:
 	hint_panel.add_theme_stylebox_override("panel", hint_style)
 	hint_panel.add_child(selection_label)
 	hud.add_child(hint_panel)
-	cancel_button = _button("Cancel selection", board.cancel_selection)
-	hud.add_child(cancel_button)
 	minimap = ClassicMinimap.new()
 	minimap.board = board
 	hud.add_child(minimap)
@@ -237,8 +234,6 @@ func _layout() -> void:
 	hud.get_node("Actions").size = Vector2(318, 38)
 	hint_panel.position = Vector2(14, size.y - 46)
 	hint_panel.size = Vector2(minf(size.x - 228, 680), 32)
-	cancel_button.position = Vector2(18, size.y - 88)
-	cancel_button.size = Vector2(160, 36)
 	minimap.position = size - Vector2(190, 122)
 	minimap.size = Vector2(176, 104)
 	announcement_label.position = Vector2(0, 68)
@@ -294,7 +289,7 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 
 
 func _show_help() -> void:
-	_show_dialog("How to play", "CONTROLS\nClick or drag to select students, then press on a tile to move or an enemy to focus attacks. Orders clear selection. Students outside their target's melee range can fight nearby attackers, then resume the original order.\n\nCAPTURING TILES\nGrey symbols are neutral; team colours show ownership. Students must sit on a tile to capture it. One student needs about 16.7 seconds of sitting; more seated allies capture faster. Moving and fighting do not count. Partial progress remains when you leave; a capture resets other teams' progress.\n\nSPADE / FIST TILE: FASTER RECRUITMENT\nEach owned spade-shaped recruitment tile speeds up recruitment for your whole team at its home base. The bonus stays after students leave. It does not increase attack damage or heal. Base production is 2 points per tick; each owned tile adds 1. Green needs 500 points per recruit; other teams need 1,500. Each team can field 12 students; a full or blocked base can prevent spawning.\n\nHEART TILE: HEALING\nStudents sitting on a friendly heart or their home base heal 1.8 HP per second, up to their maximum HP. Hearts do not speed recruitment. Capture speed and healing rate are the same for every team. Home bases cannot be captured.\n\nSpace + drag or right-drag: pan · Wheel: zoom\nMinimap: click or drag · A: select all · Esc: cancel / pause\n\nEliminate every opposing student to win. Capturing tiles alone does not win.", true, false)
+	_show_dialog("How to play", "CONTROLS\nClick or drag to select students, then press on a tile to move or an enemy to focus attacks. Orders clear selection. Students outside their target's melee range can fight nearby attackers, then resume the original order.\n\nCAPTURING TILES\nGrey symbols are neutral; team colours show ownership. Students must sit on a tile to capture it. One student needs about 16.7 seconds of sitting; more seated allies capture faster. Moving and fighting do not count. Partial progress remains when you leave; a capture resets other teams' progress.\n\nSPADE / FIST TILE: FASTER RECRUITMENT\nEach owned spade-shaped recruitment tile speeds up recruitment for your whole team at its home base. The bonus stays after students leave. It does not increase attack damage or heal. Base production is 2 points per tick; each owned tile adds 1. Green needs 500 points per recruit; other teams need 1,500. Teams start with capacity for 12 students. Green gains +1 capacity per two currently owned spade or heart tiles (home base excluded); losing tiles lowers capacity but never removes existing students. This bonus does not change recruitment speed; a full or blocked base can prevent spawning.\n\nHEART TILE: HEALING\nStudents sitting on a friendly heart or their home base heal 1.8 HP per second, up to their maximum HP. Hearts do not speed recruitment. Capture speed and healing rate are the same for every team. Home bases cannot be captured.\n\nSpace + drag or right-drag: pan · Wheel: zoom\nMinimap: click or drag · A: select all · Space: clear selection · Esc: cancel / pause\n\nEliminate every opposing student to win. Capturing tiles alone does not win.", true, false)
 
 
 func _show_pause() -> void:
@@ -320,7 +315,6 @@ func _announce(text: String) -> void:
 
 
 func _update_selection() -> void:
-	cancel_button.visible = not board.selected.is_empty()
 	selection_label.text = "%d selected · Click a tile to move or an enemy to attack." % board.selected.size() if not board.selected.is_empty() else "Click or drag to select · Space / right-drag to pan · Wheel to zoom"
 
 
@@ -330,7 +324,7 @@ func _process(delta: float) -> void:
 	var segments: Array[String] = []
 	for team: int in 4:
 		var color: Color = ClassicRules.COLORS[team].lightened(0.45)
-		var label: String = "%s %d" % [ClassicRules.TEAM_NAMES[team], board.simulation.get_count(team)]
+		var label: String = "%s %d/%d" % [ClassicRules.TEAM_NAMES[team], board.simulation.get_count(team), board.simulation.get_team_capacity(team)]
 		if team == _team:
 			label = "[b]" + label + "[/b]"
 		segments.append("[color=#%s]%s[/color]" % [color.to_html(false), label])
@@ -352,6 +346,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			board.cancel_selection()
 		elif not board.simulation.finished:
 			_show_pause()
+		get_viewport().set_input_as_handled()
+	elif event.keycode == KEY_SPACE and not modal.visible:
+		board.cancel_selection()
 		get_viewport().set_input_as_handled()
 	elif event.keycode == KEY_A and not modal.visible:
 		board.select_all()

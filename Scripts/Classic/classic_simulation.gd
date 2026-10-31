@@ -89,8 +89,26 @@ func get_spawn_seconds(team: int) -> float:
 	return float(ClassicRules.RECRUIT_THRESHOLD[team]) / float(2 + get_recruit_tiles(team)) / 18.0
 
 
+func get_team_capacity(team: int) -> int:
+	var captured: int = 0
+	if team == 1:
+		for area: Dictionary in areas:
+			if area.owner == team and area.kind != ClassicRules.AreaKind.BASE:
+				captured += 1
+	return ClassicRules.TEAM_CAP + captured / 2
+
+
+func _target_died(target: ClassicStudent) -> void:
+	for unit: ClassicStudent in students:
+		if unit.target_id == target.id:
+			unit.destination = target.cell
+			unit.target_id = -1
+		if unit.priority_target_id == target.id:
+			unit.priority_target_id = -1
+
+
 func spawn_student(team: int) -> ClassicStudent:
-	if not active[team] or get_count(team) >= ClassicRules.TEAM_CAP:
+	if not active[team] or get_count(team) >= get_team_capacity(team):
 		return null
 	var slots: Array[Vector2i] = []
 	for y: int in 4:
@@ -100,6 +118,16 @@ func spawn_student(team: int) -> ClassicStudent:
 				slots.append(cell)
 	if slots.is_empty():
 		return null
+	# Grow the shared pool when Green's territory bonus exceeds the original 48 slots.
+	var has_unused: bool = false
+	for unit: ClassicStudent in students:
+		if unit.state == ClassicStudent.State.UNUSED:
+			has_unused = true
+			break
+	if not has_unused:
+		var extra: ClassicStudent = ClassicStudent.new()
+		extra.id = students.size()
+		students.append(extra)
 	for student: ClassicStudent in students:
 		if student.state != ClassicStudent.State.UNUSED:
 			continue
@@ -148,7 +176,7 @@ func step() -> void:
 			ClassicStudent.State.DEAD:
 				_dying(student)
 	if ai_enabled:
-		_com_order(students[ticks % 48])
+		_com_order(students[ticks % students.size()])
 	for color: int in 4:
 		if active[color]:
 			recruit_progress[color] += 2 + get_recruit_tiles(color)
@@ -270,9 +298,9 @@ func _start_turn(student: ClassicStudent) -> void:
 			return
 	if student.target_id >= 0:
 		if not _valid_enemy(student, student.target_id):
-			_start_stand(student)
-			return
-		student.destination = students[student.target_id].cell
+			_target_died(students[student.target_id])
+		else:
+			student.destination = students[student.target_id].cell
 	var offset: Vector2i = student.destination - student.cell
 	var choices: Array[int] = []
 	var preferred: int = -1
@@ -314,7 +342,8 @@ func _walking(student: ClassicStudent) -> void:
 		return
 	if student.target_id >= 0:
 		if not _valid_enemy(student, student.target_id):
-			_start_stand(student)
+			_target_died(students[student.target_id])
+			_start_turn(student)
 			return
 		var target: ClassicStudent = students[student.target_id]
 		if _adjacent(student.cell, target.cell):
@@ -379,9 +408,7 @@ func _fighting(student: ClassicStudent) -> void:
 			target.health -= ClassicRules.PUNCH[student.team]
 			if target.health <= 0.0:
 				target.health = 0.0
-				for unit: ClassicStudent in students:
-					if unit.priority_target_id == target.id:
-						unit.priority_target_id = -1
+				_target_died(target)
 				target.state = ClassicStudent.State.DEAD
 				target.pattern = 20
 				target.counter = 10
