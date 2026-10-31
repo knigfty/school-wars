@@ -89,6 +89,19 @@ func get_count(team: int) -> int:
 	return count
 
 
+func get_converted_count(team: int) -> int:
+	var count: int = 0
+	if medieval and team == 1:
+		for unit: ClassicStudent in students:
+			if unit.state != ClassicStudent.State.UNUSED and unit.team == team and unit.is_converted:
+				count += 1
+	return count
+
+
+func get_regular_count(team: int) -> int:
+	return get_count(team) - get_converted_count(team)
+
+
 func get_recruit_tiles(team: int) -> int:
 	var count: int = 0
 	for area: Dictionary in areas:
@@ -118,7 +131,7 @@ func get_team_capacity(team: int) -> int:
 	var captured: int = 0
 	if team == 1:
 		for area: Dictionary in areas:
-			if area.owner == team and (area.kind == ClassicRules.AreaKind.RECRUIT if medieval else area.kind != ClassicRules.AreaKind.BASE):
+			if area.owner == team and area.kind != ClassicRules.AreaKind.BASE:
 				captured += 1
 	return ClassicRules.TEAM_CAP + captured / 2 + get_conquered_base_count(team) * 6
 
@@ -133,7 +146,7 @@ func _target_died(target: ClassicStudent) -> void:
 
 
 func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> ClassicStudent:
-	if not active[team] or get_count(team) >= get_team_capacity(team):
+	if not active[team] or get_regular_count(team) >= get_team_capacity(team):
 		return null
 	if base_tile == Vector2i(-1, -1):
 		base_tile = bases[team]
@@ -166,6 +179,7 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 
 
 func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
+	student.is_converted = false
 	student.ai_retreating = false
 	student.ai_flee_until = 0
 	student.ai_flee_ready_at = 0
@@ -611,41 +625,16 @@ func _fighting(student: ClassicStudent) -> void:
 			student.fight_phase = 3
 			if not _contact_target(student, target) or rng.randf() < 0.5:
 				return
-			target.pattern = 20
-			target.fight_phase = 3
-			target.counter = 5
-			if medieval:
-				target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime, "team": student.team}
-				target.last_attacked_tick = ticks
-			target.health -= get_punch_damage(student, target)
-			if target.health <= 0.0:
-				target.health = 0.0
-				_target_died(target)
-				target.state = ClassicStudent.State.DEAD
-				target.pattern = 20
-				target.counter = 10
-				target.fight_phase = 0
-				var conversion_chance: float = get_orc_conversion_chance(target)
-				_reward_defeat(student, target)
-				sound_requested.emit("dead", target.world_position())
-				if medieval and student.team == 1 and rng.randf() < conversion_chance:
-					_convert_to_orc(target)
-					student.show_event("ORCS RISE!")
-			else:
-				if target.ai_retreating:
-					sound_requested.emit("punch", target.world_position())
-					return
-				if _can_attack_priority(target) and target.priority_target_id != student.id:
-					sound_requested.emit("punch", target.world_position())
-					return
-				target.target_id = student.id
-				_face_target(target, student)
-				if medieval and not _within_attack_range(target, student):
-					target.state = ClassicStudent.State.STAND
-					start_walk(target, Vector2i.ZERO, student.id)
-				elif target.state != ClassicStudent.State.FIGHT:
-					_start_fight(target, student)
-				sound_requested.emit("punch", target.world_position())
+			# Snapshot before damage: the fourth kill unlocks cleave for future swings.
+			var secondary: ClassicStudent = null
+			if medieval and student.team == 0 and student.level >= 4:
+				for other: ClassicStudent in students:
+					if other.is_alive() and other.team != student.team and other.id != target.id and other.state != ClassicStudent.State.WALK and _adjacent(other.cell, target.cell) and _within_attack_range(student, other):
+						secondary = other
+						break
+			_apply_hit(student, target)
+			if secondary != null and secondary.is_alive():
+				_apply_hit(student, secondary)
 		3:
 			if not _contact_target(student, target):
 				_start_stand(student)
@@ -653,6 +642,44 @@ func _fighting(student: ClassicStudent) -> void:
 			student.pattern = 17
 			student.fight_phase = 1
 			student.counter = 1
+
+
+func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
+	target.pattern = 20
+	target.fight_phase = 3
+	target.counter = 5
+	if medieval:
+		target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime, "team": student.team}
+		target.last_attacked_tick = ticks
+	target.health -= get_punch_damage(student, target)
+	if target.health <= 0.0:
+		target.health = 0.0
+		_target_died(target)
+		target.state = ClassicStudent.State.DEAD
+		target.pattern = 20
+		target.counter = 10
+		target.fight_phase = 0
+		var conversion_chance: float = get_orc_conversion_chance(target)
+		_reward_defeat(student, target)
+		sound_requested.emit("dead", target.world_position())
+		if medieval and student.team == 1 and rng.randf() < conversion_chance:
+			_convert_to_orc(target)
+			student.show_event("ORCS RISE!")
+	else:
+		if target.ai_retreating:
+			sound_requested.emit("punch", target.world_position())
+			return
+		if _can_attack_priority(target) and target.priority_target_id != student.id:
+			sound_requested.emit("punch", target.world_position())
+			return
+		target.target_id = student.id
+		_face_target(target, student)
+		if medieval and not _within_attack_range(target, student):
+			target.state = ClassicStudent.State.STAND
+			start_walk(target, Vector2i.ZERO, student.id)
+		elif target.state != ClassicStudent.State.FIGHT:
+			_start_fight(target, student)
+		sound_requested.emit("punch", target.world_position())
 
 
 func _dying(student: ClassicStudent) -> void:
@@ -947,6 +974,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			killer.show_event("+2 PUNCH")
 		elif killer.level == 3:
 			killer.show_event("+3 RANGE")
+		elif killer.level == 4:
+			killer.show_event("+1 TARGET")
 	# Damage records include the killing blow, so each contributor is rewarded once.
 	for id: int in victim.damage_contributors:
 		var record: Dictionary = victim.damage_contributors[id]
@@ -972,5 +1001,6 @@ func _convert_to_orc(victim: ClassicStudent) -> void:
 	converted.id = students.size()
 	students.append(converted)
 	_initialize_student(converted, 1, cell)
+	converted.is_converted = true
 	_check_elimination(former_team)
 	_update_leader()

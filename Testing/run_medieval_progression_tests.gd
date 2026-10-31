@@ -45,6 +45,7 @@ func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStude
 
 
 func _run() -> void:
+	_test_new_mechanics()
 	_test_humans()
 	_test_assists()
 	_test_range()
@@ -64,8 +65,8 @@ func _test_humans() -> void:
 		var victim: ClassicStudent = _unit(sim, kill, 2, Vector2i(21, 20))
 		victim.health = 1
 		_hit(sim, human, victim)
-		if kill <= 3:
-			_check(human.event_text == ["+2 HP", "+2 PUNCH", "+3 RANGE"][kill - 1] and human.level_ticks == 30, "Human milestone shows actual reward")
+		if kill <= 4:
+			_check(human.event_text == ["+2 HP", "+2 PUNCH", "+3 RANGE", "+1 TARGET"][kill - 1] and human.level_ticks == 30, "Human milestone shows actual reward")
 		_check(human.level == kill, "Human kill count increments")
 		_check(human.maximum_health == 22, "Human first-kill HP milestone applies once")
 		_check(human.health == 5, "Human max HP reward does not instantly heal")
@@ -341,3 +342,58 @@ func _test_battles() -> void:
 			_check(occupied.size() == sim.occupancy.size(), "No stale occupancy entries after conversions")
 			if sim.finished:
 				break
+
+
+func _test_new_mechanics() -> void:
+	var sim: ClassicSimulation = _sim()
+	var regular: ClassicStudent = _unit(sim, 0, 1, Vector2i(4, 4))
+	var victim: ClassicStudent = _unit(sim, 1, 2, Vector2i(20, 20))
+	sim._convert_to_orc(victim)
+	_check(sim.get_count(1) == 2 and sim.get_regular_count(1) == 1 and sim.get_converted_count(1) == 1, "Converted orcs have separate population")
+	var converted: ClassicStudent = sim.students.back()
+	converted.state = ClassicStudent.State.UNUSED
+	_check(sim.get_converted_count(1) == 0, "Removed conversion leaves separate count")
+	sim._initialize_student(converted, 1, converted.cell)
+	_check(not converted.is_converted and sim.get_regular_count(1) == 2, "Normal respawn clears conversion flag")
+	regular.state = ClassicStudent.State.UNUSED
+	converted.is_converted = true
+	_check(sim.get_count(1) == 1 and sim.get_regular_count(1) == 0, "Converted survivors still keep team alive")
+	sim._check_elimination(1)
+	_check(sim.active[1], "Converted survivor prevents elimination")
+	# A converted unit does not block the last regular spawn slot.
+	for id: int in range(2, 13):
+		_unit(sim, id, 1, Vector2i(id, 10))
+	_check(sim.get_regular_count(1) == 11 and sim.spawn_student(1) != null, "Conversions do not block regular spawning")
+	_check(sim.get_regular_count(1) == 12 and sim.spawn_student(1) == null, "Regular capacity still enforced")
+	for level: int in [3, 4]:
+		for seed_value: int in 20:
+			sim = _sim()
+			var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+			human.level = level
+			var primary: ClassicStudent = _unit(sim, 1, 2, Vector2i(22, 20))
+			var secondary: ClassicStudent = _unit(sim, 2, 3, Vector2i(22, 21))
+			var third: ClassicStudent = _unit(sim, 3, 1, Vector2i(23, 20))
+			human.state = ClassicStudent.State.FIGHT
+			human.target_id = primary.id
+			human.fight_phase = 2
+			human.counter = 0
+			var before: float = secondary.health
+			var third_before: float = third.health
+			sim.rng.seed = seed_value
+			sim._fighting(human)
+			if primary.health < primary.maximum_health:
+				_check((secondary.health < before) == (level == 4), "Fourth-level swing hits adjacent second victim only after unlock")
+				_check(third.health == third_before, "Cleave hits at most two victims")
+			else:
+				_check(secondary.health == before, "Missed swing cannot cleave")
+
+	# Both victims can die in one successful upgraded swing and award two kills.
+	sim = _sim()
+	var veteran: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+	veteran.level = 4
+	var first: ClassicStudent = _unit(sim, 1, 2, Vector2i(22, 20))
+	var second: ClassicStudent = _unit(sim, 2, 3, Vector2i(22, 21))
+	first.health = 1
+	second.health = 1
+	_hit(sim, veteran, first)
+	_check(first.state == ClassicStudent.State.DEAD and second.state == ClassicStudent.State.DEAD and veteran.level == 6, "Cleave handles two deaths and two kill rewards")

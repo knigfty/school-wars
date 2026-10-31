@@ -44,7 +44,7 @@ The game passes its medieval flag through ClassicBoard into ClassicSimulation be
 
 - Human capture uses the fixed table below, based on seated humans on the same tile. This replaces the earlier 20% capture bonus.
 - Orc recruitment threshold is 750 instead of classic Green's 500; other races remain at 1500. At equal spade ownership, orcs recruit twice as fast.
-- Orc capacity increases by one per two owned spades, rounded down. Hearts do not count. Losing spades lowers capacity without removing existing units.
+- Orc capacity increases by one per two owned spades or hearts combined, rounded down. Losing either lowers capacity without removing existing units. Converted orcs are counted separately as (+N) in the top bar and never consume regular recruitment capacity.
 - Against one target, the first engaged orc (stable unit-ID order) deals base damage, and each additional engaged orc deals +1 on successful punches. Two deal 5 combined; three deal 8. Support requires a living orc fighting that same enemy in melee contact; misses retain the existing combat rules.
 - Elves gain +1 maximum HP per killing blow or recent damaging assist, without instantly healing. Humans have the kill milestones below.
 - Demons gain +1 permanent punch damage per killing blow or recent damaging assist, stacking for that unit's lifetime. Respawning resets all progression.
@@ -78,26 +78,27 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 | Human | First killing blow | +2 maximum HP, once |
 | Human | Second killing blow | +2 punch, once |
 | Human | Third killing blow | Total attack reach becomes 3 grid cells |
+| Human | Fourth killing blow | Each successful swing also hits one enemy adjacent to the main victim, within human reach |
 | Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
 | Elf | 30 / 35 / 40 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
 | Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |
 | Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
 
-Human milestones are cumulative and stop after three kills. Elf range and demon speed use the highest unlocked tier rather than adding tiers together. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
+Human milestones are cumulative and stop after four kills. Elf range and demon speed use the highest unlocked tier rather than adding tiers together. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
 
 Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves and demons each receive one reward at death; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
 
 Range is Manhattan distance in movement grid cells, not the larger capture tiles. Ranged pursuit, focus-position pathfinding, priority attacks and retaliation use the same per-unit reach. Melee defenders close the gap against ranged attackers. The existing rule that moving targets cannot be punched remains. Demon movement accumulates fractional progress across consecutive walk steps so +30% and +40% remain distinct at 18 Hz, with rendering using that same progress.
 
-Orc conversion replaces the dead enemy with a fresh full-health orc of the killer's team, with a new unit ID and no inherited stats, selection, or targeting orders. The death cell is transferred immediately without an overlapping corpse. Conversions can exceed the normal population cap; regular recruitment still respects the cap. Converting a team's last unit triggers elimination and unlocks its bases.
+Orc conversion replaces the dead enemy with a fresh full-health orc of the killer's team, with a new unit ID and no inherited stats, selection, or targeting orders. The death cell is transferred immediately without an overlapping corpse. Conversions do not consume regular recruitment capacity. Regular recruitment respects its own count and cap; converted survivors still prevent elimination. Conversion status resets on an ordinary respawn. Converting a team's last unit triggers elimination and unlocks its bases.
 
 Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, assist expiration and duplicate prevention, dead/reused contributors, real ranged damage and pursuit, sustained movement speed, deterministic conversion rolls and death-cell occupancy, elimination and fresh-spawn resets. Classic rules remain unchanged.
 
 
 ## Floating reward text
 
-Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans show "+2 HP", "+2 PUNCH", and "+3 RANGE" at their first three kill milestones; successful orc conversions show "ORCS RISE!" above the killer; elves show their previous maximum HP followed by " + 1 HP", and demons show their previous total punch (base plus earned bonus) followed by " + 1 PUNCH" for rewarded kills or assists. For example, "30 + 1 HP" means maximum HP increased from 30 to 31; "30 + 1 PUNCH" means punch increased from 30 to 31. Later human kills and failed orc conversion rolls do not trigger another notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.
+Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans show "+2 HP", "+2 PUNCH", and "+3 RANGE" at their first three kill milestones and "+1 TARGET" at their fourth; successful orc conversions show "ORCS RISE!" above the killer; elves show their previous maximum HP followed by " + 1 HP", and demons show their previous total punch (base plus earned bonus) followed by " + 1 PUNCH" for rewarded kills or assists. For example, "30 + 1 HP" means maximum HP increased from 30 to 31; "30 + 1 PUNCH" means punch increased from 30 to 31. Kills after the fourth human milestone and failed orc conversion rolls do not trigger another notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.
 
 
 ## Difficulty and coordinated opponents
@@ -137,3 +138,5 @@ for Medieval Normal/Expert with AI enabled. Player orders and Classic rules rema
 unchanged. Unit reuse resets retreat flags and reassigns squad membership.
 Run `Testing/run_squad_ai_tests.gd` for race decisions, recovery, difficulty gates,
 respawn membership and seeded simulation occupancy checks.
+
+Human fourth-level attacks snapshot at most one secondary enemy before applying primary damage. Both victims take the normal full punch damage on the same successful swing, with ordinary retaliation, kill rewards and assist credit. The extra victim must be stationary, adjacent to the main victim (Manhattan distance one), and within the human's attack range. A missed swing hits neither victim; unlocking level four takes effect on the next swing.

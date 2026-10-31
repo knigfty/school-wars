@@ -56,13 +56,13 @@ func _run() -> void:
 		sim.area_at.clear()
 		for i: int in 2:
 			sim._add_area(Vector2i(i, 5), ClassicRules.AreaKind.HEAL, 1)
-		_check(sim.get_team_capacity(1) == (12 if variant else 13), "Hearts count only in classic capacity")
+		_check(sim.get_team_capacity(1) == 13, "Hearts count toward orc capacity")
 		for i: int in 3:
 			sim._add_area(Vector2i(i, 6), ClassicRules.AreaKind.RECRUIT, 1)
-		_check(sim.get_team_capacity(1) == (13 if variant else 14), "Capacity rounds down spade pairs")
+		_check(sim.get_team_capacity(1) == 14, "Capacity rounds down combined tile pairs")
 		sim.areas.back().owner = 0
 		sim.areas[2].owner = 0
-		_check(sim.get_team_capacity(1) == (12 if variant else 13), "Lost tiles lower capacity")
+		_check(sim.get_team_capacity(1) == 13, "Lost tiles lower capacity")
 
 		var target: ClassicStudent = sim.students[0]
 		target.cell = Vector2i(30, 30)
