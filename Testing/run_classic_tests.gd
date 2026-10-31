@@ -498,10 +498,14 @@ func _test_shell() -> void:
 	_check(medieval_app.menu_title.text == "MEDIEVAL WARS", "Medieval variant has independent title")
 	_check(medieval_app.board.team_names == ["Humans", "Orcs", "Elves", "Demons"], "Medieval races retain team order")
 	_check(medieval_app.board.student_texture == medieval_app.MEDIEVAL_STUDENTS, "Race atlas is used in menu and match")
+	_check(medieval_app.MEDIEVAL_STUDENTS.resource_path == "res://Assets/Medieval/races2.png", "Medieval menu and match load races2.png")
 	var atlas_image: Image = medieval_app.MEDIEVAL_STUDENTS.get_image()
+	_check(atlas_image.get_size() == Vector2i(1280, 1920), "HD atlas retains 20 by 20 cells at twice classic resolution")
 	var classic_image: Image = ClassicBoard.STUDENTS.get_image()
 	for index: int in 400:
-		if index % 25 >= 23:
+		if index % 25 == 24:
+			var blank_region: Rect2i = Rect2i(Vector2i(index % 20 * 64, (index / 20) * 96), Vector2i(64, 96))
+			_check(not atlas_image.get_region(blank_region).get_used_rect().has_area(), "Death blink separator stays transparent: %d" % index)
 			continue
 		var region: Rect2i = Rect2i(Vector2i(index % 20 * 64, (index / 20) * 96), Vector2i(64, 96))
 		_check(atlas_image.get_region(region).get_used_rect().has_area(), "Every live animation frame contains a sprite: %d" % index)
