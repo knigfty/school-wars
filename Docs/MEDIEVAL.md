@@ -116,11 +116,18 @@ Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
 Single surviving warriors can still act until another recruit is available.
 Humans capture together and choose their next objective once ownership changes.
-Elves below 20% HP disengage to the nearest owned heart or base, suppressing
-retaliation and opportunistic attacks until 80% HP. If no healing tile remains,
-they escape until one becomes available. Retreat does not grant immunity.
-Orcs focus a shared victim; when locally outnumbered they escape for six seconds,
-choosing space away from their base to buy recruitment time. Demons favour low-HP
+Elves below 20% HP seek an owned heart or base and normally recover to 80% HP.
+All medieval elves, including player units, heal only while sitting on an owned
+heart/base after three seconds without being attacked. Active in-range attacks
+block healing even when a punch misses. When threatened, Normal elves randomly
+choose to fight back or seek another healing spot. Expert evaluates nearby allied
+and enemy combat strength, fighting with sufficient support and otherwise choosing
+a safer healing destination. Decisions commit for three seconds to limit oscillation;
+arrival under attack triggers a new decision. Retreat does not grant immunity.
+Orcs focus a shared victim; when locally outnumbered they can flee for at most
+three seconds, once per unit every thirty seconds measured from flee start.
+Cooldown orcs keep fighting even when squadmates flee. They choose space away
+from their base to buy recruitment time. Demons favour low-HP
 prey and compare their squad's health, damage and reach against nearby defenders
 before selecting an attack. Orcs value spades; elves value hearts.
 

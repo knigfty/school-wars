@@ -12,6 +12,8 @@ func update(sim) -> void:
 		if not unit.is_alive() or unit.team == sim.player_team:
 			continue
 		if unit.team == 2:
+			if sim.ticks < unit.ai_hold_ground_until:
+				continue
 			if unit.health < unit.maximum_health * 0.2:
 				unit.ai_retreating = true
 			elif unit.health >= unit.maximum_health * 0.8:
@@ -20,6 +22,10 @@ func update(sim) -> void:
 				_heal(sim, unit)
 		elif unit.ai_retreating and sim.ticks >= unit.ai_flee_until:
 			unit.ai_retreating = false
+			# Cancel the escape destination immediately, even between squad decisions.
+			unit.state = ClassicStudent.State.STAND
+			_move(sim, unit, Vector2i(unit.cell.x / 4, unit.cell.y / 4))
+			next_plan = mini(next_plan, sim.ticks)
 	if sim.ticks < next_plan:
 		return
 	next_plan = sim.ticks + (18 if sim.difficulty == sim.Difficulty.EXPERT else 36)
@@ -72,7 +78,7 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not unit.ai_retreating:
+		if not unit.ai_retreating and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
@@ -99,11 +105,16 @@ func _plan(sim, squad: Array) -> void:
 	# Awareness is global in Expert; being outnumbered is still a local threat.
 	if team == 1 and nearby_enemies > allies:
 		var escape: Vector2i = _escape_tile(sim, ready[0], enemies)
-		for unit: ClassicStudent in ready:
-			unit.ai_retreating = true
-			unit.ai_flee_until = sim.ticks + 108
-			_move(sim, unit, escape)
-		return
+		for i: int in range(ready.size() - 1, -1, -1):
+			var unit: ClassicStudent = ready[i]
+			if sim.ticks >= unit.ai_flee_ready_at:
+				unit.ai_retreating = true
+				unit.ai_flee_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
+				unit.ai_flee_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
+				_move(sim, unit, escape)
+				ready.remove_at(i)
+		if ready.is_empty():
+			return
 	# Rally separated members before advancing; pairs/trios remain valid squads.
 	for unit: ClassicStudent in ready:
 		if center.distance_to(Vector2(unit.cell)) > 12.0:
@@ -174,22 +185,57 @@ func _strength(sim, unit: ClassicStudent) -> float:
 
 
 func _heal(sim, unit: ClassicStudent) -> void:
+	var current_tile: Vector2i = Vector2i(unit.cell.x / 4, unit.cell.y / 4)
+	var threatened: bool = sim.ticks - unit.last_attacked_tick < 3 * ClassicRules.TICKS_PER_SECOND
+	if not (threatened and current_tile == unit.ai_heal_tile) and sim.ticks < unit.ai_heal_decide_at and unit.ai_heal_tile.x >= 0 and sim.area_at.has(unit.ai_heal_tile) and sim.areas[sim.area_at[unit.ai_heal_tile]].owner == unit.team:
+		_move(sim, unit, unit.ai_heal_tile)
+		return
 	var destination: Vector2i = Vector2i(-1, -1)
 	var best: float = INF
 	for area: Dictionary in sim.areas:
 		if area.owner != unit.team or area.kind == ClassicRules.AreaKind.RECRUIT:
 			continue
+		if threatened and area.tile == current_tile:
+			continue
 		var distance: float = unit.cell.distance_squared_to(area.tile * 4 + Vector2i(2, 2))
+		if sim.difficulty == sim.Difficulty.EXPERT:
+			distance += _danger_at(sim, unit.team, area.tile * 4 + Vector2i(2, 2)) * 10.0
 		if distance < best:
 			best = distance
 			destination = area.tile
+	if threatened:
+		var fight: bool = sim.rng.randf() < 0.5 if sim.difficulty == sim.Difficulty.NORMAL else _danger_at(sim, unit.team, unit.cell) <= 0.0
+		if fight:
+			var target: ClassicStudent = null
+			var nearest: float = INF
+			for enemy: ClassicStudent in sim.students:
+				if enemy.is_alive() and enemy.team != unit.team and unit.cell.distance_to(enemy.cell) < nearest:
+					nearest = unit.cell.distance_to(enemy.cell)
+					target = enemy
+			if target != null:
+				unit.ai_retreating = false
+				unit.ai_hold_ground_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
+				unit.priority_target_id = target.id
+				unit.state = ClassicStudent.State.STAND
+				sim.start_walk(unit, Vector2i.ZERO, target.id)
+				return
 	if destination.x < 0:
 		var threats: Array[ClassicStudent] = []
 		for other: ClassicStudent in sim.students:
 			if other.is_alive() and other.team != unit.team:
 				threats.append(other)
 		destination = _escape_tile(sim, unit, threats)
+	unit.ai_heal_tile = destination
+	unit.ai_heal_decide_at = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
 	_move(sim, unit, destination)
+
+
+func _danger_at(sim, team: int, cell: Vector2i) -> float:
+	var danger: float = 0.0
+	for other: ClassicStudent in sim.students:
+		if other.is_alive() and other.cell.distance_to(cell) <= 12.0:
+			danger += _strength(sim, other) * (-1.0 if other.team == team else 1.0)
+	return danger
 
 
 func _escape_tile(sim, unit: ClassicStudent, enemies: Array[ClassicStudent]) -> Vector2i:

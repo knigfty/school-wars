@@ -29,6 +29,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_retreat_timing_tests()
 	var sim: ClassicSimulation = _fixture()
 	sim.difficulty = ClassicSimulation.Difficulty.EASY
 	_check(not sim.uses_squad_ai(), "Easy retains original AI")
@@ -143,3 +144,80 @@ func _run() -> void:
 	_check(not a.ai_retreating and a.priority_target_id >= 0, "Expert orcs distinguish distant enemies from local outnumbering")
 	print("Squad AI tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
+
+
+func _retreat_timing_tests() -> void:
+	var sim: ClassicSimulation = _fixture(0)
+	var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
+	var enemy: ClassicStudent = _unit(sim, 1, 0, Vector2i(21, 20))
+	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
+	elf.health = 2
+	enemy.state = ClassicStudent.State.FIGHT
+	enemy.target_id = elf.id
+	sim.ticks = 100
+	sim._sitting(elf)
+	_check(elf.health == 2, "Attacked sitting elf cannot heal, even before a hit lands")
+	enemy.state = ClassicStudent.State.SIT
+	sim.ticks = 153
+	sim._sitting(elf)
+	_check(elf.health == 2, "Elf cannot heal before three safe seconds")
+	sim.ticks = 154
+	sim._sitting(elf)
+	_check(elf.health > 2, "Elf resumes healing at exactly three safe seconds")
+	elf.state = ClassicStudent.State.WALK
+	_check(not sim.can_heal(elf), "Walking elf cannot heal")
+	sim._initialize_student(elf, 2, Vector2i(20, 20))
+	_check(elf.last_attacked_tick < 0 and elf.ai_hold_ground_until == 0, "Respawn resets healing and decision state")
+	# Expert fights with strong nearby support, escapes to another heart without it.
+	for supported: bool in [false, true]:
+		sim = _fixture(0)
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		elf = _unit(sim, 0, 2, Vector2i(20, 20))
+		elf.health = 2
+		elf.last_attacked_tick = 0
+		enemy = _unit(sim, 1, 0, Vector2i(21, 20))
+		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
+		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
+		if supported:
+			var ally: ClassicStudent = _unit(sim, 2, 2, Vector2i(20, 21))
+			ally.punch_bonus = 100
+		sim.squad_ai.update(sim)
+		if supported:
+			_check(not elf.ai_retreating and elf.priority_target_id == enemy.id, "Supported Expert elf fights back")
+		else:
+			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(12, 12), "Unsupported Expert elf seeks another healing spot")
+	var choices: Dictionary = {}
+	for seed_value: int in 24:
+		sim = _fixture(0)
+		sim.rng.seed = seed_value
+		elf = _unit(sim, 0, 2, Vector2i(20, 20))
+		elf.health = 2
+		elf.last_attacked_tick = 0
+		_unit(sim, 1, 0, Vector2i(21, 20))
+		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
+		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
+		sim.squad_ai.update(sim)
+		choices[elf.ai_retreating] = true
+	_check(choices.size() == 2, "Normal elves randomly choose both fight and escape")
+	sim = _fixture(0)
+	var orc: ClassicStudent = _unit(sim, 0, 1, Vector2i(20, 20))
+	_unit(sim, 1, 0, Vector2i(21, 20))
+	_unit(sim, 2, 0, Vector2i(21, 21))
+	sim.squad_ai.update(sim)
+	_check(orc.ai_flee_until == 54 and orc.ai_flee_ready_at == 540, "Orc flee lasts three seconds with thirty-second reuse")
+	sim.ticks = 53
+	sim.squad_ai.update(sim)
+	_check(orc.ai_retreating, "Orc can flee before three seconds elapse")
+	sim.ticks = 54
+	sim.squad_ai.update(sim)
+	_check(not orc.ai_retreating and orc.priority_target_id >= 0, "Orc returns to combat at three seconds despite outnumbering")
+	sim.ticks = 539
+	sim.squad_ai.next_plan = 0
+	sim.squad_ai.update(sim)
+	_check(not orc.ai_retreating, "Orc cannot flee during cooldown")
+	sim.ticks = 540
+	sim.squad_ai.next_plan = 0
+	sim.squad_ai.update(sim)
+	_check(orc.ai_retreating and orc.ai_flee_until == 594, "Orc may flee again after thirty seconds")
+	sim._initialize_student(orc, 1, Vector2i(20, 20))
+	_check(orc.ai_flee_ready_at == 0 and not orc.ai_retreating, "New orc lifetime resets flee cooldown")

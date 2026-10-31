@@ -47,6 +47,7 @@ func _run() -> void:
 			var elf: ClassicStudent = sim.students[6]
 			elf.cell = human.cell
 			elf.counter = 1000
+			elf.state = ClassicStudent.State.SIT
 			elf.health = 5.0
 			sim._sitting(elf)
 			_check(is_equal_approx(elf.health, 5.2 if variant and kind == ClassicRules.AreaKind.HEAL else 5.1), "Elf healing depends on variant and heart")

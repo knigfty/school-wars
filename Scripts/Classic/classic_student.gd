@@ -21,6 +21,11 @@ var fight_phase: int = 0
 var idle_ticks: int = 0
 var ai_retreating: bool = false
 var ai_flee_until: int = 0
+var ai_flee_ready_at: int = 0
+var last_attacked_tick: int = -1000000
+var ai_hold_ground_until: int = 0
+var ai_heal_tile: Vector2i = Vector2i(-1, -1)
+var ai_heal_decide_at: int = 0
 var lifetime: int = 0
 # Per-victim successful damage: attacker ID -> tick and attacker lifetime.
 var damage_contributors: Dictionary = {}

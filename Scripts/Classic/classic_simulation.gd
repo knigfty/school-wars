@@ -156,6 +156,11 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
 	student.ai_retreating = false
 	student.ai_flee_until = 0
+	student.ai_flee_ready_at = 0
+	student.last_attacked_tick = -1000000
+	student.ai_hold_ground_until = 0
+	student.ai_heal_tile = Vector2i(-1, -1)
+	student.ai_heal_decide_at = 0
 	student.lifetime += 1
 	student.damage_contributors.clear()
 	student.team = team
@@ -186,6 +191,12 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
+	if medieval:
+		for attacker: ClassicStudent in students:
+			if attacker.state == ClassicStudent.State.FIGHT and attacker.target_id >= 0:
+				var victim: ClassicStudent = students[attacker.target_id]
+				if victim.is_alive() and victim.team != attacker.team and _within_attack_range(attacker, victim):
+					victim.last_attacked_tick = ticks
 	if uses_squad_ai():
 		squad_ai.update(self)
 	if medieval:
@@ -320,6 +331,17 @@ func _start_sit(student: ClassicStudent) -> void:
 	student.pattern = rng.randi_range(13, 15)
 
 
+func can_heal(student: ClassicStudent) -> bool:
+	if student.state != ClassicStudent.State.SIT:
+		return false
+	if not medieval or student.team != 2:
+		return true
+	for attacker: ClassicStudent in students:
+		if attacker.state == ClassicStudent.State.FIGHT and attacker.target_id == student.id and attacker.team != student.team and _within_attack_range(attacker, student):
+			student.last_attacked_tick = ticks
+	return ticks - student.last_attacked_tick >= 3 * ClassicRules.TICKS_PER_SECOND
+
+
 func _sitting(student: ClassicStudent) -> void:
 	var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
 	if area_at.has(tile):
@@ -332,7 +354,7 @@ func _sitting(student: ClassicStudent) -> void:
 					if color != student.team:
 						area.progress[color] = 0
 				_update_leader()
-		if area.owner == student.team and area.kind != ClassicRules.AreaKind.RECRUIT:
+		if area.owner == student.team and area.kind != ClassicRules.AreaKind.RECRUIT and can_heal(student):
 			student.health = minf(student.maximum_health, student.health + ClassicRules.HEAL_PER_TICK * (2.0 if medieval and student.team == 2 and area.kind == ClassicRules.AreaKind.HEAL else 1.0))
 	student.counter -= 1
 	student.idle_ticks += 1
@@ -582,6 +604,7 @@ func _fighting(student: ClassicStudent) -> void:
 			target.counter = 5
 			if medieval:
 				target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime}
+				target.last_attacked_tick = ticks
 			target.health -= get_punch_damage(student, target)
 			if target.health <= 0.0:
 				target.health = 0.0
