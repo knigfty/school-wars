@@ -19,6 +19,8 @@ var ticks: int = 0
 var leader: int = -1
 var finished: bool = false
 var ai_enabled: bool = true
+# Opt-in variant rules; classic remains the default.
+var medieval: bool = false
 
 
 func setup(team: int, map_seed: int) -> void:
@@ -66,7 +68,7 @@ func setup(team: int, map_seed: int) -> void:
 
 func _add_area(tile: Vector2i, kind: int, owner: int) -> void:
 	area_at[tile] = areas.size()
-	areas.append({"tile": tile, "kind": kind, "owner": owner, "progress": [0, 0, 0, 0]})
+	areas.append({"tile": tile, "kind": kind, "owner": owner, "progress": [0.0, 0.0, 0.0, 0.0]})
 
 
 func get_count(team: int) -> int:
@@ -85,15 +87,19 @@ func get_recruit_tiles(team: int) -> int:
 	return count
 
 
+func get_recruit_threshold(team: int) -> int:
+	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
+
+
 func get_spawn_seconds(team: int) -> float:
-	return float(ClassicRules.RECRUIT_THRESHOLD[team]) / float(2 + get_recruit_tiles(team)) / 18.0
+	return float(get_recruit_threshold(team)) / float(2 + get_recruit_tiles(team)) / 18.0
 
 
 func get_team_capacity(team: int) -> int:
 	var captured: int = 0
 	if team == 1:
 		for area: Dictionary in areas:
-			if area.owner == team and area.kind != ClassicRules.AreaKind.BASE:
+			if area.owner == team and (area.kind == ClassicRules.AreaKind.RECRUIT if medieval else area.kind != ClassicRules.AreaKind.BASE):
 				captured += 1
 	return ClassicRules.TEAM_CAP + captured / 2
 
@@ -137,6 +143,7 @@ func spawn_student(team: int) -> ClassicStudent:
 		student.destination = student.cell
 		student.health = ClassicRules.HEALTH[team]
 		student.maximum_health = student.health
+		student.punch_bonus = 0
 		student.level = 0
 		student.level_ticks = 0
 		student.direction = rng.randi_range(0, 3)
@@ -181,8 +188,8 @@ func step() -> void:
 	for color: int in 4:
 		if active[color]:
 			recruit_progress[color] += 2 + get_recruit_tiles(color)
-			if recruit_progress[color] > ClassicRules.RECRUIT_THRESHOLD[color]:
-				recruit_progress[color] -= ClassicRules.RECRUIT_THRESHOLD[color]
+			if recruit_progress[color] > get_recruit_threshold(color):
+				recruit_progress[color] -= get_recruit_threshold(color)
 				spawn_student(color)
 
 
@@ -274,15 +281,15 @@ func _sitting(student: ClassicStudent) -> void:
 	if area_at.has(tile):
 		var area: Dictionary = areas[area_at[tile]]
 		if area.kind >= ClassicRules.AreaKind.RECRUIT and area.owner != student.team:
-			area.progress[student.team] += 1
-			if area.progress[student.team] >= ClassicRules.CAPTURE_TICKS:
+			area.progress[student.team] += 1.2 if medieval and student.team == 0 else 1.0
+			if area.progress[student.team] >= ClassicRules.CAPTURE_TICKS - 0.000001:
 				area.owner = student.team
 				for color: int in 4:
 					if color != student.team:
 						area.progress[color] = 0
 				_update_leader()
 		if area.owner == student.team and area.kind != ClassicRules.AreaKind.RECRUIT:
-			student.health = minf(student.maximum_health, student.health + ClassicRules.HEAL_PER_TICK)
+			student.health = minf(student.maximum_health, student.health + ClassicRules.HEAL_PER_TICK * (2.0 if medieval and student.team == 2 and area.kind == ClassicRules.AreaKind.HEAL else 1.0))
 	student.counter -= 1
 	student.idle_ticks += 1
 	if student.counter < 0:
@@ -522,7 +529,7 @@ func _fighting(student: ClassicStudent) -> void:
 			target.pattern = 20
 			target.fight_phase = 3
 			target.counter = 5
-			target.health -= ClassicRules.PUNCH[student.team]
+			target.health -= get_punch_damage(student, target)
 			if target.health <= 0.0:
 				target.health = 0.0
 				_target_died(target)
@@ -530,8 +537,11 @@ func _fighting(student: ClassicStudent) -> void:
 				target.pattern = 20
 				target.counter = 10
 				target.fight_phase = 0
-				# All colors gain one MAX HP; current health is not restored.
-				student.maximum_health += 1.0
+				# Only medieval elves retain max-HP growth; kills never instantly heal.
+				if not medieval or student.team == 2:
+					student.maximum_health += 1.0
+				if medieval and student.team == 3:
+					student.punch_bonus += 1
 				student.level += 1
 				student.level_ticks = 30
 				sound_requested.emit("dead", target.world_position())
@@ -647,3 +657,18 @@ func _contact_target(student: ClassicStudent, target: ClassicStudent) -> bool:
 func _adjacent(a: Vector2i, b: Vector2i) -> bool:
 	var offset: Vector2i = a - b
 	return absi(offset.x) + absi(offset.y) == 1
+
+
+func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
+	var damage: float = ClassicRules.PUNCH[student.team]
+	if not medieval:
+		return damage
+	damage += student.punch_bonus
+	if student.team == 1:
+		# Stable first attacker: each additional engaged orc adds ONE damage,
+		# rather than multiplying the full group bonus across every attacker.
+		for ally: ClassicStudent in students:
+			if ally.id < student.id and ally.team == 1 and ally.state == ClassicStudent.State.FIGHT and ally.target_id == target.id and _contact_target(ally, target):
+				damage += 1.0
+				break
+	return damage

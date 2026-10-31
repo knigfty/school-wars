@@ -19,6 +19,7 @@ var counter: int = 0
 var walk_tick: int = 0
 var fight_phase: int = 0
 var idle_ticks: int = 0
+var punch_bonus: int = 0
 var level: int = 0
 var level_ticks: int = 0
 var health: float

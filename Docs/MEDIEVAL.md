@@ -1,8 +1,8 @@
 # Medieval Wars variant
 
-School Wars stays at `/`. Its animated Extras button opens `/v2`. The `/v2` and `/v2/` routes serve the same Godot Web export and choose the medieval skin from the browser pathname. A return button opens School Wars. No simulation rules are forked.
+School Wars stays at `/`. Its animated Extras button opens `/v2`. The `/v2` and `/v2/` routes serve the same Godot Web export and choose the medieval skin from the browser pathname. A return button opens School Wars. The shared simulation uses an opt-in medieval rules flag.
 
-Teams map in order: Black -> Humans, Green -> Orcs, Yellow -> Elves, Purple -> Demons. Colours, stats, population bonuses, recruitment, map, movement and combat are shared. Only the menu, display names and character atlas change. Original School Wars assets and attribution remain in the classic version. No GAMEDESIGN title is displayed on the medieval menu.
+Teams map in order: Black -> Humans, Green -> Orcs, Yellow -> Elves, Purple -> Demons. Colours, base stats, map and movement are shared. Medieval balance differences are listed below. Original School Wars assets and attribution remain in the classic version. No GAMEDESIGN title is displayed on the medieval menu.
 
 Assets: `Assets/Medieval/menu.jpg` and `Assets/Medieval/students.png`. The atlas keeps the 640x960 layout, 20 columns x 20 rows, with 32x48 cells. The same atlas supplies portraits and all in-game animations. The Extras pulse respects the browser reduced-motion preference. No Godot scene wiring is required; export with the existing Web preset.
 
@@ -30,10 +30,24 @@ The active atlas is now `Assets/Medieval/races.png`; `students_hd.webp` is remov
 
 ## Directional races2.png redraw
 
-The active medieval atlas is `Assets/Medieval/races2.png`, a 1280x1920 transparent PNG with 64x96 cells. `races.png` remains available as the previous artwork. Both menu portraits and battlefield characters use the new texture through `ClassicGame.MEDIEVAL_STUDENTS`; no scene setup is required. Classic artwork and the shared simulation are unchanged.
+The active medieval atlas is `Assets/Medieval/races2.png`, a 1280x1920 transparent PNG with 64x96 cells. `races.png` remains available as the previous artwork. Both menu portraits and battlefield characters use the new texture through `ClassicGame.MEDIEVAL_STUDENTS`; no scene setup is required. Classic artwork and classic simulation behavior remain unchanged.
 
 Each race occupies 100 row-major cells: bottom-right at offsets 0-23, bottom-left at 25-48, top-left at 50-73, and top-right at 75-98. Offsets 24, 49, 74 and 99 are transparent and are also used by the death blink. In each direction, one-based poses 1-10 are walking, 11-13 standing, 14-16 sitting on the ground for idle/capture, 17-20 punching, and 21-24 hit/recoil/fall/dead. Back-facing directions show the back of the head and armor. The hit reactions retain the original turns and leans.
 
 The built-in image generation tool redrew one race at a time from the original classic poses, rearranged into an 8-column, 12-row reference (three rows per direction). The accepted sheets are packed with `Tools/pack_races2_atlas.py HUMAN ORC ELF DEMON OUTPUT`; this fails on missing poses instead of borrowing frames. It retains the original scaled bounding envelope, horizontal centre and bottom anchor at approximately 99% visible width/height. Registration checks all 384 visible poses and 16 blank cells. These checks establish layout and anchors; pose fidelity still requires visual review.
 
 Generation prompt: redraw the supplied 96-pose template as sharp hand-painted HD medieval sprites; exactly 8 columns by 12 rows; rows 1-3 bottom-right, 4-6 bottom-left, 7-9 top-left, 10-12 top-right. Match each original skeleton, head angle and limb placement. Within each three-row group: eight walking poses; then two walking, three standing and three ground-sitting poses; then four punch poses and four hit-to-death poses. Show the back for both top-facing directions. Transparent background, no labels, weapons, shields, wings or ground shadows. Race designs: dark steel human with red-brown hair; green orc with tusks and leather/iron armor; golden elf with pointed ears and blond hair; violet demon with small horns and purple armor. Do not change grid, facing or action order.
+
+## Medieval balance rules
+
+The game passes its medieval flag through ClassicBoard into ClassicSimulation before setup. Classic remains the default; no Godot scene setup is required.
+
+- Humans contribute 1.2 capture progress per seated tick: 250 ticks (13.9 seconds) alone instead of 300.
+- Orc recruitment threshold is 750 instead of classic Green's 500; other races remain at 1500. At equal spade ownership, orcs recruit twice as fast.
+- Orc capacity increases by one per two owned spades, rounded down. Hearts do not count. Losing spades lowers capacity without removing existing units.
+- Against one target, the first engaged orc (stable unit-ID order) deals base damage, and each additional engaged orc deals +1 on successful punches. Two deal 5 combined; three deal 8. Support requires a living orc fighting that same enemy in melee contact; misses retain the existing combat rules.
+- Only elves gain +1 maximum HP per killing blow, without instantly healing. Other medieval races gain no HP from kills.
+- Demons gain +1 permanent punch damage per killing blow, stacking for that unit's lifetime. Respawning resets kill bonuses.
+- Elves heal 0.2 HP per seated tick on owned hearts (3.6 HP/sec). Their base healing and all other races' healing remain 0.1 per tick.
+
+The recruitment HUD uses the variant's actual threshold; medieval help describes these rules. Run Godot headless with --script res://Testing/run_medieval_tests.gd for balance and variant-wiring regression checks.

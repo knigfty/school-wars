@@ -47,6 +47,7 @@ func _ready() -> void:
 			JavaScriptBridge.eval("document.title = 'Medieval Wars'")
 	_build_theme()
 	board = ClassicBoard.new()
+	board.medieval = medieval
 	if medieval:
 		board.student_texture = MEDIEVAL_STUDENTS
 		board.team_names.assign(RACE_NAMES)
@@ -370,6 +371,9 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 
 
 func _show_help() -> void:
+	if medieval:
+		_show_dialog("How to play", "CONTROLS\n• L-click or drag a box to select; click a tile to move or an enemy to focus.\n• R-click drag / Space-drag: pan · Wheel: zoom · A: select all · Esc: pause\n\nCAPTURE & HEAL\n• Seated warriors capture spades and hearts; more allies capture faster.\n• Humans capture 20% faster: one human takes about 13.9 seconds; others 16.7.\n• Partial capture progress stays when you leave. Bases cannot be captured.\n• Owned spades speed spawning. Owned hearts and bases heal seated warriors at 1.8 HP/sec.\n• Elves heal at 3.6 HP/sec on owned hearts; base healing is unchanged.\n\nSPAWNING & COMBAT\n• Orcs spawn twice as fast. All races start with 12 capacity.\n• Orcs gain +1 capacity per two owned spades; hearts do not count. Losing spades lowers the cap without removing warriors.\n• Four attackers can surround a target; others wait for openings.\n• Each additional orc engaged on the same target deals +1 punch damage.\n• Killing blows: demons permanently gain +1 punch; elves gain +1 max HP without instant healing. Humans and orcs gain no kill stats.\n• Bonuses belong to the killer and reset on respawn. Eliminate all opponents to win.", true, false)
+		return
 	_show_dialog("How to play", "CONTROLS\n• L-click to select · R-click drag to pan · Wheel to zoom\n• Drag a box to select a squad; click a tile to move or an enemy to focus attacks.\n• Space: clear selection · Space-drag: pan\n• A: select all · Esc: cancel / pause · Minimap: click or drag\n\nCAPTURE & HEAL\n• Sit on spade or heart tiles to capture them; more seated allies capture faster.\n• One student takes about 16.7 seconds. Moving or fighting does not count.\n• Grey = neutral; colours = owner. Partial progress stays when you leave.\n• Spades speed team spawning, even after you leave. They do not boost damage.\n• Friendly hearts and bases heal seated students: 1.8 HP/sec.\n• Bases cannot be captured. Capture and healing rates are equal for all teams.\n\nSPAWNING & COMBAT\n• The spawn bar shows the next cycle; full capacity or a blocked base prevents spawning.\n• Green spawns three times as fast. All teams start with 12 capacity.\n• Green gains +1 capacity per two owned spade/heart tiles. Lost tiles lower the cap without removing units.\n• Four attackers can surround a target; others close in and wait for openings.\n• Out-of-range attackers can fight back nearby, then resume their focus order.\n• Kill: +1 max HP, no instant heal. Eliminate all opponents to win.", true, false)
 
 
@@ -403,7 +407,7 @@ func _update_recruitment() -> void:
 	var sim: ClassicSimulation = board.simulation
 	if sim == null:
 		return
-	var threshold: int = ClassicRules.RECRUIT_THRESHOLD[_team]
+	var threshold: int = sim.get_recruit_threshold(_team)
 	var progress: int = sim.recruit_progress[_team]
 	recruit_bar.value = clampf(float(progress) / threshold, 0.0, 1.0)
 	var population: int = sim.get_count(_team)

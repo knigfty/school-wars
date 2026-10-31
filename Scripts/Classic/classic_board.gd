@@ -21,6 +21,7 @@ var team_names: Array[String] = ClassicRules.TEAM_NAMES.duplicate()
 
 var _frame_cache: Dictionary = {}
 
+var medieval: bool = false
 var simulation: ClassicSimulation
 var selected: Array[int] = []
 var camera_center: Vector2 = Vector2(0, 384)
@@ -52,6 +53,7 @@ func _ready() -> void:
 
 func start(team: int, map_seed: int) -> void:
 	simulation = ClassicSimulation.new()
+	simulation.medieval = medieval
 	simulation.setup(team, map_seed)
 	simulation.sound_requested.connect(_on_sound)
 	simulation.team_eliminated.connect(_on_eliminated)
