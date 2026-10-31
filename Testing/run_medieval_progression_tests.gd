@@ -140,11 +140,11 @@ func _test_range() -> void:
 	var sim: ClassicSimulation = _sim()
 	var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
 	var victim: ClassicStudent = _unit(sim, 1, 1, Vector2i(22, 20))
-	for hp: int in [25, 29, 30, 34, 35, 39, 40, 45]:
+	for hp: int in [25, 27, 28, 31, 32, 35, 36, 45]:
 		elf.maximum_health = hp
-		var expected: int = 4 if hp >= 40 else (3 if hp >= 35 else (2 if hp >= 30 else 1))
+		var expected: int = 4 if hp >= 36 else (3 if hp >= 32 else (2 if hp >= 28 else 1))
 		_check(sim.get_attack_range(elf) == expected, "Elf range tier at %d HP" % hp)
-	elf.maximum_health = 30
+	elf.maximum_health = 28
 	victim.health = 100
 	_hit(sim, elf, victim)
 	_check(victim.health == 97, "Ranged elf actually deals damage at two cells")
@@ -152,15 +152,15 @@ func _test_range() -> void:
 	victim.state = ClassicStudent.State.STAND
 	victim.cell = Vector2i(23, 20)
 	_check(not sim._contact_target(elf, victim), "Ranged attacker cannot hit outside reach")
-	elf.maximum_health = 35
+	elf.maximum_health = 32
 	_check(sim._contact_target(elf, victim), "Next range tier hits at three cells")
 	victim.cell = Vector2i(22, 21)
 	_check(sim._contact_target(elf, victim), "Range uses grid Manhattan distance")
-	elf.maximum_health = 29
+	elf.maximum_health = 27
 	victim.cell = Vector2i(21, 20)
 	victim.health = 1
 	_hit(sim, elf, victim)
-	_check(elf.maximum_health == 30 and sim.get_attack_range(elf) == 2, "HP reward immediately unlocks range")
+	_check(elf.maximum_health == 28 and sim.get_attack_range(elf) == 2, "HP reward immediately unlocks range")
 
 	var human: ClassicStudent = _unit(sim, 3, 0, Vector2i(30, 30))
 	human.level = 3

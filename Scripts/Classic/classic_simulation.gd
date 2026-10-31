@@ -913,11 +913,11 @@ func get_attack_range(student: ClassicStudent) -> int:
 	if student.team == 0 and student.level >= 3:
 		return 3
 	if student.team == 2:
-		if student.maximum_health >= 40.0:
+		if student.maximum_health >= 36.0:
 			return 4
-		if student.maximum_health >= 35.0:
+		if student.maximum_health >= 32.0:
 			return 3
-		if student.maximum_health >= 30.0:
+		if student.maximum_health >= 28.0:
 			return 2
 	return 1
 

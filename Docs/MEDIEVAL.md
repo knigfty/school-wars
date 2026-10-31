@@ -81,7 +81,7 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 | Human | Fourth killing blow | Each successful swing also hits one enemy adjacent to the main victim, within human reach |
 | Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
-| Elf | 30 / 35 / 40 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
+| Elf | 28 / 32 / 36 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
 | Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |
 | Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
 
