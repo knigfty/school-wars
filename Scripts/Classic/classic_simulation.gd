@@ -142,6 +142,7 @@ func spawn_student(team: int) -> ClassicStudent:
 		student.direction = rng.randi_range(0, 3)
 		student.target_id = -1
 		student.priority_target_id = -1
+		student.approach_cell = Vector2i(-1, -1)
 		student.pattern = 10
 		student.counter = rng.randi_range(10, 29)
 		student.idle_ticks = 0
@@ -193,6 +194,7 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 			continue
 		var student: ClassicStudent = students[id]
 		if student.is_alive() and student.team == player_team:
+			student.approach_cell = Vector2i(-1, -1)
 			student.priority_target_id = target_id if _valid_enemy(student, target_id) else -1
 			if student.state == ClassicStudent.State.FIGHT:
 				student.state = ClassicStudent.State.STAND
@@ -287,7 +289,80 @@ func _sitting(student: ClassicStudent) -> void:
 		_start_sit(student)
 
 
+func _focus_step(student: ClassicStudent) -> void:
+	var target: ClassicStudent = students[student.priority_target_id]
+	if _adjacent(student.cell, target.cell):
+		_start_fight(student, target)
+		_engage_defender(target, student)
+		return
+	# Each pursuing ally reserves a distinct attack position around this target.
+	var claimed: Dictionary = {}
+	for ally: ClassicStudent in students:
+		if ally.id == student.id or not ally.is_alive() or ally.team != student.team:
+			continue
+		if ally.priority_target_id != target.id or ally.target_id != target.id:
+			continue
+		if _adjacent(ally.cell, target.cell):
+			claimed[ally.cell] = true
+		elif _adjacent(ally.approach_cell, target.cell):
+			if not occupancy.has(ally.approach_cell) or occupancy[ally.approach_cell] == ally.id:
+				claimed[ally.approach_cell] = true
+	var goals: Dictionary = {}
+	for direction: Vector2i in ClassicRules.DIRECTIONS:
+		var cell: Vector2i = target.cell + direction
+		if ClassicRules.in_grid(cell) and not occupancy.has(cell) and not claimed.has(cell):
+			goals[cell] = true
+	# Keep a reachable assignment stable, but allow reassignment when blocked.
+	var preferred: Vector2i = student.approach_cell
+	var candidates: Array[Dictionary] = []
+	if goals.has(preferred):
+		candidates.append({preferred: true})
+	candidates.append(goals)
+	for destinations: Dictionary in candidates:
+		if destinations.is_empty():
+			continue
+		var queue: Array[Vector2i] = [student.cell]
+		var parent: Dictionary = {student.cell: student.cell}
+		var cursor: int = 0
+		while cursor < queue.size():
+			var cell: Vector2i = queue[cursor]
+			cursor += 1
+			if destinations.has(cell):
+				student.approach_cell = cell
+				student.destination = target.cell
+				var next: Vector2i = cell
+				while parent[next] != student.cell:
+					next = parent[next]
+				for index: int in 4:
+					if student.cell + ClassicRules.DIRECTIONS[index] == next:
+						_reserve_step(student, index)
+						return
+			for direction: Vector2i in ClassicRules.DIRECTIONS:
+				var next: Vector2i = cell + direction
+				if not ClassicRules.in_grid(next) or occupancy.has(next) or parent.has(next):
+					continue
+				parent[next] = cell
+				queue.append(next)
+	student.approach_cell = Vector2i(-1, -1)
+	student.state = ClassicStudent.State.WAIT
+	student.counter = 2
+	student.pattern = 10
+
+
+func _reserve_step(student: ClassicStudent, direction: int) -> void:
+	student.direction = direction
+	occupancy.erase(student.cell)
+	student.previous_cell = student.cell
+	student.cell += ClassicRules.DIRECTIONS[direction]
+	occupancy[student.cell] = student.id
+	student.walk_tick = 0
+	student.state = ClassicStudent.State.WALK
+
+
 func _start_turn(student: ClassicStudent) -> void:
+	if student.target_id == student.priority_target_id and _valid_enemy(student, student.priority_target_id):
+		_focus_step(student)
+		return
 	if student.history.size() > 6:
 		var repeats: int = 0
 		for cell: Vector2i in student.history.slice(-6):

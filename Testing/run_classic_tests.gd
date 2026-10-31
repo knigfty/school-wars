@@ -77,6 +77,7 @@ func _run() -> void:
 	_check(cap_sim.spawn_student(1) == null, "Eliminated schools cannot recruit")
 	_test_blocked_focus_retaliation()
 	_test_new_orders_and_capacity()
+	_test_surround()
 	_test_orders()
 	_test_fight()
 	_test_determinism_and_occupancy()
@@ -182,6 +183,70 @@ func _test_new_orders_and_capacity() -> void:
 	_check(mover.target_id == -1 and mover.destination == target.cell, "Target death converts pursuit to last-position move")
 	sim._walking(mover)
 	_check(mover.state == ClassicStudent.State.WALK and mover.cell == Vector2i(11, 10), "Pursuer continues moving after target dies")
+
+
+func _test_surround() -> void:
+	for scenario: int in 5:
+		var sim: ClassicSimulation = ClassicSimulation.new()
+		sim.setup(0, 900 + scenario)
+		sim.ai_enabled = false
+		sim.occupancy.clear()
+		for unit: ClassicStudent in sim.students:
+			unit.state = ClassicStudent.State.UNUSED
+		var target: ClassicStudent = sim.students[10]
+		target.team = 1
+		target.cell = Vector2i(20, 20) if scenario != 2 else Vector2i(0, 20)
+		target.health = 100000
+		target.state = ClassicStudent.State.STAND
+		sim.occupancy[target.cell] = target.id
+		if scenario == 1:
+			var blocker: ClassicStudent = sim.students[11]
+			blocker.team = 2
+			blocker.cell = target.cell + Vector2i.UP
+			blocker.state = ClassicStudent.State.STAND
+			sim.occupancy[blocker.cell] = blocker.id
+		var ids: Array[int] = []
+		var count: int = 5 if scenario == 3 else 4
+		for i: int in count:
+			var unit: ClassicStudent = sim.students[i]
+			unit.team = 0
+			unit.cell = Vector2i(10, 17 + i)
+			unit.previous_cell = unit.cell
+			unit.health = 1000
+			unit.maximum_health = 1000
+			unit.state = ClassicStudent.State.STAND
+			sim.occupancy[unit.cell] = unit.id
+			ids.append(unit.id)
+		sim.command(ids, Vector2i(5, 5), target.id)
+		for tick: int in 600:
+			if scenario == 4 and tick == 90:
+				sim.occupancy.erase(target.cell)
+				target.cell = Vector2i(25, 25)
+				sim.occupancy[target.cell] = target.id
+			for id: int in ids:
+				var unit: ClassicStudent = sim.students[id]
+				match unit.state:
+					ClassicStudent.State.WALK:
+						sim._walking(unit)
+					ClassicStudent.State.WAIT, ClassicStudent.State.STAND:
+						unit.counter -= 1
+						if unit.counter < 0:
+							sim.start_walk(unit, Vector2i.ZERO, target.id)
+					ClassicStudent.State.FIGHT:
+						sim._fighting(unit)
+			var seen: Dictionary = {}
+			for unit: ClassicStudent in sim.students:
+				if unit.state != ClassicStudent.State.UNUSED:
+					_check(not seen.has(unit.cell), "Surround routing never overlaps occupied cells")
+					seen[unit.cell] = unit.id
+			_check(seen == sim.occupancy, "Surround routing preserves reservations")
+		var sides: int = 0
+		for id: int in ids:
+			var unit: ClassicStudent = sim.students[id]
+			if sim._adjacent(unit.cell, target.cell) and unit.state == ClassicStudent.State.FIGHT:
+				sides += 1
+		_check(sides == (3 if scenario in [1, 2] else 4), "Attackers fill every accessible target side, scenario %d" % scenario)
+		_check(target.health < 100000, "Surrounding attackers land damage, scenario %d" % scenario)
 
 
 func _test_orders() -> void:
