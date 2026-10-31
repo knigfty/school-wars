@@ -122,7 +122,7 @@ func _build_menu() -> void:
 		for difficulty_name: String in ["Easy", "Normal", "Expert"]:
 			difficulty_selector.add_item("Difficulty : " + difficulty_name)
 		difficulty_selector.select(ClassicSimulation.Difficulty.EASY)
-		difficulty_selector.tooltip_text = "Easy: original AI. Normal: coordinated race squads. Expert: faster decisions and wider demon awareness."
+		difficulty_selector.tooltip_text = "Easy: original AI. Normal: coordinated race squads. Expert: faster decisions and whole-map awareness for all AI teams."
 		menu.add_child(difficulty_selector)
 	extras_button = _button("School Wars" if medieval else "Extras", _navigate_variant)
 	extras_button.name = "ExtrasButton"

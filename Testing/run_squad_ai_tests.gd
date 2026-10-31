@@ -122,15 +122,24 @@ func _run() -> void:
 				for unit: ClassicStudent in sim.students:
 					if unit.state != ClassicStudent.State.UNUSED:
 						_check(sim.occupancy.get(unit.cell, -1) == unit.id, "Squad orders preserve occupancy")
-	# Expert demons can detect prey outside Normal's local planning radius.
-	for mode: int in [ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
-		sim = _fixture(0)
-		sim.difficulty = mode
-		a = _unit(sim, 0, 3, Vector2i(20, 20))
-		b = _unit(sim, 1, 3, Vector2i(20, 21))
-		weak = _unit(sim, 2, 2, Vector2i(40, 20))
-		weak.health = 1
-		sim.squad_ai.update(sim)
-		_check((a.priority_target_id == weak.id) == (mode == ClassicSimulation.Difficulty.EXPERT), "Expert demon awareness exceeds Normal")
+	# Every Expert race detects targets across the map, beyond the old demon radius.
+	for team: int in 4:
+		for mode: int in [ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+			sim = _fixture((team + 1) % 4)
+			sim.difficulty = mode
+			a = _unit(sim, 0, team, Vector2i(2, 2))
+			b = _unit(sim, 1, team, Vector2i(2, 3))
+			weak = _unit(sim, 2, (team + 1) % 4, Vector2i(61, 61))
+			weak.health = 1
+			sim.squad_ai.update(sim)
+			_check((a.priority_target_id == weak.id and b.priority_target_id == weak.id) == (mode == ClassicSimulation.Difficulty.EXPERT), "Whole-map Expert awareness for race %d" % team)
+	# Remote enemies must not make locally safe Expert orcs flee.
+	sim = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	a = _unit(sim, 0, 1, Vector2i(2, 2))
+	for i: int in 3:
+		_unit(sim, i + 1, 0, Vector2i(58 + i, 60))
+	sim.squad_ai.update(sim)
+	_check(not a.ai_retreating and a.priority_target_id >= 0, "Expert orcs distinguish distant enemies from local outnumbering")
 	print("Squad AI tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)

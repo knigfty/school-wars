@@ -79,17 +79,25 @@ func _plan(sim, squad: Array) -> void:
 		return
 	center /= ready.size()
 	var team: int = ready[0].team
-	var radius: float = 24.0 if team == 3 and sim.difficulty == sim.Difficulty.EXPERT else 16.0
+	var global_awareness: bool = sim.difficulty == sim.Difficulty.EXPERT
+	var radius: float = 16.0
 	var enemies: Array[ClassicStudent] = []
 	var allies: int = 0
+	var nearby_enemies: int = 0
 	for other: ClassicStudent in sim.students:
-		if not other.is_alive() or center.distance_to(Vector2(other.cell)) > radius:
+		if not other.is_alive():
 			continue
+		var nearby: bool = center.distance_to(Vector2(other.cell)) <= radius
 		if other.team == team:
-			allies += 1
+			if nearby:
+				allies += 1
 		else:
-			enemies.append(other)
-	if team == 1 and enemies.size() > allies:
+			if nearby:
+				nearby_enemies += 1
+			if nearby or global_awareness:
+				enemies.append(other)
+	# Awareness is global in Expert; being outnumbered is still a local threat.
+	if team == 1 and nearby_enemies > allies:
 		var escape: Vector2i = _escape_tile(sim, ready[0], enemies)
 		for unit: ClassicStudent in ready:
 			unit.ai_retreating = true

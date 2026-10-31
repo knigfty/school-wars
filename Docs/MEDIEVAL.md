@@ -108,8 +108,9 @@ race and persists when returning to race selection or replaying a match.
 - **Easy:** original individual AI.
 - **Normal:** persistent squads of 2–4 where population allows, with strategic
   decisions every two seconds.
-- **Expert:** squad decisions every second; demons scan six tiles around their
-  squad instead of Normal's four. These are map-state observations, not stat bonuses.
+- **Expert:** squad decisions every second and whole-map enemy awareness for every
+  AI race. Normal scans four tiles around each squad. Awareness informs each race's
+  existing strategy; orcs still assess being outnumbered locally. No stat bonuses.
 
 Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
