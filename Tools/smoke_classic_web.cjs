@@ -21,6 +21,8 @@ async function run() {
     }
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 960, height: 600 } });
+    // Menu equality checks need a stable frame; the Extras pulse respects this preference.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => {
       if (message.type() === 'error' || /SCRIPT ERROR|Parse Error/.test(message.text())) errors.push(message.text());
