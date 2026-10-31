@@ -14,6 +14,7 @@ var area_at: Dictionary = {}
 var bases: Array[Vector2i] = []
 var active: Array[bool] = [true, true, true, true]
 var recruit_progress: Array[int] = [0, 0, 0, 0]
+var last_spawn_base: Array[Vector2i] = []
 var player_team: int = 0
 var ticks: int = 0
 var leader: int = -1
@@ -41,6 +42,7 @@ func setup(team: int, map_seed: int) -> void:
 	bases.assign([Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO, Vector2i.ZERO])
 	active.assign([true, true, true, true])
 	recruit_progress.assign([0, 0, 0, 0])
+	last_spawn_base.assign([Vector2i(-1, -1), Vector2i(-1, -1), Vector2i(-1, -1), Vector2i(-1, -1)])
 	ticks = 0
 	leader = -1
 	finished = false
@@ -96,11 +98,7 @@ func get_recruit_tiles(team: int) -> int:
 
 
 func get_recruit_threshold(team: int) -> int:
-	var baseline: int = 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
-	if not medieval:
-		return baseline
-	var rate: int = 2 + get_recruit_tiles(team)
-	return maxi(rate * ClassicRules.TICKS_PER_SECOND, baseline - get_conquered_base_count(team) * 5 * ClassicRules.TICKS_PER_SECOND * rate)
+	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
 
 
 func get_conquered_base_count(team: int) -> int:
@@ -246,6 +244,7 @@ func step() -> void:
 					var base: Vector2i = get_priority_spawn_base(color)
 					if base.x >= 0 and spawn_student(color, base) != null:
 						recruit_progress[color] = 0
+						last_spawn_base[color] = base
 			elif recruit_progress[color] > threshold:
 				recruit_progress[color] -= threshold
 				spawn_student(color)
@@ -813,22 +812,9 @@ func get_priority_spawn_base(team: int) -> Vector2i:
 	var owned: Array[Vector2i] = get_spawn_bases(team)
 	if owned.is_empty():
 		return Vector2i(-1, -1)
-	var votes: Array[int] = []
-	votes.resize(owned.size())
-	votes.fill(0)
-	for enemy: ClassicStudent in students:
-		if not enemy.is_alive() or enemy.team == team:
-			continue
-		var nearest: int = 0
-		for i: int in range(1, owned.size()):
-			if enemy.cell.distance_squared_to(owned[i] * 4 + Vector2i(2, 2)) < enemy.cell.distance_squared_to(owned[nearest] * 4 + Vector2i(2, 2)):
-				nearest = i
-		votes[nearest] += 1
-	var best: int = 0
-	for i: int in range(1, owned.size()):
-		if votes[i] > votes[best]:
-			best = i
-	return owned[best]
+	# Advance only after a successful scheduled spawn; blocked turns stay ready.
+	var previous: int = owned.find(last_spawn_base[team])
+	return owned[(previous + 1) % owned.size()]
 
 
 func get_orc_conversion_chance(victim: ClassicStudent) -> float:
@@ -845,9 +831,14 @@ func can_capture_area(area: Dictionary, team: int) -> bool:
 		return false
 	if area.kind != ClassicRules.AreaKind.BASE:
 		return true
-	# A conquered base belongs to its current owner, including this protection.
-	# Wait for elimination cleanup so corpses cannot trigger premature capture.
-	return medieval and area.owner >= 0 and not active[area.owner] and get_count(area.owner) == 0
+	if not medieval or area.owner < 0:
+		return false
+	# Original home bases remain protected until their original race is eliminated.
+	# Once conquered, other teams may contest the base while its owner lives.
+	var original_owner: int = bases.find(area.tile)
+	if original_owner < 0:
+		original_owner = area.owner
+	return original_owner >= 0 and not active[original_owner] and get_count(original_owner) == 0
 
 
 func _capture_areas() -> void:

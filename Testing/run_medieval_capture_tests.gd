@@ -99,15 +99,15 @@ func _run() -> void:
 	_check(sim.areas[0].owner == 0, "Eliminated owner's base becomes capturable")
 	_check(sim.areas[0].spawn_progress == 0, "Captured base starts fresh spawn cycle")
 	_check(tile in sim.get_spawn_bases(0) and tile not in sim.get_spawn_bases(1), "Base belongs to new spawn team")
-	_check(not sim.can_capture_area(sim.areas[0], 2), "Conquered base protected while new owner lives")
+	_check(sim.can_capture_area(sim.areas[0], 2), "Conquered base can be contested while new owner lives")
 
 	for unit: ClassicStudent in sim.students:
 		unit.state = ClassicStudent.State.UNUSED
-	sim.active[0] = false
+	sim.active[0] = true
 	_seat(sim, 3, 2, tile)
 	for tick: int in 100:
 		sim._capture_areas()
-	_check(sim.areas[0].owner == 2, "Base can be conquered again after new owner is eliminated")
+	_check(sim.areas[0].owner == 2, "Base can be recaptured while new owner remains active")
 
 	sim = _empty_sim()
 	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, -1)
@@ -128,46 +128,37 @@ func _run() -> void:
 	sim._com_order(ai)
 	_check(ai.state != ClassicStudent.State.SIT, "AI pursues an eliminated base even during leader targeting")
 
-	# Conquered bases stack reversible bonuses; only the threatened base recruits.
+	# Capacity stacks; the team interval stays unchanged and spawns rotate.
 	for team: int in 4:
-		sim = _empty_sim()
-		sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
-		var original_seconds: float = sim.get_spawn_seconds(team)
-		for n: int in range(1, 4):
-			sim._add_area(sim.bases[(team + n) % 4], ClassicRules.AreaKind.BASE, team)
-			_check(sim.get_team_capacity(team) == 12 + n * 6, "Captured bases stack capacity")
-			_check(is_equal_approx(sim.get_spawn_seconds(team), maxf(1.0, original_seconds - 5 * n)), "Captured bases stack five-second speed bonus")
-		sim.areas.back().owner = (team + 1) % 4
-		_check(sim.get_team_capacity(team) == 24, "Losing base removes six capacity")
-		_check(is_equal_approx(sim.get_spawn_seconds(team), maxf(1.0, original_seconds - 10)), "Losing base removes speed bonus")
-		var frontline: Vector2i = sim.areas[1].tile
-		enemy = sim.students[20]
-		sim._initialize_student(enemy, (team + 1) % 4, frontline * 4 + Vector2i(5, 2))
-		enemy.state = ClassicStudent.State.SIT
-		enemy.counter = 10000
-		_check(sim.get_priority_spawn_base(team) == frontline, "Enemy proximity selects frontline base")
-		sim.recruit_progress[team] = sim.get_recruit_threshold(team) - 2
-		sim.step()
-		_check(sim.get_count(team) == 1, "Only one team spawn per cycle")
-		for unit: ClassicStudent in sim.students:
-			if unit.is_alive() and unit.team == team:
-				_check(Vector2i(unit.cell.x / 4, unit.cell.y / 4) == frontline, "Spawn uses threatened base only")
-		for y: int in 4:
-			for x: int in 4:
-				sim.occupancy[frontline * 4 + Vector2i(x, y)] = -1
-		_check(not sim.has_spawn_space(team), "Blocked priority base blocks recruitment despite other space")
-		var before: int = sim.get_count(team)
-		sim.recruit_progress[team] = sim.get_recruit_threshold(team)
-		sim.step()
-		_check(sim.get_count(team) == before, "Blocked priority base does not spawn elsewhere")
-		_check(sim.recruit_progress[team] == sim.get_recruit_threshold(team), "Blocked recruitment retains ready timer")
-		# Enemy movement changes the chosen base without resetting team progress.
-		sim.occupancy.erase(enemy.cell)
-		enemy.cell = sim.bases[team] * 4 + Vector2i(5, 2)
-		sim.occupancy[enemy.cell] = enemy.id
-		_check(sim.get_priority_spawn_base(team) == sim.bases[team], "Priority follows moving enemies")
-		sim.step()
-		_check(sim.get_count(team) == before + 1, "Ready spawn follows updated threat")
+		for base_count: int in [2, 3, 4]:
+			sim = _empty_sim()
+			sim._add_area(sim.bases[team], ClassicRules.AreaKind.BASE, team)
+			var original_seconds: float = sim.get_spawn_seconds(team)
+			for n: int in range(1, base_count):
+				sim._add_area(sim.bases[(team + n) % 4], ClassicRules.AreaKind.BASE, team)
+			_check(sim.get_team_capacity(team) == 12 + (base_count - 1) * 6, "Captured bases retain capacity bonus")
+			_check(is_equal_approx(sim.get_spawn_seconds(team), original_seconds), "Extra bases never accelerate spawning")
+			for turn: int in base_count * 2:
+				var expected: Vector2i = sim.areas[turn % base_count].tile
+				_check(sim.get_priority_spawn_base(team) == expected, "Bases alternate in stable order")
+				sim.recruit_progress[team] = sim.get_recruit_threshold(team) - 2
+				var before: int = sim.get_count(team)
+				sim.step()
+				_check(sim.get_count(team) == before + 1 and sim.last_spawn_base[team] == expected, "One successful spawn advances rotation")
+			var blocked: Vector2i = sim.get_priority_spawn_base(team)
+			for y: int in 4:
+				for x: int in 4:
+					sim.occupancy[blocked * 4 + Vector2i(x, y)] = -1
+			sim.recruit_progress[team] = sim.get_recruit_threshold(team)
+			var before: int = sim.get_count(team)
+			sim.step()
+			_check(sim.get_count(team) == before and sim.get_priority_spawn_base(team) == blocked, "Blocked turn waits without skipping bases")
+			sim.areas[0].owner = (team + 1) % 4
+			_check(sim.get_priority_spawn_base(team) != blocked, "Losing next base removes it from rotation")
+			_check(is_equal_approx(sim.get_spawn_seconds(team), original_seconds), "Losing base leaves interval unchanged")
+			# Lose a conquered base as well, checking capacity reverses immediately.
+			sim.areas[1].owner = (team + 1) % 4
+			_check(sim.get_team_capacity(team) == 12 + (base_count - 2) * 6, "Losing conquered base removes six capacity")
 
 	sim = _empty_sim()
 	sim.medieval = false
