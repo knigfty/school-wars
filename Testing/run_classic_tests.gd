@@ -75,6 +75,7 @@ func _run() -> void:
 	_check(cap_sim.get_count(0) == 12, "All schools enforce the twelve-unit cap")
 	cap_sim.active[1] = false
 	_check(cap_sim.spawn_student(1) == null, "Eliminated schools cannot recruit")
+	_test_blocked_focus_retaliation()
 	_test_orders()
 	_test_fight()
 	_test_determinism_and_occupancy()
@@ -82,6 +83,64 @@ func _run() -> void:
 	if failures == 0:
 		print("Classic SWF rules, simulation invariants, and shell tests passed.")
 	quit(failures)
+
+
+func _test_blocked_focus_retaliation() -> void:
+	var sim: ClassicSimulation = ClassicSimulation.new()
+	sim.setup(0, 101)
+	sim.ai_enabled = false
+	sim.occupancy.clear()
+	for unit: ClassicStudent in sim.students:
+		unit.state = ClassicStudent.State.UNUSED
+	var focus: ClassicStudent = sim.students[3]
+	focus.team = 1
+	focus.cell = Vector2i(20, 20)
+	focus.state = ClassicStudent.State.STAND
+	focus.health = 1000
+	var cells: Array[Vector2i] = [Vector2i(21, 20), Vector2i(20, 21), Vector2i(19, 20), Vector2i(20, 19)]
+	for i: int in 4:
+		var blocker: ClassicStudent = sim.students[8 + i]
+		blocker.team = 0
+		blocker.cell = cells[i]
+		blocker.state = ClassicStudent.State.STAND
+		sim.occupancy[blocker.cell] = blocker.id
+	sim.occupancy[focus.cell] = focus.id
+	var fifth: ClassicStudent = sim.students[0]
+	fifth.team = 0
+	fifth.cell = Vector2i(22, 20)
+	fifth.state = ClassicStudent.State.WAIT
+	fifth.health = 1000
+	fifth.maximum_health = 1000
+	fifth.priority_target_id = focus.id
+	fifth.target_id = focus.id
+	sim.occupancy[fifth.cell] = fifth.id
+	var enemy: ClassicStudent = sim.students[6]
+	enemy.team = 2
+	enemy.cell = Vector2i(23, 20)
+	enemy.state = ClassicStudent.State.STAND
+	enemy.health = 1000
+	sim.occupancy[enemy.cell] = enemy.id
+	_check(not sim._can_attack_priority(fifth), "Fifth student cannot hit through occupied attack positions")
+	sim.start_walk(enemy, Vector2i.ZERO, fifth.id)
+	_check(fifth.state == ClassicStudent.State.FIGHT and fifth.target_id == enemy.id, "Blocked fifth student engages adjacent attacker")
+	_check(fifth.priority_target_id == focus.id, "Local defense retains original focus order")
+	for tick: int in 200:
+		if enemy.health < 1000:
+			break
+		sim._fighting(fifth)
+	_check(enemy.health < 1000, "Blocked fifth student actually damages adjacent attacker")
+	# Also exercise the successful-hit path without the engagement notification.
+	fifth.state = ClassicStudent.State.WAIT
+	fifth.target_id = focus.id
+	for tick: int in 200:
+		if fifth.health < 1000:
+			break
+		sim._fighting(enemy)
+	_check(fifth.health < 1000 and fifth.target_id == enemy.id, "Taking a hit overrides unreachable focus for retaliation")
+	enemy.state = ClassicStudent.State.DEAD
+	sim._fighting(fifth)
+	sim._start_sit(fifth)
+	_check(fifth.target_id == focus.id, "Student resumes original focus after local attacker dies")
 
 
 func _test_orders() -> void:

@@ -188,9 +188,22 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 		_start_turn(student)
 
 
+func _can_attack_priority(student: ClassicStudent) -> bool:
+	if not _valid_enemy(student, student.priority_target_id):
+		return false
+	var priority: ClassicStudent = students[student.priority_target_id]
+	return _adjacent(student.cell, priority.cell) and priority.state != ClassicStudent.State.WALK
+
+
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
-	if target.state == ClassicStudent.State.FIGHT or _valid_enemy(target, target.priority_target_id):
+	if _can_attack_priority(target):
 		return
+	if target.state == ClassicStudent.State.FIGHT and _valid_enemy(target, target.target_id):
+		if _contact_target(target, students[target.target_id]):
+			return
+	# Keep the focus order, but defend locally when its target is out of reach.
+	if target.state == ClassicStudent.State.FIGHT:
+		target.state = ClassicStudent.State.STAND
 	# Flash remembers the attacker while the defender completes its reserved step.
 	target.target_id = attacker.id
 	if target.state != ClassicStudent.State.WALK:
@@ -379,7 +392,7 @@ func _fighting(student: ClassicStudent) -> void:
 				student.level_ticks = 30
 				sound_requested.emit("dead", target.world_position())
 			else:
-				if _valid_enemy(target, target.priority_target_id) and target.priority_target_id != student.id:
+				if _can_attack_priority(target) and target.priority_target_id != student.id:
 					sound_requested.emit("punch", target.world_position())
 					return
 				target.target_id = student.id
