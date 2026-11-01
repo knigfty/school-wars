@@ -110,7 +110,7 @@ race and persists when returning to race selection or replaying a match.
 - **Normal:** persistent squads of 2–4 where population allows, with strategic
   decisions every two seconds. It shares Easy's 400-tick opening wait (about
   22.2 seconds); this wait applies only at match start, not to reinforcements.
-- **Expert:** squad decisions every second, no opening wait, and local enemy awareness. Enemy recruitment runs at 1.5 times the Normal rate (two-thirds the interval); the player, Easy, Normal and Classic spawn rates remain unchanged.
+- **Expert:** squad decisions every second, no opening wait, and local enemy awareness. All difficulties use the same race-specific recruitment rates.
 
 Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
@@ -138,10 +138,12 @@ Human fourth-level attacks snapshot at most one secondary enemy before applying 
 
 ### Expert race strategy
 
-Expert retains no opening wait and 50% faster enemy recruitment. Enemy unit awareness is local (16 cells, the same as Normal); there is no global army/stat evaluation or demon race campaign. Known tile ownership and base locations still guide movement.
+Expert retains no opening wait and uses Normal recruitment rates. Enemy unit awareness is local (16 cells, the same as Normal); there is no global army/stat evaluation or demon race campaign. Known tile ownership and base locations still guide movement.
 
 Humans fill squads to four and prioritize nearby unoccupied capture objectives. Orcs fill squads to six and focus one nearby enemy. Outnumbered orcs in Normal and Expert flee toward an enemy-owned base for up to ten seconds, retaining the thirty-second per-unit cooldown.
 
 Elves use Normal's healing and combat rules with four core members per group; ranged elves may join beyond that limit. They prioritize nearby attackers fighting allies below 20% HP, then capture tiles. Group destinations are spaced apart with a three-tile separation preference, except when responding to the same threatened ally.
 
 Demons form groups of four and aggressively focus nearby enemies on their owned tiles, regardless of the strength comparison or their own remaining HP. Once those threats are gone, demons below 30% HP seek an owned heart/base and recover to 80% before returning. Healthy members resume capture orders. Defending owned land takes priority over healing whenever a nearby invasion is detected.
+
+On Expert only, player units of every race automatically engage enemies only within their current capture tile. Automatic pursuit stops when the enemy crosses a tile boundary, including retaliation against ranged attackers outside the tile. Explicit attack and movement commands remain available across tiles. Easy and Normal retain the original nearby-enemy aggro behaviour.

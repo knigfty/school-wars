@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_player_tile_tests()
 	_expert_strategy_tests()
 	_start_delay_tests()
 	_retreat_timing_tests()
@@ -256,7 +257,7 @@ func _expert_strategy_tests() -> void:
 		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 		for color: int in 4:
 			var baseline: int = 750 if color == 1 else 1500
-			_check(sim.get_recruit_threshold(color) == (baseline if color == sim.player_team else baseline * 2 / 3), "Expert spawn acceleration applies only to enemies")
+			_check(sim.get_recruit_threshold(color) == baseline, "Expert retains normal spawn rates")
 		var limit: int = 6 if team == 1 else 4
 		for id: int in limit + 1:
 			_unit(sim, id, team, Vector2i(8 + id, 8))
@@ -331,3 +332,32 @@ func _expert_strategy_tests() -> void:
 	sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.squad_ai.update(sim)
 	_check(sim.students[0].destination.distance_to(sim.students[4].destination) >= 12, "Expert elf groups choose separated destinations")
+
+
+func _player_tile_tests() -> void:
+	for race: int in 4:
+		for mode: int in [ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+			var sim: ClassicSimulation = _fixture(race)
+			sim.difficulty = mode
+			var player: ClassicStudent = _unit(sim, 0, race, Vector2i(23, 20))
+			var enemy: ClassicStudent = _unit(sim, 1, (race + 1) % 4, Vector2i(24, 20))
+			sim._start_sit(player)
+			_check((player.target_id == enemy.id) == (mode == ClassicSimulation.Difficulty.NORMAL), "Cross-tile automatic aggro restricted only on Expert for every player race")
+			player.target_id = -1
+			player.state = ClassicStudent.State.SIT
+			sim._engage_defender(player, enemy)
+			_check((player.target_id == enemy.id) == (mode == ClassicSimulation.Difficulty.NORMAL), "Cross-tile retaliation respects Expert player hold")
+			if mode != ClassicSimulation.Difficulty.EXPERT:
+				continue
+			enemy.cell = Vector2i(22, 20)
+			player.target_id = -1
+			player.state = ClassicStudent.State.SIT
+			sim._start_sit(player)
+			_check(player.target_id == enemy.id, "Expert player can automatically engage same-tile enemy")
+			enemy.cell = Vector2i(24, 20)
+			sim._fighting(player)
+			_check(player.target_id == -1, "Automatic pursuit stops when enemy leaves tile")
+			sim.command([player.id], Vector2i.ZERO, enemy.id)
+			_check(player.priority_target_id == enemy.id and player.target_id == enemy.id, "Explicit attack permits crossing tiles")
+			sim.command([player.id], Vector2i(8, 8))
+			_check(player.priority_target_id == -1 and Vector2i(player.destination.x / 4, player.destination.y / 4) == Vector2i(8, 8), "Explicit move still crosses tiles")

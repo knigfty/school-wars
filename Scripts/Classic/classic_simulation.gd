@@ -111,10 +111,7 @@ func get_recruit_tiles(team: int) -> int:
 
 
 func get_recruit_threshold(team: int) -> int:
-	var threshold: int = 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
-	if medieval and difficulty == Difficulty.EXPERT and team != player_team:
-		return threshold * 2 / 3
-	return threshold
+	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
 
 
 func get_conquered_base_count(team: int) -> int:
@@ -299,6 +296,23 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 		_start_turn(student)
 
 
+func _holds_player_tile(student: ClassicStudent) -> bool:
+	return medieval and difficulty == Difficulty.EXPERT and student.team == player_team and not _valid_enemy(student, student.priority_target_id)
+
+
+func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	return not _holds_player_tile(student) or Vector2i(student.cell.x / 4, student.cell.y / 4) == Vector2i(target.cell.x / 4, target.cell.y / 4)
+
+
+func _stop_cross_tile_pursuit(student: ClassicStudent) -> bool:
+	if _valid_enemy(student, student.target_id) and not _may_engage(student, students[student.target_id]):
+		student.target_id = -1
+		student.destination = student.cell
+		_start_stand(student)
+		return true
+	return false
+
+
 func _can_attack_priority(student: ClassicStudent) -> bool:
 	if not _valid_enemy(student, student.priority_target_id):
 		return false
@@ -307,7 +321,7 @@ func _can_attack_priority(student: ClassicStudent) -> bool:
 
 
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
-	if target.ai_retreating:
+	if target.ai_retreating or not _may_engage(target, attacker):
 		return
 	if _can_attack_priority(target):
 		return
@@ -345,7 +359,7 @@ func _start_sit(student: ClassicStudent) -> void:
 		return
 	var targets: Array[ClassicStudent] = []
 	for other: ClassicStudent in students:
-		if not other.is_alive() or other.team == student.team:
+		if not other.is_alive() or other.team == student.team or not _may_engage(student, other):
 			continue
 		if leader >= 0 and student.team != player_team and student.team != leader and other.team != leader:
 			continue
@@ -503,6 +517,8 @@ func _reserve_step(student: ClassicStudent, direction: int) -> void:
 
 
 func _start_turn(student: ClassicStudent) -> void:
+	if _stop_cross_tile_pursuit(student):
+		return
 	if student.target_id == student.priority_target_id and _valid_enemy(student, student.priority_target_id):
 		_focus_step(student)
 		return
@@ -533,6 +549,8 @@ func _start_turn(student: ClassicStudent) -> void:
 		var next: Vector2i = student.cell + direction
 		if not ClassicRules.in_grid(next) or occupancy.has(next):
 			continue
+		if student.target_id >= 0 and _holds_player_tile(student) and Vector2i(next.x / 4, next.y / 4) != Vector2i(student.cell.x / 4, student.cell.y / 4):
+			continue
 		if (offset.x == 0 and direction.y != 0) or (offset.y == 0 and direction.x != 0):
 			preferred = index
 		choices.append(index)
@@ -561,6 +579,8 @@ func _walking(student: ClassicStudent) -> void:
 	student.walk_tick += get_movement_multiplier(student)
 	student.pattern = (student.pattern + 1) % 10
 	if student.walk_tick < 6:
+		return
+	if _stop_cross_tile_pursuit(student):
 		return
 	if student.target_id >= 0:
 		if not _valid_enemy(student, student.target_id):
@@ -600,6 +620,8 @@ func _face_target(student: ClassicStudent, target: ClassicStudent) -> void:
 
 
 func _fighting(student: ClassicStudent) -> void:
+	if _stop_cross_tile_pursuit(student):
+		return
 	if not _valid_enemy(student, student.target_id):
 		_start_stand(student)
 		return
@@ -632,7 +654,7 @@ func _fighting(student: ClassicStudent) -> void:
 			var secondary: ClassicStudent = null
 			if medieval and student.team == 0 and student.level >= 4:
 				for other: ClassicStudent in students:
-					if other.is_alive() and other.team != student.team and other.id != target.id and other.state != ClassicStudent.State.WALK and _adjacent(other.cell, target.cell) and _within_attack_range(student, other):
+					if other.is_alive() and other.team != student.team and other.id != target.id and other.state != ClassicStudent.State.WALK and _may_engage(student, other) and _adjacent(other.cell, target.cell) and _within_attack_range(student, other):
 						secondary = other
 						break
 			_apply_hit(student, target)
@@ -669,7 +691,7 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			_convert_to_orc(target)
 			student.show_event("ORCS RISE!")
 	else:
-		if target.ai_retreating:
+		if target.ai_retreating or not _may_engage(target, student):
 			sound_requested.emit("punch", target.world_position())
 			return
 		if _can_attack_priority(target) and target.priority_target_id != student.id:
