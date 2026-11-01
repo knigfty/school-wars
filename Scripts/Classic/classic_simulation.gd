@@ -1129,6 +1129,8 @@ func get_attack_range(student: ClassicStudent) -> int:
 
 func get_movement_multiplier(student: ClassicStudent) -> float:
 	if medieval and student.team == 3:
+		if difficulty == Difficulty.EXPERT:
+			return 1.0 + 0.05 * (student.punch_bonus / 2)
 		var punch: float = ClassicRules.PUNCH[student.team] + student.punch_bonus
 		if punch >= 18.0:
 			return 1.4
@@ -1196,7 +1198,7 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 		elif contributor.team == 3:
 			if contributor.id != killer.id:
 				contributor.health = minf(contributor.maximum_health, contributor.health + 1.0)
-			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.team != player_team else 1
+			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.id == killer.id else 1
 			contributor.show_event("%d + %d PUNCH" % [int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus), reward])
 			contributor.punch_bonus += reward
 	victim.damage_contributors.clear()

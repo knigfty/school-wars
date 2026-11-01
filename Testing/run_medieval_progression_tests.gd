@@ -47,6 +47,7 @@ func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStude
 
 
 func _run() -> void:
+	_test_expert_demon_speed()
 	_test_demon_healing()
 	_test_expert_enemy_rewards()
 	_test_new_mechanics()
@@ -418,8 +419,9 @@ func _test_expert_enemy_rewards() -> void:
 				sim._reward_defeat(killer, victim)
 				var reward: int = 2 if mode == ClassicSimulation.Difficulty.EXPERT and not player_controlled else 1
 				for unit: ClassicStudent in [killer, assist]:
-					_check((unit.maximum_health - ClassicRules.HEALTH[race] if race == 2 else unit.punch_bonus) == reward, "Double reward applies only to Expert enemy kills and assists")
-					_check((" + %d " % reward) in unit.event_text, "Reward popup displays actual increment")
+					var expected: int = reward if race == 2 else (2 if mode == ClassicSimulation.Difficulty.EXPERT and unit == killer else 1)
+					_check((unit.maximum_health - ClassicRules.HEALTH[race] if race == 2 else unit.punch_bonus) == expected, "Elf enemy rewards and Expert demon kill/assist rewards are scoped correctly")
+					_check((" + %d " % expected) in unit.event_text, "Reward popup displays actual increment")
 
 
 func _test_demon_healing() -> void:
@@ -454,3 +456,22 @@ func _test_demon_healing() -> void:
 		victim.damage_contributors[assist.id] = {"tick": 100, "lifetime": assist.lifetime, "team": 3}
 		sim._reward_defeat(demon, victim)
 		_check(demon.health == demon.maximum_health and assist.health == assist.maximum_health, "Combat healing cannot exceed maximum HP")
+
+
+func _test_expert_demon_speed() -> void:
+	for player_controlled: bool in [false, true]:
+		var sim: ClassicSimulation = _sim()
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		sim.player_team = 3 if player_controlled else 0
+		var demon: ClassicStudent = _unit(sim, 0, 3, Vector2i(2, 2))
+		for bonus: int in [0, 1, 2, 3, 4, 5, 6, 13, 20, 40]:
+			demon.punch_bonus = bonus
+			_check(is_equal_approx(sim.get_movement_multiplier(demon), 1.0 + 0.05 * floori(bonus / 2.0)), "Expert demon speed adds five percent per complete two bonus punch")
+		# Verify fractional movement uses the scaling, beyond the old maximum tier.
+		demon.punch_bonus = 20
+		demon.destination = Vector2i(63, 2)
+		sim._start_turn(demon)
+		for tick: int in 60:
+			sim._walking(demon)
+		var actual: float = demon.world_position().x / 24.0 + demon.world_position().y / 12.0
+		_check(absf(actual - 17.0) < 0.001, "Expert fifty-percent movement bonus is preserved in actual walking")
