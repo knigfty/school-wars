@@ -47,6 +47,7 @@ func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStude
 
 
 func _run() -> void:
+	_test_expert_enemy_rewards()
 	_test_new_mechanics()
 	_test_humans()
 	_test_assists()
@@ -399,3 +400,22 @@ func _test_new_mechanics() -> void:
 	second.health = 1
 	_hit(sim, veteran, first)
 	_check(first.state == ClassicStudent.State.DEAD and second.state == ClassicStudent.State.DEAD and veteran.level == 6, "Cleave handles two deaths and two kill rewards")
+
+
+func _test_expert_enemy_rewards() -> void:
+	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		for race: int in [2, 3]:
+			for player_controlled: bool in [false, true]:
+				var sim: ClassicSimulation = _sim()
+				sim.difficulty = mode
+				sim.player_team = race if player_controlled else 0
+				var killer: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
+				var assist: ClassicStudent = _unit(sim, 1, race, Vector2i(20, 21))
+				var victim: ClassicStudent = _unit(sim, 2, 1, Vector2i(21, 20))
+				for unit: ClassicStudent in [killer, assist]:
+					victim.damage_contributors[unit.id] = {"tick": sim.ticks, "lifetime": unit.lifetime, "team": race}
+				sim._reward_defeat(killer, victim)
+				var reward: int = 2 if mode == ClassicSimulation.Difficulty.EXPERT and not player_controlled else 1
+				for unit: ClassicStudent in [killer, assist]:
+					_check((unit.maximum_health - ClassicRules.HEALTH[race] if race == 2 else unit.punch_bonus) == reward, "Double reward applies only to Expert enemy kills and assists")
+					_check((" + %d " % reward) in unit.event_text, "Reward popup displays actual increment")

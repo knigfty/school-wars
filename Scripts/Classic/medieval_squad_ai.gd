@@ -6,6 +6,7 @@ var squads: Array[Array] = []
 var next_plan: int = 0
 var lifetimes: Dictionary = {}
 var elf_orders: Array[Vector2i] = []
+var human_missions: Array[Dictionary] = []
 
 
 func update(sim) -> void:
@@ -13,6 +14,9 @@ func update(sim) -> void:
 		return
 	for unit: ClassicStudent in sim.students:
 		if not unit.is_alive() or unit.team == sim.player_team or unit.retaliation_until > 0 or unit.returning_to_tile:
+			continue
+		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
+			_human_recover(sim, unit)
 			continue
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team in [2, 3]:
 			_try_recovery(sim, unit)
@@ -126,7 +130,7 @@ func _plan(sim, squad: Array) -> void:
 		if ready.is_empty():
 			return
 	# Protection and territorial defence outrank regrouping.
-	if expert and team in [2, 3]:
+	if expert and team in [0, 2, 3]:
 		_plan_expert(sim, ready, center)
 		return
 	# Rally separated members before advancing; pairs/trios remain valid squads.
@@ -295,9 +299,10 @@ func _move(sim, unit: ClassicStudent, tile: Vector2i) -> void:
 
 func _refresh_expert(sim) -> void:
 	squads.clear()
+	_refresh_humans(sim)
 	var supporters: Array[ClassicStudent] = []
 	for unit: ClassicStudent in sim.students:
-		if not unit.is_alive() or unit.team == sim.player_team:
+		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 0:
 			continue
 		if unit.team == 2 and sim.get_attack_range(unit) > 1:
 			supporters.append(unit)
@@ -339,6 +344,9 @@ func _focus(sim, ready: Array[ClassicStudent], target: ClassicStudent) -> void:
 
 func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	var team: int = ready[0].team
+	if team == 0:
+		_plan_humans(sim, ready, center)
+		return
 	var target: ClassicStudent = null
 	var best: float = INF
 	for enemy: ClassicStudent in sim.students:
@@ -476,3 +484,128 @@ func _elf_spacing_cost(tile: Vector2i, ready: Array[ClassicStudent]) -> float:
 	for destination: Vector2i in elf_orders:
 		cost += maxf(0.0, 12.0 - cell.distance_to(Vector2(destination * 4 + Vector2i(2, 2)))) * 100.0
 	return cost
+
+
+func _mission_alive(mission: Dictionary) -> Array[ClassicStudent]:
+	var alive: Array[ClassicStudent] = []
+	for record: Dictionary in mission.members:
+		var unit: ClassicStudent = record.unit
+		if unit.is_alive() and unit.team == 0 and unit.lifetime == record.lifetime:
+			alive.append(unit)
+	return alive
+
+
+func _refresh_humans(sim) -> void:
+	var assigned: Dictionary = {}
+	for i: int in range(human_missions.size() - 1, -1, -1):
+		var mission: Dictionary = human_missions[i]
+		var alive: Array[ClassicStudent] = _mission_alive(mission)
+		var recovered: bool = mission.recovering
+		for unit: ClassicStudent in alive:
+			if unit.ai_retreating:
+				recovered = false
+		var captured: bool = mission.goal.x >= 0 and sim.area_at.has(mission.goal) and sim.areas[sim.area_at[mission.goal]].owner == 0
+		if alive.is_empty() or recovered or (captured and not mission.recovering):
+			human_missions.remove_at(i)
+			continue
+		for unit: ClassicStudent in alive:
+			assigned[unit.id] = true
+	if sim.player_team == 0:
+		return
+	for unit: ClassicStudent in sim.students:
+		if not unit.is_alive() or unit.team != 0 or assigned.has(unit.id):
+			continue
+		var available: Dictionary = {}
+		for mission: Dictionary in human_missions:
+			if not mission.recovering and _mission_alive(mission).size() < 4:
+				available = mission
+				break
+		if available.is_empty():
+			available = {"members": [], "initial": [], "goal": Vector2i(-1, -1), "rolled": false, "recovering": false}
+			human_missions.append(available)
+		available.members.append({"unit": unit, "lifetime": unit.lifetime})
+	for mission: Dictionary in human_missions:
+		var group: Array = []
+		group.assign(_mission_alive(mission))
+		if not group.is_empty():
+			squads.append(group)
+
+
+func _nearest_human_heal(sim, unit: ClassicStudent) -> Vector2i:
+	var destination: Vector2i = Vector2i(-1, -1)
+	var best: int = 100000
+	for area: Dictionary in sim.areas:
+		if area.owner == 0 and area.kind != ClassicRules.AreaKind.RECRUIT:
+			var distance: int = _cell_distance(unit.cell, area.tile * 4 + Vector2i(2, 2))
+			if distance < best:
+				best = distance
+				destination = area.tile
+	return destination
+
+
+func _human_recover(sim, unit: ClassicStudent) -> void:
+	var destination: Vector2i = _nearest_human_heal(sim, unit)
+	if destination.x < 0:
+		unit.ai_retreating = false
+		return
+	if unit.health >= unit.maximum_health and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == destination:
+		unit.ai_retreating = false
+		return
+	_move(sim, unit, destination)
+
+
+func _plan_humans(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
+	var mission: Dictionary = {}
+	for candidate: Dictionary in human_missions:
+		for record: Dictionary in candidate.members:
+			if record.unit == ready[0] and record.lifetime == ready[0].lifetime:
+				mission = candidate
+				break
+		if not mission.is_empty():
+			break
+	if mission.is_empty() or mission.recovering:
+		return
+	var alive: Array[ClassicStudent] = _mission_alive(mission)
+	if mission.goal.x >= 0 and not mission.rolled and _mission_alive({"members": mission.initial}).size() * 2 <= mission.initial.size():
+		var eligible: bool = true
+		for unit: ClassicStudent in alive:
+			if sim.ticks < unit.ai_heal_ready_at:
+				eligible = false
+		if eligible:
+			mission.rolled = true
+			if sim.rng.randf() < 0.5:
+				for unit: ClassicStudent in alive:
+					if _nearest_human_heal(sim, unit).x >= 0:
+						unit.ai_retreating = true
+						unit.ai_heal_ready_at = sim.ticks + 45 * ClassicRules.TICKS_PER_SECOND
+						mission.recovering = true
+						_human_recover(sim, unit)
+				if mission.recovering:
+					return
+	if mission.goal.x < 0:
+		var best: float = INF
+		var origin: Vector2i = Vector2i(center / 4.0)
+		for area: Dictionary in sim.areas:
+			if not sim.can_capture_area(area, 0) or _cell_distance(origin, area.tile) > 5:
+				continue
+			var score: float = center.distance_to(Vector2(area.tile * 4 + Vector2i(2, 2)))
+			for enemy: ClassicStudent in sim.students:
+				if enemy.is_alive() and enemy.team != 0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == area.tile:
+					score += 1000.0
+			if score < best:
+				best = score
+				mission.goal = area.tile
+	if mission.goal.x < 0:
+		return
+	if mission.initial.is_empty():
+		mission.initial.assign(mission.members)
+	var target: ClassicStudent = null
+	for enemy: ClassicStudent in sim.students:
+		if enemy.is_alive() and enemy.team != 0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == mission.goal and center.distance_to(Vector2(enemy.cell)) <= 20.0:
+			if target == null or enemy.health < target.health:
+				target = enemy
+	if target != null:
+		_focus(sim, ready, target)
+	else:
+		for unit: ClassicStudent in ready:
+			_move(sim, unit, mission.goal)

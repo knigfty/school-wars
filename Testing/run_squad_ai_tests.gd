@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_human_commitment_tests()
 	_surrounded_return_tests()
 	_retaliation_leash_tests()
 	_expert_recovery_tests()
@@ -237,7 +238,7 @@ func _start_delay_tests() -> void:
 		sim.difficulty = mode
 		sim.ticks = 0
 		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(4, 4))
-		sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
+		sim._add_area(Vector2i(4, 3), ClassicRules.AreaKind.RECRUIT, -1)
 		sim.squad_ai.update(sim)
 		_check((human.state == ClassicStudent.State.WALK) == (mode == ClassicSimulation.Difficulty.EXPERT), "Only Expert issues opening orders immediately")
 		if mode == ClassicSimulation.Difficulty.NORMAL:
@@ -524,3 +525,45 @@ func _surrounded_return_tests() -> void:
 			if not unit.returning_to_tile:
 				break
 		_check(not unit.returning_to_tile and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == unit.designated_tile, "Return path detours around surviving surrounding units")
+
+
+func _human_commitment_tests() -> void:
+	var outcomes: Dictionary = {}
+	for seed_value: int in 24:
+		var sim: ClassicSimulation = _fixture(3)
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		for id: int in 4:
+			_unit(sim, id, 0, Vector2i(20 + id, 20))
+		sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
+		sim._add_area(Vector2i(0, 0), ClassicRules.AreaKind.HEAL, 0)
+		sim._add_area(Vector2i(15, 15), ClassicRules.AreaKind.RECRUIT, -1)
+		sim.squad_ai.update(sim)
+		_check(sim.squad_ai.human_missions[0].goal == Vector2i(8, 5), "Humans select a capture objective within five tiles")
+		var enemy: ClassicStudent = _unit(sim, 10, 1, Vector2i(32, 20))
+		sim._add_area(Vector2i(6, 5), ClassicRules.AreaKind.RECRUIT, -1)
+		sim.ticks += 18
+		sim.squad_ai.update(sim)
+		_check(sim.squad_ai.human_missions[0].goal == Vector2i(8, 5) and sim.students[0].priority_target_id == enemy.id, "Committed humans fight for their objective instead of switching to a new peaceful tile")
+		sim.students[0].state = ClassicStudent.State.UNUSED
+		sim.students[1].state = ClassicStudent.State.UNUSED
+		for id: int in [2, 3]:
+			sim.students[id].health = 5
+		sim.ticks += 18
+		sim.rng.seed = seed_value
+		sim.squad_ai.update(sim)
+		var retreated: bool = sim.students[2].ai_retreating
+		outcomes[retreated] = true
+		_check(sim.squad_ai.human_missions[0].rolled, "Losing half the mission group triggers one retreat roll")
+		if retreated:
+			_check(sim.students[2].ai_heal_ready_at == sim.ticks + 45 * 18 and Vector2i(sim.students[2].destination.x / 4, sim.students[2].destination.y / 4) == Vector2i(0, 0), "Human retreat has forty-five-second cooldown and no healing distance limit")
+			sim.students[2].health = sim.students[2].maximum_health * 0.99
+			sim.ticks += 1
+			sim.squad_ai.update(sim)
+			_check(sim.students[2].ai_retreating, "Retreating humans wait for full HP")
+			sim.students[2].health = sim.students[2].maximum_health
+			sim.students[2].cell = Vector2i(1, 1)
+			sim.students[2].state = ClassicStudent.State.SIT
+			sim.ticks += 1
+			sim.squad_ai.update(sim)
+			_check(not sim.students[2].ai_retreating, "Full HP releases recovered human")
+	_check(outcomes.size() == 2, "Seeded casualty decisions exercise both fifty-percent outcomes")

@@ -1134,11 +1134,13 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 		if not contributor.is_alive() or contributor.lifetime != record.lifetime or ticks - int(record.tick) > 3 * ClassicRules.TICKS_PER_SECOND:
 			continue
 		if contributor.team == 2:
-			contributor.show_event("%d + 1 HP" % int(contributor.maximum_health))
-			contributor.maximum_health += 1.0
+			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.team != player_team else 1
+			contributor.show_event("%d + %d HP" % [int(contributor.maximum_health), reward])
+			contributor.maximum_health += reward
 		elif contributor.team == 3:
-			contributor.show_event("%d + 1 PUNCH" % int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus))
-			contributor.punch_bonus += 1
+			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.team != player_team else 1
+			contributor.show_event("%d + %d PUNCH" % [int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus), reward])
+			contributor.punch_bonus += reward
 	victim.damage_contributors.clear()
 
 
