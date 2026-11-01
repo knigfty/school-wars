@@ -110,9 +110,7 @@ race and persists when returning to race selection or replaying a match.
 - **Normal:** persistent squads of 2–4 where population allows, with strategic
   decisions every two seconds. It shares Easy's 400-tick opening wait (about
   22.2 seconds); this wait applies only at match start, not to reinforcements.
-- **Expert:** squad decisions every second and whole-map enemy awareness for every
-  AI race, with no opening wait. Normal scans four tiles around each squad. Awareness informs each race's
-  existing strategy; orcs still assess being outnumbered locally. No stat bonuses.
+- **Expert:** squad decisions every second, no opening wait, and whole-map unit/stat awareness. Enemy recruitment runs at 1.5 times the Normal rate (two-thirds the interval); the player, Easy, Normal and Classic spawn rates remain unchanged.
 
 Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
@@ -140,3 +138,11 @@ Run `Testing/run_squad_ai_tests.gd` for race decisions, recovery, difficulty gat
 respawn membership and seeded simulation occupancy checks.
 
 Human fourth-level attacks snapshot at most one secondary enemy before applying primary damage. Both victims take the normal full punch damage on the same successful swing, with ordinary retaliation, kill rewards and assist credit. The extra victim must be stationary, adjacent to the main victim (Manhattan distance one), and within the human's attack range. A missed swing hits neither victim; unlocking level four takes effect on the next swing.
+
+### Expert race strategy
+
+Expert builds on Normal's combat, healing and flee rules. Humans fill squads to four before creating another and prioritize the nearest capturable tile with no enemy occupants. Orcs fill squads to six and focus a shared enemy. Unlike Normal, Expert does not split a full squad to form a pair with one extra recruit.
+
+Elves form groups of four core units; elves with unlocked range (28+ maximum HP) can join beyond that limit. Healthy members prioritize attackers currently fighting allies below 20% HP, then capture objectives. Wounded elves retain their retreat, healing safety window and supported fight-back behaviour.
+
+Demons fill groups to four. They assess every race's living units using summed current HP × punch × range weighting, thus including population, injuries and upgrades, and compare it with their own army. Campaigns require a 25% estimated strength advantage. They choose the nearest eligible race by unit locations, retain a viable campaign to reduce switching, focus its units, and prioritize taking its base after elimination. If no race is beatable, they capture safe tiles and defend owned tiles instead of hunting. This is a heuristic assessment, not a guarantee of victory; positioning and reinforcements can change the result, so it is reassessed each decision.

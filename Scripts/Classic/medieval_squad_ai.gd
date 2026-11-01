@@ -5,6 +5,7 @@ extends RefCounted
 var squads: Array[Array] = []
 var next_plan: int = 0
 var lifetimes: Dictionary = {}
+var hunted_team: int = -1
 
 
 func update(sim) -> void:
@@ -37,6 +38,9 @@ func update(sim) -> void:
 
 
 func _refresh(sim) -> void:
+	if sim.difficulty == sim.Difficulty.EXPERT:
+		_refresh_expert(sim)
+		return
 	var assigned: Dictionary = {}
 	for squad: Array in squads:
 		for i: int in range(squad.size() - 1, -1, -1):
@@ -123,6 +127,9 @@ func _plan(sim, squad: Array) -> void:
 			for member: ClassicStudent in ready:
 				_move(sim, member, Vector2i(center / 4.0))
 			return
+	if global_awareness:
+		_plan_expert(sim, ready, center)
+		return
 	var target: ClassicStudent = null
 	var best: float = INF
 	for enemy: ClassicStudent in enemies:
@@ -273,3 +280,148 @@ func _move(sim, unit: ClassicStudent, tile: Vector2i) -> void:
 	if unit.state == ClassicStudent.State.FIGHT:
 		unit.state = ClassicStudent.State.STAND
 	sim.start_walk(unit, tile)
+
+
+func _refresh_expert(sim) -> void:
+	squads.clear()
+	var supporters: Array[ClassicStudent] = []
+	for unit: ClassicStudent in sim.students:
+		if not unit.is_alive() or unit.team == sim.player_team:
+			continue
+		if unit.team == 2 and sim.get_attack_range(unit) > 1:
+			supporters.append(unit)
+			continue
+		var group: Array = []
+		var limit: int = 6 if unit.team == 1 else 4
+		for squad: Array in squads:
+			if squad[0].team == unit.team and squad.size() < limit:
+				group = squad
+				break
+		if group.is_empty():
+			squads.append([unit])
+		else:
+			group.append(unit)
+	for unit: ClassicStudent in supporters:
+		var group: Array = []
+		var nearest: float = INF
+		for squad: Array in squads:
+			if squad[0].team == 2 and unit.cell.distance_squared_to(squad[0].cell) < nearest:
+				group = squad
+				nearest = unit.cell.distance_squared_to(squad[0].cell)
+		if group.is_empty():
+			squads.append([unit])
+		else:
+			group.append(unit)
+	_select_hunt(sim)
+
+
+func _team_power(sim, team: int) -> float:
+	var power: float = 0.0
+	for unit: ClassicStudent in sim.students:
+		if unit.is_alive() and unit.team == team:
+			power += _strength(sim, unit)
+	return power
+
+
+func _select_hunt(sim) -> void:
+	if sim.player_team == 3:
+		return
+	# Finish taking the defeated race's base before choosing the next campaign.
+	if hunted_team >= 0 and not sim.active[hunted_team]:
+		for area: Dictionary in sim.areas:
+			if area.kind == ClassicRules.AreaKind.BASE and area.tile == sim.bases[hunted_team] and sim.can_capture_area(area, 3):
+				return
+	var own_power: float = _team_power(sim, 3)
+	var best: float = INF
+	var selected: int = -1
+	for team: int in 3:
+		var enemy_power: float = _team_power(sim, team)
+		if not sim.active[team] or enemy_power <= 0.0 or own_power < enemy_power * 1.25:
+			continue
+		var distance: float = INF
+		for demon: ClassicStudent in sim.students:
+			if not demon.is_alive() or demon.team != 3:
+				continue
+			for enemy: ClassicStudent in sim.students:
+				if enemy.is_alive() and enemy.team == team:
+					distance = minf(distance, demon.cell.distance_to(enemy.cell))
+		# Retain a viable campaign instead of switching races every decision.
+		if team == hunted_team:
+			distance -= 8.0
+		if distance < best:
+			best = distance
+			selected = team
+	hunted_team = selected
+
+
+func _focus(sim, ready: Array[ClassicStudent], target: ClassicStudent) -> void:
+	for unit: ClassicStudent in ready:
+		if unit.priority_target_id == target.id and unit.target_id == target.id:
+			continue
+		unit.priority_target_id = target.id
+		unit.approach_cell = Vector2i(-1, -1)
+		if unit.state == ClassicStudent.State.FIGHT:
+			unit.state = ClassicStudent.State.STAND
+		sim.start_walk(unit, Vector2i.ZERO, target.id)
+
+
+func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
+	var team: int = ready[0].team
+	var target: ClassicStudent = null
+	var best: float = INF
+	for enemy: ClassicStudent in sim.students:
+		if not enemy.is_alive() or enemy.team == team:
+			continue
+		var score: float = center.distance_to(Vector2(enemy.cell))
+		if team == 2:
+			var protects: bool = false
+			if enemy.target_id >= 0 and enemy.target_id < sim.students.size():
+				var victim: ClassicStudent = sim.students[enemy.target_id]
+				protects = victim.is_alive() and victim.team == team and victim.health < victim.maximum_health * 0.2 and enemy.state == ClassicStudent.State.FIGHT
+			if not protects:
+				continue
+		elif team == 3:
+			if hunted_team >= 0:
+				if enemy.team != hunted_team:
+					continue
+			else:
+				# Without campaign superiority, defend owned land instead of chasing.
+				var tile: Vector2i = Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
+				if not sim.area_at.has(tile) or sim.areas[sim.area_at[tile]].owner != team:
+					continue
+			score += enemy.health * 0.25
+		else:
+			score += enemy.health * 0.4
+		if score < best:
+			best = score
+			target = enemy
+	if target != null and team != 0:
+		_focus(sim, ready, target)
+		return
+	var objective: Vector2i = Vector2i(-1, -1)
+	best = INF
+	for area: Dictionary in sim.areas:
+		if not sim.can_capture_area(area, team):
+			continue
+		var score: float = center.distance_to(Vector2(area.tile * 4 + Vector2i(2, 2)))
+		if team == 0:
+			var occupied: bool = false
+			for enemy: ClassicStudent in sim.students:
+				if enemy.is_alive() and enemy.team != team and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == area.tile:
+					occupied = true
+					break
+			if occupied:
+				continue
+		if team == 3:
+			if hunted_team >= 0 and area.tile == sim.bases[hunted_team] and area.kind == ClassicRules.AreaKind.BASE:
+				score -= 1000.0
+			elif _danger_at(sim, team, area.tile * 4 + Vector2i(2, 2)) > 0.0:
+				continue
+		if score < best:
+			best = score
+			objective = area.tile
+	if objective.x >= 0:
+		for unit: ClassicStudent in ready:
+			_move(sim, unit, objective)
+	elif target != null:
+		_focus(sim, ready, target)

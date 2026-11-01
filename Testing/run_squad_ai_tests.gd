@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_expert_strategy_tests()
 	_start_delay_tests()
 	_retreat_timing_tests()
 	var sim: ClassicSimulation = _fixture()
@@ -135,7 +136,7 @@ func _run() -> void:
 			weak = _unit(sim, 2, (team + 1) % 4, Vector2i(61, 61))
 			weak.health = 1
 			sim.squad_ai.update(sim)
-			_check((a.priority_target_id == weak.id and b.priority_target_id == weak.id) == (mode == ClassicSimulation.Difficulty.EXPERT), "Whole-map Expert awareness for race %d" % team)
+			_check((a.priority_target_id == weak.id and b.priority_target_id == weak.id) == (mode == ClassicSimulation.Difficulty.EXPERT and team != 2), "Whole-map Expert awareness for race %d" % team)
 	# Remote enemies must not make locally safe Expert orcs flee.
 	sim = _fixture(0)
 	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
@@ -246,3 +247,71 @@ func _start_delay_tests() -> void:
 			sim.ticks += 36
 			sim.squad_ai.update(sim)
 			_check(recruit.state == ClassicStudent.State.WALK, "Opening delay is not reapplied to recruits")
+
+
+func _expert_strategy_tests() -> void:
+	for team: int in 4:
+		var sim: ClassicSimulation = _fixture((team + 1) % 4)
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		for color: int in 4:
+			var baseline: int = 750 if color == 1 else 1500
+			_check(sim.get_recruit_threshold(color) == (baseline if color == sim.player_team else baseline * 2 / 3), "Expert spawn acceleration applies only to enemies")
+		var limit: int = 6 if team == 1 else 4
+		for id: int in limit + 1:
+			_unit(sim, id, team, Vector2i(8 + id, 8))
+		sim.squad_ai._refresh(sim)
+		_check(sim.squad_ai.squads.size() == 2 and sim.squad_ai.squads[0].size() == limit and sim.squad_ai.squads[1].size() == 1, "Expert fills race squads before making another")
+	var sim: ClassicSimulation = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	for id: int in 6:
+		var elf: ClassicStudent = _unit(sim, id, 2, Vector2i(8 + id, 8))
+		if id >= 4:
+			elf.maximum_health = 28
+	sim.squad_ai._refresh(sim)
+	_check(sim.squad_ai.squads.size() == 1 and sim.squad_ai.squads[0].size() == 6, "Ranged elves may join a full four-member group")
+	sim = _fixture(3)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+	_unit(sim, 1, 1, Vector2i(24, 20))
+	sim._add_area(Vector2i(6, 5), ClassicRules.AreaKind.RECRUIT, -1)
+	sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
+	sim.squad_ai.update(sim)
+	_check(human.priority_target_id == -1 and Vector2i(human.destination.x / 4, human.destination.y / 4) == Vector2i(8, 5), "Expert humans capture peaceful tile over closer occupied tile")
+	sim = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	var guard: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
+	var wounded: ClassicStudent = _unit(sim, 1, 2, Vector2i(21, 20))
+	wounded.health = 1
+	var attacker: ClassicStudent = _unit(sim, 2, 1, Vector2i(22, 20))
+	attacker.state = ClassicStudent.State.FIGHT
+	attacker.target_id = wounded.id
+	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
+	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
+	sim.squad_ai.update(sim)
+	_check(guard.priority_target_id == attacker.id, "Expert elves protect wounded ally before capturing")
+	attacker.target_id = -1
+	attacker.state = ClassicStudent.State.SIT
+	sim.ticks += 18
+	sim.squad_ai.update(sim)
+	_check(guard.priority_target_id == -1 and Vector2i(guard.destination.x / 4, guard.destination.y / 4) == Vector2i(8, 8), "Expert elves capture when no wounded allies are attacked")
+	sim = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	var demon: ClassicStudent = _unit(sim, 0, 3, Vector2i(20, 20))
+	var strong: ClassicStudent = _unit(sim, 1, 0, Vector2i(21, 20))
+	strong.punch_bonus = 100
+	var weak: ClassicStudent = _unit(sim, 2, 2, Vector2i(32, 20))
+	weak.health = 1
+	sim.squad_ai.update(sim)
+	_check(sim.squad_ai.hunted_team == 2 and demon.priority_target_id == weak.id, "Demons choose beatable race rather than nearer stronger race")
+	weak.health = 1000
+	sim._add_area(Vector2i(5, 8), ClassicRules.AreaKind.RECRUIT, -1)
+	sim.ticks += 18
+	sim.squad_ai.update(sim)
+	_check(sim.squad_ai.hunted_team == -1 and demon.priority_target_id == -1, "Demons abandon unwinnable campaign and capture")
+	weak.state = ClassicStudent.State.UNUSED
+	sim.active[2] = false
+	sim.squad_ai.hunted_team = 2
+	sim._add_area(sim.bases[2], ClassicRules.AreaKind.BASE, 2)
+	sim.ticks += 18
+	sim.squad_ai.update(sim)
+	_check(Vector2i(demon.destination.x / 4, demon.destination.y / 4) == sim.bases[2], "Demons capture defeated campaign race base")

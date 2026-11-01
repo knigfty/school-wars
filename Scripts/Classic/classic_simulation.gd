@@ -111,7 +111,10 @@ func get_recruit_tiles(team: int) -> int:
 
 
 func get_recruit_threshold(team: int) -> int:
-	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
+	var threshold: int = 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
+	if medieval and difficulty == Difficulty.EXPERT and team != player_team:
+		return threshold * 2 / 3
+	return threshold
 
 
 func get_conquered_base_count(team: int) -> int:
