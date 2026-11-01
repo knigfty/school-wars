@@ -75,30 +75,29 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 
 | Race | Trigger | Bonus |
 | --- | --- | --- |
-| Human | First killing blow | +2 maximum HP, once |
-| Human | Second killing blow | +2 punch, once |
-| Human | Third killing blow | Total attack reach becomes 3 grid cells |
-| Human | Fourth killing blow | Each successful swing also hits one enemy adjacent to the main victim, within human reach |
+| Human | Kills 1/4/7/... | +2 maximum HP each time |
+| Human | Kills 2/5/8/... | +2 permanent punch each time |
+| Human | Kills 3/6/9/... | +2 attack reach each time |
 | Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
-| Elf | 28 / 32 / 36 maximum HP | +1 / +2 / +3 reach, for total reach of 2 / 3 / 4 cells |
+| Elf | Every 3 bonus maximum HP above the starting 25 | +1 cell reach per complete 3 bonus HP, with no tier cap |
 | Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |
 | Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
 
-Human milestones are cumulative and stop after four kills. Elf range and demon speed use the highest unlocked tier rather than adding tiers together. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
+Human upgrades repeat a three-kill cycle indefinitely. Elf range scales per three bonus HP; demon speed follows the selected difficulty's rules. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
 
 Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves and demons each receive one reward at death; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
 
 Range is Manhattan distance in movement grid cells, not the larger capture tiles. Ranged pursuit, focus-position pathfinding, priority attacks and retaliation use the same per-unit reach. Melee defenders close the gap against ranged attackers. The existing rule that moving targets cannot be punched remains. Demon movement accumulates fractional progress across consecutive walk steps so +30% and +40% remain distinct at 18 Hz, with rendering using that same progress.
 
-Orc conversion replaces the dead enemy with a fresh full-health orc of the killer's team, with a new unit ID and no inherited stats, selection, or targeting orders. The death cell is transferred immediately without an overlapping corpse. Conversions do not consume regular recruitment capacity. Regular recruitment respects its own count and cap; converted survivors still prevent elimination. Conversion status resets on an ordinary respawn. Converting a team's last unit triggers elimination and unlocks its bases.
+Orc conversion creates a new orc with the victim's maximum HP and permanent punch, at full inherited HP, with one-cell reach and a new unit ID. Temporary territorial/group bonuses, other race traits, selection and targeting orders are not inherited. The death cell is transferred immediately without an overlapping corpse. Conversions do not consume regular recruitment capacity. Regular recruitment respects its own count and cap; converted survivors still prevent elimination. Conversion status resets on an ordinary respawn. Converting a team's last unit triggers elimination and unlocks its bases.
 
 Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, assist expiration and duplicate prevention, dead/reused contributors, real ranged damage and pursuit, sustained movement speed, deterministic conversion rolls and death-cell occupancy, elimination and fresh-spawn resets. Classic rules remain unchanged.
 
 
 ## Floating reward text
 
-Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans show "+2 HP", "+2 PUNCH", and "+3 RANGE" at their first three kill milestones and "+1 TARGET" at their fourth; successful orc conversions show "ORCS RISE!" above the killer; elves show their previous maximum HP followed by " + 1 HP", and demons show their previous total punch (base plus earned bonus) followed by " + 1 PUNCH" for rewarded kills or assists. For example, "30 + 1 HP" means maximum HP increased from 30 to 31; "30 + 1 PUNCH" means punch increased from 30 to 31. Kills after the fourth human milestone and failed orc conversion rolls do not trigger another notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.
+Medieval units display the event they actually earned for 30 ticks (about 1.7 seconds): humans repeat "+2 HP", "+2 PUNCH", and "+2 RANGE" on successive kills; successful orc conversions show "ORCS RISE!" above the killer; elves show their previous maximum HP followed by " + 1 HP", and demons show their previous total punch (base plus earned bonus) followed by " + 1 PUNCH" for rewarded kills or assists. For example, "30 + 1 HP" means maximum HP increased from 30 to 31; "30 + 1 PUNCH" means punch increased from 30 to 31. Every human kill triggers its cycle reward; failed orc conversion rolls do not trigger a notification. A new reward replaces the current message and restarts its timer. Fresh spawns clear messages. Labels are centred above medieval units, and classic keeps its existing "Level up!" notification.
 
 
 ## Difficulty and coordinated opponents
@@ -134,7 +133,7 @@ unchanged. Unit reuse resets retreat flags and reassigns squad membership.
 Run `Testing/run_squad_ai_tests.gd` for race decisions, recovery, difficulty gates,
 respawn membership and seeded simulation occupancy checks.
 
-Human fourth-level attacks snapshot at most one secondary enemy before applying primary damage. Both victims take the normal full punch damage on the same successful swing, with ordinary retaliation, kill rewards and assist credit. The extra victim must be stationary, adjacent to the main victim (Manhattan distance one), and within the human's attack range. A missed swing hits neither victim; unlocking level four takes effect on the next swing.
+Human attacks hit one target per swing; the former fourth-kill cleave upgrade has been removed.
 
 ### Expert race strategy
 
@@ -148,7 +147,7 @@ Expert demons form groups of four and prioritize defending owned tiles within te
 
 Healing distance uses Manhattan movement-cell distance to the nearest cell on a healing tile (inclusive ten-cell limit), rather than capture-tile distance. These Expert changes do not alter Normal or Easy healing behaviour.
 
-On Expert only, all stationary medieval humans gain +1 punch while on an owned spade, heart or base, including player humans. This is a temporary position bonus added to permanent upgrades; moving off the tile or losing ownership removes it.
+On all Medieval difficulties, humans gain +1 punch while fighting on an owned spade, heart or base. The temporary bonus remains for three seconds after leaving owned territory, then expires. It stacks with permanent punch upgrades and is reset on normal respawn or conversion.
 
 On all Medieval difficulties, all units (player and enemy) automatically acquire enemies only in the same capture tile, unless given an explicit attack order. The player issues commands through selection; enemy squad-planner movement, healing, flee and focus orders are explicit team commands and set the unit's designated tile. Actual damage may trigger retaliation outside that tile for up to eight seconds, measured from the first hit and never extended by subsequent hits. At expiry units clear the retaliation target and return to the initial designated tile. Incoming attacks and ordinary squad replanning cannot interrupt that return. A new explicit player command overrides it. If all four adjacent movement cells are occupied while returning, the unit fights the lowest-HP adjacent enemy without restarting its retaliation timer. It resumes returning as soon as a neighbouring cell opens. Classic retains its existing automatic aggro and retaliation.
 
@@ -165,3 +164,5 @@ All Medieval difficulties require uncontested capture: any living opposing unit 
 Expert demon adjustment: both player and enemy demons gain +2 permanent punch on a killing blow and +1 on a valid damaging assist within three seconds. Their movement multiplier is `1 + 0.05 * floor(bonus_punch / 2)`: total punch 5/6 gives base speed, 7/8 gives +5%, 9/10 gives +10%, 11/12 gives +15%, continuing without a tier cap. Easy/Normal retain +1 punch per takedown and their existing 8/12/18 total-punch speed tiers. Combat healing and Expert enemy elf rewards are unchanged.
 
 Expert human missions with no capturable objective inside their five-tile observation range issue local scouting orders instead of idling. Scouting destinations stay inside that range, remember visited locations and spread groups apart; newly observed capture targets still become committed missions. Expert enemy-human tile movement uses obstacle-aware routes, including backward detours around friendly base congestion. Base defence, retaliation returns and existing player orders keep their priority.
+
+Current all-difficulty scaling: elf reach is `1 + floor((maximum_health - 25) / 3)` (minimum one); human reach is `1 + 2 * floor(kills / 3)`. Human cycles continue indefinitely. Converted orcs preserve only maximum HP and permanent punch; for example a twenty-max-HP, ten-punch victim becomes a full-health twenty-HP, ten-punch orc with reach one. Attack-position searches are bounded to the map even with very large reach.

@@ -129,7 +129,7 @@ func _run() -> void:
 		for other: int in 3:
 			if other != difficulty:
 				_check(not ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][other] in app.modal_body.text, "Other difficulty sections are excluded")
-		_check("8 seconds" in app.modal_body.text and "28/32/36" in app.modal_body.text, "Shared rules appear for every difficulty")
+		_check("8 seconds" in app.modal_body.text and "Every 3 bonus HP" in app.modal_body.text, "Shared rules appear for every difficulty")
 		# Changing a menu control cannot change help for the running match.
 		var other: int = (difficulty + 1) % 3
 		app.difficulty_selector.select(other)

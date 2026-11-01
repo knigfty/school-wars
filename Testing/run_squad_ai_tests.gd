@@ -411,19 +411,6 @@ func _expert_recovery_tests() -> void:
 		unit.cell = Vector2i(22, 20)
 		sim.squad_ai.update(sim)
 		_check(unit.ai_retreating, "Healing point exactly ten cells away is eligible")
-	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
-		var sim: ClassicSimulation = _fixture(0)
-		sim.difficulty = mode
-		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
-		var enemy: ClassicStudent = _unit(sim, 1, 1, Vector2i(21, 20))
-		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 0)
-		var baseline: float = ClassicRules.PUNCH[0]
-		_check(sim.get_punch_damage(human, enemy) == baseline + (1 if mode == ClassicSimulation.Difficulty.EXPERT else 0), "Owned-tile human punch bonus is Expert only")
-		sim.areas[0].owner = 1
-		_check(sim.get_punch_damage(human, enemy) == baseline, "Losing owned tile removes human bonus")
-		sim.areas[0].owner = 0
-		human.state = ClassicStudent.State.WALK
-		_check(sim.get_punch_damage(human, enemy) == baseline, "Moving humans do not receive standing bonus")
 
 	for distance: int in [10, 11]:
 		for race: int in [2, 3]:

@@ -38,6 +38,7 @@ var lifetime: int = 0
 # Per-victim successful damage: attacker ID -> tick and attacker lifetime.
 var damage_contributors: Dictionary = {}
 var punch_bonus: int = 0
+var home_punch_until: int = -1
 var level: int = 0
 var level_ticks: int = 0
 var event_text: String = ""

@@ -203,6 +203,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.health = ClassicRules.HEALTH[team]
 	student.maximum_health = student.health
 	student.punch_bonus = 0
+	student.home_punch_until = -1
 	student.level = 0
 	student.level_ticks = 0
 	student.event_text = ""
@@ -226,6 +227,8 @@ func step() -> void:
 	ticks += 1
 	if medieval:
 		for unit: ClassicStudent in students:
+			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
+				unit.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
 			if not _update_base_defence(unit):
 				_update_retaliation(unit)
 	if medieval:
@@ -819,16 +822,7 @@ func _fighting(student: ClassicStudent) -> void:
 			student.fight_phase = 3
 			if not _contact_target(student, target) or rng.randf() < 0.5:
 				return
-			# Snapshot before damage: the fourth kill unlocks cleave for future swings.
-			var secondary: ClassicStudent = null
-			if medieval and student.team == 0 and student.level >= 4:
-				for other: ClassicStudent in students:
-					if other.is_alive() and other.team != student.team and other.id != target.id and other.state != ClassicStudent.State.WALK and _may_engage(student, other) and _adjacent(other.cell, target.cell) and _within_attack_range(student, other):
-						secondary = other
-						break
 			_apply_hit(student, target)
-			if secondary != null and secondary.is_alive():
-				_apply_hit(student, secondary)
 		3:
 			if not _contact_target(student, target):
 				_start_stand(student)
@@ -993,14 +987,20 @@ func _adjacent(a: Vector2i, b: Vector2i) -> bool:
 	return absi(offset.x) + absi(offset.y) == 1
 
 
+func _on_owned_tile(student: ClassicStudent) -> bool:
+	var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
+	return area_at.has(tile) and areas[area_at[tile]].owner == student.team
+
+
 func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 	var damage: float = ClassicRules.PUNCH[student.team]
 	if not medieval:
 		return damage
 	damage += student.punch_bonus
-	if difficulty == Difficulty.EXPERT and student.team == 0 and student.is_alive() and student.state != ClassicStudent.State.WALK:
-		var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
-		if area_at.has(tile) and areas[area_at[tile]].owner == student.team:
+	if student.team == 0:
+		if student.state == ClassicStudent.State.FIGHT and _on_owned_tile(student):
+			student.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
+		if ticks < student.home_punch_until:
 			damage += 1.0
 	if student.team == 1:
 		# Stable first attacker: each additional engaged orc adds ONE damage,
@@ -1120,15 +1120,10 @@ func _capture_areas() -> void:
 func get_attack_range(student: ClassicStudent) -> int:
 	if not medieval:
 		return 1
-	if student.team == 0 and student.level >= 3:
-		return 3
+	if student.team == 0:
+		return 1 + 2 * (student.level / 3)
 	if student.team == 2:
-		if student.maximum_health >= 36.0:
-			return 4
-		if student.maximum_health >= 32.0:
-			return 3
-		if student.maximum_health >= 28.0:
-			return 2
+		return 1 + maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2])) / 3
 	return 1
 
 
@@ -1163,9 +1158,9 @@ func _attack_positions(student: ClassicStudent, target_cell: Vector2i) -> Array[
 		for direction: Vector2i in ClassicRules.DIRECTIONS:
 			result.append(target_cell + direction)
 	else:
-		for y: int in range(-reach, reach + 1):
-			for x: int in range(-reach, reach + 1):
-				var cell: Vector2i = target_cell + Vector2i(x, y)
+		for y: int in range(maxi(0, target_cell.y - reach), mini(ClassicRules.GRID_SIZE - 1, target_cell.y + reach) + 1):
+			for x: int in range(maxi(0, target_cell.x - reach), mini(ClassicRules.GRID_SIZE - 1, target_cell.x + reach) + 1):
+				var cell: Vector2i = Vector2i(x, y)
 				if _cell_in_range(cell, target_cell, reach):
 					result.append(cell)
 	return result
@@ -1178,16 +1173,15 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 		killer.maximum_health += 1.0
 		return
 	if killer.team == 0:
-		if killer.level == 1:
-			killer.maximum_health += 2.0
-			killer.show_event("+2 HP")
-		elif killer.level == 2:
-			killer.punch_bonus += 2
-			killer.show_event("+2 PUNCH")
-		elif killer.level == 3:
-			killer.show_event("+3 RANGE")
-		elif killer.level == 4:
-			killer.show_event("+1 TARGET")
+		match (killer.level - 1) % 3:
+			0:
+				killer.maximum_health += 2.0
+				killer.show_event("+2 HP")
+			1:
+				killer.punch_bonus += 2
+				killer.show_event("+2 PUNCH")
+			2:
+				killer.show_event("+2 RANGE")
 	if killer.team == 3 and killer.is_alive():
 		killer.health = minf(killer.maximum_health, killer.health + 3.0)
 	# Damage records include the killing blow, so each contributor is rewarded once.
@@ -1211,6 +1205,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 
 func _convert_to_orc(victim: ClassicStudent) -> void:
 	var former_team: int = victim.team
+	var inherited_health: float = victim.maximum_health
+	var inherited_punch: int = int(ClassicRules.PUNCH[victim.team]) + victim.punch_bonus
 	var cell: Vector2i = victim.cell
 	victim.state = ClassicStudent.State.UNUSED
 	occupancy.erase(cell)
@@ -1220,5 +1216,8 @@ func _convert_to_orc(victim: ClassicStudent) -> void:
 	students.append(converted)
 	_initialize_student(converted, 1, cell)
 	converted.is_converted = true
+	converted.maximum_health = inherited_health
+	converted.health = inherited_health
+	converted.punch_bonus = inherited_punch - int(ClassicRules.PUNCH[1])
 	_check_elimination(former_team)
 	_update_leader()

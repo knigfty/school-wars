@@ -47,6 +47,7 @@ func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStude
 
 
 func _run() -> void:
+	_test_scaling_and_inheritance()
 	_test_expert_demon_speed()
 	_test_demon_healing()
 	_test_expert_enemy_rewards()
@@ -66,17 +67,16 @@ func _test_humans() -> void:
 	var sim: ClassicSimulation = _sim()
 	var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
 	human.health = 5
-	for kill: int in range(1, 6):
-		var victim: ClassicStudent = _unit(sim, kill, 2, Vector2i(21, 20))
+	for kill: int in range(1, 31):
+		var victim: ClassicStudent = _unit(sim, 1, 2, Vector2i(21, 20))
 		victim.health = 1
 		_hit(sim, human, victim)
-		if kill <= 4:
-			_check(human.event_text == ["+2 HP", "+2 PUNCH", "+3 RANGE", "+1 TARGET"][kill - 1] and human.level_ticks == 30, "Human milestone shows actual reward")
+		_check(human.event_text == ["+2 HP", "+2 PUNCH", "+2 RANGE"][(kill - 1) % 3], "Human kill rewards cycle indefinitely")
 		_check(human.level == kill, "Human kill count increments")
-		_check(human.maximum_health == 22, "Human first-kill HP milestone applies once")
-		_check(human.health == 5, "Human max HP reward does not instantly heal")
-		_check(sim.get_punch_damage(human, victim) == (6 if kill >= 2 else 4), "Human second-kill punch milestone applies once")
-		_check(sim.get_attack_range(human) == (3 if kill >= 3 else 1), "Human third-kill reach is exactly three cells")
+		_check(human.maximum_health == 20 + 2 * ((kill + 2) / 3), "Human HP grows on every cycle")
+		_check(human.health == 5, "Maximum HP upgrades do not instantly heal")
+		_check(human.punch_bonus == 2 * ((kill + 1) / 3), "Human punch grows on every cycle")
+		_check(sim.get_attack_range(human) == 1 + 2 * (kill / 3), "Human reach gains two cells per completed cycle")
 
 
 func _test_assists() -> void:
@@ -147,7 +147,7 @@ func _test_range() -> void:
 	var victim: ClassicStudent = _unit(sim, 1, 1, Vector2i(22, 20))
 	for hp: int in [25, 27, 28, 31, 32, 35, 36, 45]:
 		elf.maximum_health = hp
-		var expected: int = 4 if hp >= 36 else (3 if hp >= 32 else (2 if hp >= 28 else 1))
+		var expected: int = 1 + maxi(0, hp - 25) / 3
 		_check(sim.get_attack_range(elf) == expected, "Elf range tier at %d HP" % hp)
 	elf.maximum_health = 28
 	victim.health = 100
@@ -263,7 +263,7 @@ func _test_conversion() -> void:
 			conversions += 1
 			var converted: ClassicStudent = sim.students.back()
 			_check(converted.team == 1 and converted.cell == Vector2i(21, 20), "Fresh orc appears at death location")
-			_check(converted.health == 10 and converted.maximum_health == 10 and converted.level == 0 and converted.punch_bonus == 0, "Conversion resets all stats to fresh orc")
+			_check(converted.health == 25 and converted.maximum_health == 25 and converted.level == 0 and converted.punch_bonus == 1, "Conversion inherits elf HP and punch but resets orc progression")
 			_check(sim.occupancy[converted.cell] == converted.id, "Converted unit occupies death cell without corpse overlap")
 			_check(not sim.active[2], "Conversion of last elf triggers elimination")
 	_check(conversions > 0 and conversions < kills, "Both conversion outcomes exercised")
@@ -387,7 +387,7 @@ func _test_new_mechanics() -> void:
 			sim.rng.seed = seed_value
 			sim._fighting(human)
 			if primary.health < primary.maximum_health:
-				_check((secondary.health < before) == (level == 4), "Fourth-level swing hits adjacent second victim only after unlock")
+				_check(secondary.health == before, "Humans never hit a second victim after cleave removal")
 				_check(third.health == third_before, "Cleave hits at most two victims")
 			else:
 				_check(secondary.health == before, "Missed swing cannot cleave")
@@ -401,7 +401,7 @@ func _test_new_mechanics() -> void:
 	first.health = 1
 	second.health = 1
 	_hit(sim, veteran, first)
-	_check(first.state == ClassicStudent.State.DEAD and second.state == ClassicStudent.State.DEAD and veteran.level == 6, "Cleave handles two deaths and two kill rewards")
+	_check(first.state == ClassicStudent.State.DEAD and second.state != ClassicStudent.State.DEAD and veteran.level == 5, "Human attack rewards only its single defeated target")
 
 
 func _test_expert_enemy_rewards() -> void:
@@ -475,3 +475,33 @@ func _test_expert_demon_speed() -> void:
 			sim._walking(demon)
 		var actual: float = demon.world_position().x / 24.0 + demon.world_position().y / 12.0
 		_check(absf(actual - 17.0) < 0.001, "Expert fifty-percent movement bonus is preserved in actual walking")
+
+
+func _test_scaling_and_inheritance() -> void:
+	for mode: int in 3:
+		var sim: ClassicSimulation = _sim()
+		sim.difficulty = mode
+		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+		var enemy: ClassicStudent = _unit(sim, 1, 1, Vector2i(21, 20))
+		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, 0)
+		human.state = ClassicStudent.State.FIGHT
+		sim.ticks = 100
+		_check(sim.get_punch_damage(human, enemy) == 5, "Human territorial punch activates on every difficulty")
+		human.cell = Vector2i(24, 20)
+		sim.ticks = 153
+		_check(sim.get_punch_damage(human, enemy) == 5, "Human punch lasts for the three-second grace window")
+		sim.ticks = 154
+		_check(sim.get_punch_damage(human, enemy) == 4, "Human punch expires at exactly three seconds")
+		human.maximum_health = 20
+		human.punch_bonus = 6
+		human.level = 30
+		human.health = 0
+		sim._convert_to_orc(human)
+		var converted: ClassicStudent = sim.students.back()
+		_check(converted.health == 20 and converted.maximum_health == 20 and sim.get_punch_damage(converted, enemy) == 10, "Converted human preserves twenty HP and ten permanent punch")
+		_check(sim.get_attack_range(converted) == 1 and converted.level == 0 and converted.home_punch_until == -1, "Conversion strips reach and temporary territorial bonus")
+		var elf: ClassicStudent = _unit(sim, 2, 2, Vector2i(30, 30))
+		for bonus: int in [0, 1, 2, 3, 5, 6, 8, 9, 30, 300]:
+			elf.maximum_health = 25 + bonus
+			_check(sim.get_attack_range(elf) == 1 + bonus / 3, "Elf reach scales per three bonus HP without a tier cap")
+		_check(sim._attack_positions(elf, Vector2i(30, 30)).size() <= 4096, "Large reach remains bounded by actual map cells")
