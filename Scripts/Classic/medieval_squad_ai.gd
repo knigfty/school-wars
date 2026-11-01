@@ -523,7 +523,7 @@ func _refresh_humans(sim) -> void:
 				available = mission
 				break
 		if available.is_empty():
-			available = {"members": [], "initial": [], "goal": Vector2i(-1, -1), "rolled": false, "recovering": false}
+			available = {"members": [], "initial": [], "goal": Vector2i(-1, -1), "scout": Vector2i(-1, -1), "visited": [], "rolled": false, "recovering": false}
 			human_missions.append(available)
 		available.members.append({"unit": unit, "lifetime": unit.lifetime})
 	for mission: Dictionary in human_missions:
@@ -598,6 +598,7 @@ func _plan_humans(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 				best = score
 				mission.goal = area.tile
 	if mission.goal.x < 0:
+		_scout_humans(sim, mission, ready, center)
 		return
 	if mission.initial.is_empty():
 		mission.initial.assign(mission.members)
@@ -611,3 +612,33 @@ func _plan_humans(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	else:
 		for unit: ClassicStudent in ready:
 			_move(sim, unit, mission.goal)
+
+
+func _scout_humans(sim, mission: Dictionary, ready: Array[ClassicStudent], center: Vector2) -> void:
+	var origin: Vector2i = Vector2i(center / 4.0)
+	if mission.scout.x < 0 or origin == mission.scout:
+		if not mission.visited.has(origin):
+			mission.visited.append(origin)
+		var best: float = -INF
+		for y: int in ClassicRules.BOARD_SIZE:
+			for x: int in ClassicRules.BOARD_SIZE:
+				var tile: Vector2i = Vector2i(x, y)
+				var distance: int = _cell_distance(origin, tile)
+				if distance < 3 or distance > 5:
+					continue
+				var unseen: int = 1000
+				for visited: Vector2i in mission.visited:
+					unseen = mini(unseen, _cell_distance(tile, visited))
+				var score: float = unseen * 10.0 + distance
+				for other: Dictionary in human_missions:
+					if other != mission and other.scout.x >= 0:
+						score -= maxf(0.0, 3.0 - _cell_distance(tile, other.scout)) * 20.0
+				for enemy: ClassicStudent in sim.students:
+					if enemy.is_alive() and enemy.team != 0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == tile:
+						score -= 100.0
+				if score > best:
+					best = score
+					mission.scout = tile
+	if mission.scout.x >= 0:
+		for unit: ClassicStudent in ready:
+			_move(sim, unit, mission.scout)

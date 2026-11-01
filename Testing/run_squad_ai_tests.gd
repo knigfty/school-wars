@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_human_idle_base_tests()
 	_demon_no_healing_retreat_tests()
 	_base_defence_tests()
 	_human_commitment_tests()
@@ -625,3 +626,50 @@ func _demon_no_healing_retreat_tests() -> void:
 		else:
 			sim.squad_ai.update(sim)
 		_check(not demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(8, 5), "Wounded demons pursue objectives instead of retreating to hearts or bases on every difficulty")
+
+
+func _human_idle_base_tests() -> void:
+	var sim: ClassicSimulation = _fixture(3)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	sim.bases[0] = Vector2i(15, 0)
+	sim._add_area(sim.bases[0], ClassicRules.AreaKind.BASE, 0)
+	sim._add_area(Vector2i(0, 15), ClassicRules.AreaKind.RECRUIT, 3)
+	# No valid capture target is visible from this full-capacity, uninvaded base.
+	for id: int in 12:
+		var unit: ClassicStudent = _unit(sim, id, 0, Vector2i(60 + id % 4, id / 4))
+		unit.counter = 10000
+	sim.squad_ai.update(sim)
+	var departing: bool = false
+	for unit: ClassicStudent in sim.students:
+		if unit.is_alive() and unit.team == 0 and unit.state == ClassicStudent.State.WALK:
+			departing = true
+	_check(departing, "Full Expert human base scouts rather than freezing when no capture objective is visible")
+	for mission: Dictionary in sim.squad_ai.human_missions:
+		_check(mission.goal.x < 0, "Scouting does not select an unseen distant capture objective")
+	for tick: int in 1000:
+		sim.step()
+		for unit: ClassicStudent in sim.students:
+			if unit.is_alive():
+				_check(sim.occupancy.get(unit.cell, -1) == unit.id, "Human scouting preserves occupancy")
+	var escaped: int = 0
+	for unit: ClassicStudent in sim.students:
+		if unit.is_alive() and unit.team == 0 and Vector2i(unit.cell.x / 4, unit.cell.y / 4) != sim.bases[0]:
+			escaped += 1
+	_check(escaped >= 8, "Most full-capacity humans escape a crowded base")
+
+	# A friendly blockade requires the first step to lead away from the objective.
+	sim = _fixture(3)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	var mover: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+	_unit(sim, 1, 0, Vector2i(21, 20))
+	_unit(sim, 2, 0, Vector2i(20, 19))
+	_unit(sim, 3, 0, Vector2i(20, 21))
+	sim.designate_order(mover, Vector2i(8, 5))
+	sim.start_walk(mover, Vector2i(8, 5))
+	_check(mover.state == ClassicStudent.State.WALK and mover.cell == Vector2i(19, 20), "Expert human takes a temporary backward detour around friendly blockade")
+	for tick: int in 200:
+		if mover.state == ClassicStudent.State.WALK:
+			sim._walking(mover)
+		elif mover.state == ClassicStudent.State.WAIT:
+			sim._start_turn(mover)
+	_check(Vector2i(mover.cell.x / 4, mover.cell.y / 4) == Vector2i(8, 5), "Human detour reaches the ordered tile")

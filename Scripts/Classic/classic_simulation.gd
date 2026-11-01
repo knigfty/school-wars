@@ -681,6 +681,11 @@ func _start_turn(student: ClassicStudent) -> void:
 	if medieval and student.returning_to_tile:
 		_return_step(student)
 		return
+	# Expert human movement orders need routes around packed friendly base cells,
+	# including detours that initially lead away from their destination.
+	if medieval and difficulty == Difficulty.EXPERT and student.team == 0 and student.team != player_team and student.ai_base_defence_tile.x < 0 and student.target_id < 0 and Vector2i(student.cell.x / 4, student.cell.y / 4) != student.designated_tile:
+		_return_step(student)
+		return
 	if _stop_cross_tile_pursuit(student):
 		return
 	if student.target_id == student.priority_target_id and _valid_enemy(student, student.priority_target_id):
