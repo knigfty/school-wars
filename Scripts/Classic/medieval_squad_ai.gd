@@ -12,7 +12,7 @@ func update(sim) -> void:
 	if sim.difficulty == sim.Difficulty.NORMAL and sim.ticks < sim.AI_START_DELAY_TICKS:
 		return
 	for unit: ClassicStudent in sim.students:
-		if not unit.is_alive() or unit.team == sim.player_team:
+		if not unit.is_alive() or unit.team == sim.player_team or unit.retaliation_until > 0 or unit.returning_to_tile:
 			continue
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team in [2, 3]:
 			_try_recovery(sim, unit)
@@ -88,7 +88,7 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not unit.ai_retreating and sim.ticks >= unit.ai_hold_ground_until:
+		if not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
@@ -167,6 +167,7 @@ func _plan(sim, squad: Array) -> void:
 			unit.approach_cell = Vector2i(-1, -1)
 			if unit.state == ClassicStudent.State.FIGHT:
 				unit.state = ClassicStudent.State.STAND
+			sim.designate_order(unit, Vector2i.ZERO, target.id)
 			sim.start_walk(unit, Vector2i.ZERO, target.id)
 		return
 	var objective: Vector2i = Vector2i(-1, -1)
@@ -234,6 +235,7 @@ func _heal(sim, unit: ClassicStudent) -> void:
 				unit.ai_hold_ground_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
 				unit.priority_target_id = target.id
 				unit.state = ClassicStudent.State.STAND
+				sim.designate_order(unit, Vector2i.ZERO, target.id)
 				sim.start_walk(unit, Vector2i.ZERO, target.id)
 				return
 	if destination.x < 0:
@@ -273,6 +275,7 @@ func _escape_tile(sim, unit: ClassicStudent, enemies: Array[ClassicStudent]) -> 
 
 
 func _move(sim, unit: ClassicStudent, tile: Vector2i) -> void:
+	sim.designate_order(unit, tile)
 	unit.priority_target_id = -1
 	unit.target_id = -1
 	unit.approach_cell = Vector2i(-1, -1)
@@ -330,6 +333,7 @@ func _focus(sim, ready: Array[ClassicStudent], target: ClassicStudent) -> void:
 		unit.approach_cell = Vector2i(-1, -1)
 		if unit.state == ClassicStudent.State.FIGHT:
 			unit.state = ClassicStudent.State.STAND
+		sim.designate_order(unit, Vector2i.ZERO, target.id)
 		sim.start_walk(unit, Vector2i.ZERO, target.id)
 
 

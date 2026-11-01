@@ -179,6 +179,10 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 
 
 func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
+	student.designated_tile = Vector2i(cell.x / 4, cell.y / 4)
+	student.retaliation_until = 0
+	student.retaliation_target_id = -1
+	student.returning_to_tile = false
 	student.is_converted = false
 	student.ai_retreating = false
 	student.ai_flee_until = 0
@@ -218,6 +222,9 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
+	if medieval and difficulty == Difficulty.EXPERT:
+		for unit: ClassicStudent in students:
+			_update_retaliation(unit)
 	if medieval:
 		for attacker: ClassicStudent in students:
 			if attacker.state == ClassicStudent.State.FIGHT and attacker.target_id >= 0:
@@ -273,6 +280,7 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 			continue
 		var student: ClassicStudent = students[id]
 		if student.is_alive() and student.team == player_team:
+			designate_order(student, tile, target_id)
 			student.approach_cell = Vector2i(-1, -1)
 			student.priority_target_id = target_id if _valid_enemy(student, target_id) else -1
 			if student.state == ClassicStudent.State.FIGHT:
@@ -297,22 +305,66 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 		_start_turn(student)
 
 
+func designate_order(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
+	if not medieval or difficulty != Difficulty.EXPERT:
+		return
+	student.designated_tile = Vector2i(students[target_id].cell.x / 4, students[target_id].cell.y / 4) if _valid_enemy(student, target_id) else tile
+	student.retaliation_until = 0
+	student.retaliation_target_id = -1
+	student.returning_to_tile = false
+
+
 func _holds_player_tile(student: ClassicStudent) -> bool:
-	return medieval and difficulty == Difficulty.EXPERT and student.team == player_team and not _valid_enemy(student, student.priority_target_id)
+	# Shared Expert hold policy for player and enemy units alike.
+	return medieval and difficulty == Difficulty.EXPERT and not _valid_enemy(student, student.priority_target_id) and (student.retaliation_until == 0 or ticks >= student.retaliation_until)
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and difficulty == Difficulty.EXPERT:
+		if student.returning_to_tile:
+			return false
+		if student.retaliation_until > ticks and not _valid_enemy(student, student.priority_target_id):
+			return target.id == student.retaliation_target_id or Vector2i(student.cell.x / 4, student.cell.y / 4) == Vector2i(target.cell.x / 4, target.cell.y / 4)
 	return not _holds_player_tile(student) or Vector2i(student.cell.x / 4, student.cell.y / 4) == Vector2i(target.cell.x / 4, target.cell.y / 4)
+
+
+func _return_to_designated(student: ClassicStudent) -> void:
+	student.retaliation_until = 0
+	student.retaliation_target_id = -1
+	student.returning_to_tile = true
+	student.target_id = -1
+	student.priority_target_id = -1
+	student.state = ClassicStudent.State.STAND
+	start_walk(student, student.designated_tile)
+
+
+func _update_retaliation(student: ClassicStudent) -> void:
+	if not student.is_alive():
+		return
+	if student.returning_to_tile:
+		if student.state != ClassicStudent.State.WALK and Vector2i(student.cell.x / 4, student.cell.y / 4) == student.designated_tile:
+			student.returning_to_tile = false
+		return
+	if student.retaliation_until > 0 and ticks >= student.retaliation_until:
+		_return_to_designated(student)
+
+
+func _begin_retaliation(student: ClassicStudent, attacker: ClassicStudent) -> void:
+	if medieval and difficulty == Difficulty.EXPERT and not student.returning_to_tile and not _valid_enemy(student, student.priority_target_id) and student.retaliation_until == 0:
+		student.retaliation_until = ticks + 8 * ClassicRules.TICKS_PER_SECOND
+		student.retaliation_target_id = attacker.id
 
 
 func _stop_cross_tile_pursuit(student: ClassicStudent) -> bool:
 	if _valid_enemy(student, student.target_id) and not _may_engage(student, students[student.target_id]):
-		student.target_id = -1
-		student.destination = student.cell
-		_start_stand(student)
+		if medieval and difficulty == Difficulty.EXPERT:
+			_return_to_designated(student)
+		else:
+			student.target_id = -1
+			student.destination = student.cell
+			_start_stand(student)
 		return true
 	return false
-
 
 func _can_attack_priority(student: ClassicStudent) -> bool:
 	if not _valid_enemy(student, student.priority_target_id):
@@ -350,6 +402,10 @@ func _start_stand(student: ClassicStudent) -> void:
 
 
 func _start_sit(student: ClassicStudent) -> void:
+	if medieval and difficulty == Difficulty.EXPERT and student.returning_to_tile:
+		student.state = ClassicStudent.State.SIT
+		student.counter = 1
+		return
 	if _valid_enemy(student, student.priority_target_id):
 		start_walk(student, Vector2i.ZERO, student.priority_target_id)
 		return
@@ -692,6 +748,8 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			_convert_to_orc(target)
 			student.show_event("ORCS RISE!")
 	else:
+		if not target.ai_retreating:
+			_begin_retaliation(target, student)
 		if target.ai_retreating or not _may_engage(target, student):
 			sound_requested.emit("punch", target.world_position())
 			return

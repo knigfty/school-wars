@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_retaliation_leash_tests()
 	_expert_recovery_tests()
 	_player_tile_tests()
 	_expert_strategy_tests()
@@ -441,3 +442,48 @@ func _expert_recovery_tests() -> void:
 			sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
 			sim.squad_ai.update(sim)
 			_check((guard.priority_target_id == invader.id) == (distance == 10), "Expert protection/defence priority respects ten-cell boundary")
+
+
+func _retaliation_leash_tests() -> void:
+	for race: int in 4:
+		for player_controlled: bool in [false, true]:
+			var sim: ClassicSimulation = _fixture(race if player_controlled else (race + 1) % 4)
+			sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+			var defender: ClassicStudent = _unit(sim, 0, race, Vector2i(23, 20))
+			var attacker: ClassicStudent = _unit(sim, 1, (race + 1) % 4, Vector2i(24, 20))
+			defender.health = 1000
+			defender.maximum_health = 1000
+			sim._engage_defender(defender, attacker)
+			_check(defender.target_id == -1, "All Expert races ignore automatic cross-tile invitations")
+			sim._apply_hit(attacker, defender)
+			var unrelated: ClassicStudent = _unit(sim, 2, (race + 2) % 4, Vector2i(27, 20))
+			_check(not sim._may_engage(defender, unrelated), "Retaliation is not permission to chase unrelated cross-tile enemies")
+			var deadline: int = sim.ticks + 8 * 18
+			_check(defender.retaliation_until == deadline and defender.target_id == attacker.id, "Actual damage permits eight-second retaliation for every team")
+			sim.ticks += 10
+			sim._apply_hit(attacker, defender)
+			_check(defender.retaliation_until == deadline, "Repeated damage cannot extend retaliation window")
+			# Move the defender beyond its original tile to reproduce pursuit.
+			sim.occupancy.erase(defender.cell)
+			defender.cell = Vector2i(25, 20)
+			sim.occupancy[defender.cell] = defender.id
+			sim.ticks = deadline - 1
+			sim._update_retaliation(defender)
+			_check(not defender.returning_to_tile, "Retaliation allowed before eight seconds")
+			sim.ticks = deadline
+			sim._update_retaliation(defender)
+			_check(defender.returning_to_tile and defender.target_id == -1 and Vector2i(defender.destination.x / 4, defender.destination.y / 4) == Vector2i(5, 5), "Retaliation expires into return order to original tile")
+			sim._apply_hit(attacker, defender)
+			_check(defender.returning_to_tile and defender.retaliation_until == 0 and defender.target_id == -1, "Hits cannot interrupt mandatory return")
+			for tick: int in 200:
+				if defender.state == ClassicStudent.State.WALK:
+					sim._walking(defender)
+				elif defender.state == ClassicStudent.State.WAIT:
+					defender.counter = 0
+					sim._start_turn(defender)
+				sim._update_retaliation(defender)
+				if not defender.returning_to_tile:
+					break
+			_check(not defender.returning_to_tile and Vector2i(defender.cell.x / 4, defender.cell.y / 4) == Vector2i(5, 5), "Unit completes return before normal behaviour resumes")
+			sim.designate_order(defender, Vector2i(8, 8))
+			_check(defender.designated_tile == Vector2i(8, 8) and defender.retaliation_until == 0, "New explicit destination replaces home tile")
