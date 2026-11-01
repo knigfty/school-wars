@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_surrounded_return_tests()
 	_retaliation_leash_tests()
 	_expert_recovery_tests()
 	_player_tile_tests()
@@ -338,19 +339,17 @@ func _expert_strategy_tests() -> void:
 
 func _player_tile_tests() -> void:
 	for race: int in 4:
-		for mode: int in [ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
 			var sim: ClassicSimulation = _fixture(race)
 			sim.difficulty = mode
 			var player: ClassicStudent = _unit(sim, 0, race, Vector2i(23, 20))
 			var enemy: ClassicStudent = _unit(sim, 1, (race + 1) % 4, Vector2i(24, 20))
 			sim._start_sit(player)
-			_check((player.target_id == enemy.id) == (mode == ClassicSimulation.Difficulty.NORMAL), "Cross-tile automatic aggro restricted only on Expert for every player race")
+			_check(player.target_id == -1, "Cross-tile automatic aggro restricted on every Medieval difficulty")
 			player.target_id = -1
 			player.state = ClassicStudent.State.SIT
 			sim._engage_defender(player, enemy)
-			_check((player.target_id == enemy.id) == (mode == ClassicSimulation.Difficulty.NORMAL), "Cross-tile retaliation respects Expert player hold")
-			if mode != ClassicSimulation.Difficulty.EXPERT:
-				continue
+			_check(player.target_id == -1, "Cross-tile invitations respect Medieval player hold")
 			enemy.cell = Vector2i(22, 20)
 			player.target_id = -1
 			player.state = ClassicStudent.State.SIT
@@ -445,10 +444,15 @@ func _expert_recovery_tests() -> void:
 
 
 func _retaliation_leash_tests() -> void:
+	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		_retaliation_leash_for_mode(mode)
+
+
+func _retaliation_leash_for_mode(mode: int) -> void:
 	for race: int in 4:
 		for player_controlled: bool in [false, true]:
 			var sim: ClassicSimulation = _fixture(race if player_controlled else (race + 1) % 4)
-			sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+			sim.difficulty = mode
 			var defender: ClassicStudent = _unit(sim, 0, race, Vector2i(23, 20))
 			var attacker: ClassicStudent = _unit(sim, 1, (race + 1) % 4, Vector2i(24, 20))
 			defender.health = 1000
@@ -487,3 +491,36 @@ func _retaliation_leash_tests() -> void:
 			_check(not defender.returning_to_tile and Vector2i(defender.cell.x / 4, defender.cell.y / 4) == Vector2i(5, 5), "Unit completes return before normal behaviour resumes")
 			sim.designate_order(defender, Vector2i(8, 8))
 			_check(defender.designated_tile == Vector2i(8, 8) and defender.retaliation_until == 0, "New explicit destination replaces home tile")
+
+
+func _surrounded_return_tests() -> void:
+	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		var sim: ClassicSimulation = _fixture(0)
+		sim.difficulty = mode
+		var unit: ClassicStudent = _unit(sim, 0, 0, Vector2i(26, 26))
+		unit.designated_tile = Vector2i(5, 5)
+		unit.retaliation_until = sim.ticks
+		for i: int in 4:
+			var enemy: ClassicStudent = _unit(sim, i + 1, 1, unit.cell + ClassicRules.DIRECTIONS[i])
+			enemy.health = 5 + i
+		sim._update_retaliation(unit)
+		_check(unit.returning_to_tile, "Surrounded unit retains mandatory return")
+		sim._update_retaliation(unit)
+		_check(unit.state == ClassicStudent.State.FIGHT and unit.target_id == 1, "Surrounded returning unit fights lowest-HP adjacent enemy")
+		sim._apply_hit(sim.students[4], unit)
+		_check(unit.target_id == 1 and unit.retaliation_until == 0 and unit.returning_to_tile, "Other hits do not replace weakest target or restart timer")
+		var trapped_cell: Vector2i = unit.cell
+		sim.students[1].state = ClassicStudent.State.UNUSED
+		sim.occupancy.erase(sim.students[1].cell)
+		sim._update_retaliation(unit)
+		_check(unit.target_id == -1 and unit.returning_to_tile and unit.state != ClassicStudent.State.FIGHT, "Opening releases trapped unit to return immediately")
+		_check(unit.cell != trapped_cell or unit.state == ClassicStudent.State.WAIT, "Released unit moves or waits on its return path")
+		for tick: int in 200:
+			if unit.state == ClassicStudent.State.WALK:
+				sim._walking(unit)
+			elif unit.state == ClassicStudent.State.WAIT:
+				sim._start_turn(unit)
+			sim._update_retaliation(unit)
+			if not unit.returning_to_tile:
+				break
+		_check(not unit.returning_to_tile and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == unit.designated_tile, "Return path detours around surviving surrounding units")

@@ -31,6 +31,8 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 
 
 func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStudent) -> void:
+	sim.designate_order(attacker, Vector2i.ZERO, victim.id)
+	attacker.priority_target_id = victim.id
 	sim._face_target(attacker, victim)
 	var old_hp: float = victim.health
 	for attempt: int in 100:

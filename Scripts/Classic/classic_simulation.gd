@@ -222,7 +222,7 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
-	if medieval and difficulty == Difficulty.EXPERT:
+	if medieval:
 		for unit: ClassicStudent in students:
 			_update_retaliation(unit)
 	if medieval:
@@ -306,7 +306,7 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 
 
 func designate_order(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
-	if not medieval or difficulty != Difficulty.EXPERT:
+	if not medieval:
 		return
 	student.designated_tile = Vector2i(students[target_id].cell.x / 4, students[target_id].cell.y / 4) if _valid_enemy(student, target_id) else tile
 	student.retaliation_until = 0
@@ -315,14 +315,14 @@ func designate_order(student: ClassicStudent, tile: Vector2i, target_id: int = -
 
 
 func _holds_player_tile(student: ClassicStudent) -> bool:
-	# Shared Expert hold policy for player and enemy units alike.
-	return medieval and difficulty == Difficulty.EXPERT and not _valid_enemy(student, student.priority_target_id) and (student.retaliation_until == 0 or ticks >= student.retaliation_until)
+	# Shared Medieval hold policy for player and enemy units alike.
+	return medieval and not _valid_enemy(student, student.priority_target_id) and (student.retaliation_until == 0 or ticks >= student.retaliation_until)
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
-	if medieval and difficulty == Difficulty.EXPERT:
+	if medieval:
 		if student.returning_to_tile:
-			return false
+			return target == _trapped_return_enemy(student)
 		if student.retaliation_until > ticks and not _valid_enemy(student, student.priority_target_id):
 			return target.id == student.retaliation_target_id or Vector2i(student.cell.x / 4, student.cell.y / 4) == Vector2i(target.cell.x / 4, target.cell.y / 4)
 	return not _holds_player_tile(student) or Vector2i(student.cell.x / 4, student.cell.y / 4) == Vector2i(target.cell.x / 4, target.cell.y / 4)
@@ -344,20 +344,45 @@ func _update_retaliation(student: ClassicStudent) -> void:
 	if student.returning_to_tile:
 		if student.state != ClassicStudent.State.WALK and Vector2i(student.cell.x / 4, student.cell.y / 4) == student.designated_tile:
 			student.returning_to_tile = false
+			return
+		var enemy: ClassicStudent = _trapped_return_enemy(student)
+		if enemy != null:
+			if student.target_id != enemy.id or student.state != ClassicStudent.State.FIGHT:
+				student.target_id = enemy.id
+				_start_fight(student, enemy)
+		elif student.state == ClassicStudent.State.FIGHT or student.target_id >= 0:
+			student.target_id = -1
+			student.state = ClassicStudent.State.STAND
+			start_walk(student, student.designated_tile)
 		return
 	if student.retaliation_until > 0 and ticks >= student.retaliation_until:
 		_return_to_designated(student)
 
 
+func _trapped_return_enemy(student: ClassicStudent) -> ClassicStudent:
+	for direction: Vector2i in ClassicRules.DIRECTIONS:
+		if not occupancy.has(student.cell + direction):
+			return null
+	var weakest: ClassicStudent = null
+	for direction: Vector2i in ClassicRules.DIRECTIONS:
+		var id: int = int(occupancy[student.cell + direction])
+		if id < 0 or id >= students.size():
+			continue
+		var enemy: ClassicStudent = students[id]
+		if enemy.is_alive() and enemy.team != student.team and (weakest == null or enemy.health < weakest.health):
+			weakest = enemy
+	return weakest
+
+
 func _begin_retaliation(student: ClassicStudent, attacker: ClassicStudent) -> void:
-	if medieval and difficulty == Difficulty.EXPERT and not student.returning_to_tile and not _valid_enemy(student, student.priority_target_id) and student.retaliation_until == 0:
+	if medieval and not student.returning_to_tile and not _valid_enemy(student, student.priority_target_id) and student.retaliation_until == 0:
 		student.retaliation_until = ticks + 8 * ClassicRules.TICKS_PER_SECOND
 		student.retaliation_target_id = attacker.id
 
 
 func _stop_cross_tile_pursuit(student: ClassicStudent) -> bool:
 	if _valid_enemy(student, student.target_id) and not _may_engage(student, students[student.target_id]):
-		if medieval and difficulty == Difficulty.EXPERT:
+		if medieval:
 			_return_to_designated(student)
 		else:
 			student.target_id = -1
@@ -402,7 +427,7 @@ func _start_stand(student: ClassicStudent) -> void:
 
 
 func _start_sit(student: ClassicStudent) -> void:
-	if medieval and difficulty == Difficulty.EXPERT and student.returning_to_tile:
+	if medieval and student.returning_to_tile:
 		student.state = ClassicStudent.State.SIT
 		student.counter = 1
 		return
@@ -573,7 +598,39 @@ func _reserve_step(student: ClassicStudent, direction: int) -> void:
 	student.state = ClassicStudent.State.WALK
 
 
+func _return_step(student: ClassicStudent) -> void:
+	var queue: Array[Vector2i] = [student.cell]
+	var parent: Dictionary = {student.cell: student.cell}
+	var cursor: int = 0
+	while cursor < queue.size():
+		var cell: Vector2i = queue[cursor]
+		cursor += 1
+		if Vector2i(cell.x / 4, cell.y / 4) == student.designated_tile:
+			if cell == student.cell:
+				student.returning_to_tile = false
+				_start_stand(student)
+				return
+			student.destination = cell
+			var next: Vector2i = cell
+			while parent[next] != student.cell:
+				next = parent[next]
+			for direction: int in 4:
+				if student.cell + ClassicRules.DIRECTIONS[direction] == next:
+					_reserve_step(student, direction)
+					return
+		for direction: Vector2i in ClassicRules.DIRECTIONS:
+			var next: Vector2i = cell + direction
+			if ClassicRules.in_grid(next) and not occupancy.has(next) and not parent.has(next):
+				parent[next] = cell
+				queue.append(next)
+	student.state = ClassicStudent.State.WAIT
+	student.counter = 2
+
+
 func _start_turn(student: ClassicStudent) -> void:
+	if medieval and student.returning_to_tile:
+		_return_step(student)
+		return
 	if _stop_cross_tile_pursuit(student):
 		return
 	if student.target_id == student.priority_target_id and _valid_enemy(student, student.priority_target_id):
@@ -817,7 +874,7 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
-	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS:
+	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.retaliation_until > 0 or student.returning_to_tile:
 		return
 	var healthy: bool = is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF
@@ -841,6 +898,9 @@ func _com_order(student: ClassicStudent) -> void:
 			best = cost
 			destination = area.tile
 	if best < INF:
+		designate_order(student, destination)
+		if medieval:
+			student.priority_target_id = -1
 		start_walk(student, destination)
 		student.idle_ticks = 0
 		return
@@ -856,6 +916,9 @@ func _com_order(student: ClassicStudent) -> void:
 			best = cost
 			target_id = other.id
 	if target_id >= 0:
+		designate_order(student, Vector2i.ZERO, target_id)
+		if medieval:
+			student.priority_target_id = target_id
 		start_walk(student, Vector2i.ZERO, target_id)
 		student.idle_ticks = 0
 
