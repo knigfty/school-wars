@@ -121,6 +121,23 @@ func _run() -> void:
 		app.difficulty_selector.select(difficulty)
 		app._start_match(1)
 		_check(app.board.simulation.difficulty == difficulty, "Match receives selected difficulty")
+		app._show_help()
+		var name: String = ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][difficulty]
+		_check(app.modal_body.text.begins_with(name), "Help reflects the active match difficulty")
+		_check(("45 seconds" in app.modal_body.text) == (difficulty == ClassicSimulation.Difficulty.EXPERT), "Expert healing cooldown appears only on Expert")
+		_check(("randomly fight back" in app.modal_body.text) == (difficulty == ClassicSimulation.Difficulty.NORMAL), "Normal retreat choices appear only on Normal")
+		for other: int in 3:
+			if other != difficulty:
+				_check(not ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][other] in app.modal_body.text, "Other difficulty sections are excluded")
+		_check("8 seconds" in app.modal_body.text and "28/32/36" in app.modal_body.text, "Shared rules appear for every difficulty")
+		# Changing a menu control cannot change help for the running match.
+		var other: int = (difficulty + 1) % 3
+		app.difficulty_selector.select(other)
+		app.difficulty_selector.item_selected.emit(other)
+		_check(app.difficulty_selector.tooltip_text.begins_with(["Easy:", "Normal:", "Expert:"][other]), "Selector tooltip updates immediately")
+		app._show_help()
+		_check(app.modal_body.text.begins_with(name), "Help uses match state rather than a changed selector")
+		app.difficulty_selector.select(difficulty)
 		app._show_menu()
 		_check(app.difficulty_selector.selected == difficulty, "Return to menu retains selection")
 	app._start_match(1)
