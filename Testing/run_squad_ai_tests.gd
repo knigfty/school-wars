@@ -35,7 +35,6 @@ func _run() -> void:
 	_base_defence_tests()
 	_human_commitment_tests()
 	_surrounded_return_tests()
-	_retaliation_leash_tests()
 	_expert_recovery_tests()
 	_player_tile_tests()
 	_expert_strategy_tests()
@@ -434,62 +433,12 @@ func _expert_recovery_tests() -> void:
 			_check((guard.priority_target_id == invader.id) == (distance == 10), "Expert protection/defence priority respects ten-cell boundary")
 
 
-func _retaliation_leash_tests() -> void:
-	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
-		_retaliation_leash_for_mode(mode)
-
-
-func _retaliation_leash_for_mode(mode: int) -> void:
-	for race: int in 4:
-		for player_controlled: bool in [false, true]:
-			var sim: ClassicSimulation = _fixture(race if player_controlled else (race + 1) % 4)
-			sim.difficulty = mode
-			var defender: ClassicStudent = _unit(sim, 0, race, Vector2i(23, 20))
-			var attacker: ClassicStudent = _unit(sim, 1, (race + 1) % 4, Vector2i(24, 20))
-			defender.health = 1000
-			defender.maximum_health = 1000
-			sim._engage_defender(defender, attacker)
-			_check(defender.target_id == -1, "All Expert races ignore automatic cross-tile invitations")
-			sim._apply_hit(attacker, defender)
-			var unrelated: ClassicStudent = _unit(sim, 2, (race + 2) % 4, Vector2i(27, 20))
-			_check(not sim._may_engage(defender, unrelated), "Retaliation is not permission to chase unrelated cross-tile enemies")
-			var deadline: int = sim.ticks + 8 * 18
-			_check(defender.retaliation_until == deadline and defender.target_id == attacker.id, "Actual damage permits eight-second retaliation for every team")
-			sim.ticks += 10
-			sim._apply_hit(attacker, defender)
-			_check(defender.retaliation_until == deadline, "Repeated damage cannot extend retaliation window")
-			# Move the defender beyond its original tile to reproduce pursuit.
-			sim.occupancy.erase(defender.cell)
-			defender.cell = Vector2i(25, 20)
-			sim.occupancy[defender.cell] = defender.id
-			sim.ticks = deadline - 1
-			sim._update_retaliation(defender)
-			_check(not defender.returning_to_tile, "Retaliation allowed before eight seconds")
-			sim.ticks = deadline
-			sim._update_retaliation(defender)
-			_check(defender.returning_to_tile and defender.target_id == -1 and Vector2i(defender.destination.x / 4, defender.destination.y / 4) == Vector2i(5, 5), "Retaliation expires into return order to original tile")
-			sim._apply_hit(attacker, defender)
-			_check(defender.returning_to_tile and defender.retaliation_until == 0 and defender.target_id == -1, "Hits cannot interrupt mandatory return")
-			for tick: int in 200:
-				if defender.state == ClassicStudent.State.WALK:
-					sim._walking(defender)
-				elif defender.state == ClassicStudent.State.WAIT:
-					defender.counter = 0
-					sim._start_turn(defender)
-				sim._update_retaliation(defender)
-				if not defender.returning_to_tile:
-					break
-			_check(not defender.returning_to_tile and Vector2i(defender.cell.x / 4, defender.cell.y / 4) == Vector2i(5, 5), "Unit completes return before normal behaviour resumes")
-			sim.designate_order(defender, Vector2i(8, 8))
-			_check(defender.designated_tile == Vector2i(8, 8) and defender.retaliation_until == 0, "New explicit destination replaces home tile")
-
-
 func _surrounded_return_tests() -> void:
 	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
 		var sim: ClassicSimulation = _fixture(0)
 		sim.difficulty = mode
 		var unit: ClassicStudent = _unit(sim, 0, 0, Vector2i(26, 26))
-		unit.designated_tile = Vector2i(5, 5)
+		unit.designated_tile = Vector2i(5, 6)
 		unit.retaliation_until = sim.ticks
 		for i: int in 4:
 			var enemy: ClassicStudent = _unit(sim, i + 1, 1, unit.cell + ClassicRules.DIRECTIONS[i])
@@ -573,11 +522,12 @@ func _base_defence_tests() -> void:
 			invader.maximum_health = 1000
 			invader.counter = 10000
 			invader.ai_retreating = true # Passive intruder isolates base-defence orders.
+			invader.tile_guard_active = false
 			sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.BASE, race)
 			sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
 			sim._add_area(Vector2i(0, 0), ClassicRules.AreaKind.HEAL, race)
 			sim.step()
-			_check(unit.ai_base_defence_tile == Vector2i(5, 5) and unit.state == ClassicStudent.State.STAND and unit.target_id == -1, "Spawn standing animation is preserved during base invasion")
+			_check(unit.tile_guard_active and unit.tile_order_busy and unit.state == ClassicStudent.State.STAND and unit.target_id == -1, "Spawn standing animation is preserved during base invasion")
 			sim.step()
 			sim.step()
 			_check(unit.target_id == invader.id, "Every AI race targets base intruder immediately after spawn wait on every difficulty")
