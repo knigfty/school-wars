@@ -187,6 +187,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.ai_hold_ground_until = 0
 	student.ai_heal_tile = Vector2i(-1, -1)
 	student.ai_heal_decide_at = 0
+	student.ai_heal_ready_at = 0
 	student.lifetime += 1
 	student.damage_contributors.clear()
 	student.team = team
@@ -821,6 +822,10 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 	if not medieval:
 		return damage
 	damage += student.punch_bonus
+	if difficulty == Difficulty.EXPERT and student.team == 0 and student.is_alive() and student.state != ClassicStudent.State.WALK:
+		var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
+		if area_at.has(tile) and areas[area_at[tile]].owner == student.team:
+			damage += 1.0
 	if student.team == 1:
 		# Stable first attacker: each additional engaged orc adds ONE damage,
 		# rather than multiplying the full group bonus across every attacker.

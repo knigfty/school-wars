@@ -120,7 +120,7 @@ Elves below 20% HP seek an owned heart or base and normally recover to 80% HP.
 All medieval elves, including player units, heal only while sitting on an owned
 heart/base after three seconds without being attacked. Active in-range attacks
 block healing even when a punch misses. When threatened, Normal elves randomly
-choose to fight back or seek another healing spot. Expert elves use the same random threatened-healing choice as Normal. Decisions commit for three seconds to limit oscillation;
+choose to fight back or seek another healing spot. Expert recovery priorities and cooldowns are described below. Decisions commit for three seconds to limit oscillation;
 arrival under attack triggers a new decision. Retreat does not grant immunity.
 Orcs focus a shared victim; when locally outnumbered they can flee for at most
 ten seconds, once per unit every thirty seconds measured from flee start.
@@ -142,8 +142,12 @@ Expert retains no opening wait and uses Normal recruitment rates. Enemy unit awa
 
 Humans fill squads to four and prioritize nearby unoccupied capture objectives. Orcs fill squads to six and focus one nearby enemy. Outnumbered orcs in Normal and Expert flee toward an enemy-owned base for up to ten seconds, retaining the thirty-second per-unit cooldown.
 
-Elves use Normal's healing and combat rules with four core members per group; ranged elves may join beyond that limit. They prioritize nearby attackers fighting allies below 20% HP, then capture tiles. Group destinations are spaced apart with a three-tile separation preference, except when responding to the same threatened ally.
+Expert elves form four core members per group; ranged elves may join beyond that limit. They prioritize: (1) retreat to heal at or below 20% HP, (2) protect allies at or below 20% HP within ten movement cells by targeting their attackers, (3) capture enemy/neutral tiles, (4) fight nearby enemies as a group. Healing retreat requires an owned heart/base within ten movement cells and has a forty-five-second per-unit cooldown, measured from retreat start. Elves remain committed until 100% HP. Their existing three-second safe-healing rule remains. Group destinations retain their separation preference.
 
-Demons form groups of four and aggressively focus nearby enemies on their owned tiles, regardless of the strength comparison or their own remaining HP. Once those threats are gone, demons below 30% HP seek an owned heart/base and recover to 80% before returning. Healthy members resume capture orders. Defending owned land takes priority over healing whenever a nearby invasion is detected.
+Expert demons form groups of four and prioritize: (1) retreat to heal at or below 30% HP, (2) defend owned tiles against enemies within ten movement cells, (3) capture enemy/neutral tiles, (4) fight nearby enemies as a group. Healing retreat requires an owned heart/base within ten movement cells and has a thirty-second per-unit cooldown from retreat start. Demons recover to the existing 80% threshold before resuming. Healing now outranks defence. A cooldown blocks starting another retreat, not an ongoing recovery; if no nearby owned healing point exists, normal priorities continue without consuming the cooldown. Losing a committed healing point causes nearby re-evaluation, not a global retreat.
+
+Healing distance uses Manhattan movement-cell distance to the nearest cell on a healing tile (inclusive ten-cell limit), rather than capture-tile distance. These Expert changes do not alter Normal or Easy healing behaviour.
+
+On Expert only, all stationary medieval humans gain +1 punch while on an owned spade, heart or base, including player humans. This is a temporary position bonus added to permanent upgrades; moving off the tile or losing ownership removes it.
 
 On Expert only, player units of every race automatically engage enemies only within their current capture tile. Automatic pursuit stops when the enemy crosses a tile boundary, including retaliation against ranged attackers outside the tile. Explicit attack and movement commands remain available across tiles. Easy and Normal retain the original nearby-enemy aggro behaviour.

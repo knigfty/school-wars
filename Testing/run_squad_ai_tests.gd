@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_expert_recovery_tests()
 	_player_tile_tests()
 	_expert_strategy_tests()
 	_start_delay_tests()
@@ -188,9 +189,9 @@ func _retreat_timing_tests() -> void:
 			ally.punch_bonus = 100
 		sim.squad_ai.update(sim)
 		if supported:
-			_check(not elf.ai_retreating and elf.priority_target_id == enemy.id, "Supported Expert elf fights back")
+			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(5, 5), "Expert elf healing takes priority even with support")
 		else:
-			_check(elf.ai_retreating or elf.priority_target_id == enemy.id, "Expert elves use Normal healing choices")
+			_check(elf.ai_retreating, "Expert elves heal before fighting when a point is nearby")
 	var choices: Dictionary = {}
 	for seed_value: int in 24:
 		sim = _fixture(0)
@@ -306,7 +307,7 @@ func _expert_strategy_tests() -> void:
 	sim._add_area(Vector2i(3, 3), ClassicRules.AreaKind.HEAL, 3)
 	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.squad_ai.update(sim)
-	_check(demon.priority_target_id == invader.id and not demon.ai_retreating, "Wounded Expert demon defends owned tile even against stronger enemy")
+	_check(demon.ai_retreating and demon.priority_target_id == -1, "Expert demon healing takes priority over defence")
 	invader.state = ClassicStudent.State.UNUSED
 	sim.ticks += 18
 	sim.squad_ai.update(sim)
@@ -361,3 +362,82 @@ func _player_tile_tests() -> void:
 			_check(player.priority_target_id == enemy.id and player.target_id == enemy.id, "Explicit attack permits crossing tiles")
 			sim.command([player.id], Vector2i(8, 8))
 			_check(player.priority_target_id == -1 and Vector2i(player.destination.x / 4, player.destination.y / 4) == Vector2i(8, 8), "Explicit move still crosses tiles")
+
+
+func _expert_recovery_tests() -> void:
+	for race: int in [2, 3]:
+		var sim: ClassicSimulation = _fixture(0)
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
+		unit.health = unit.maximum_health * (0.2 if race == 2 else 0.3)
+		# Tile begins at x=28: nearest healing cell is eight movement cells away.
+		sim._add_area(Vector2i(7, 5), ClassicRules.AreaKind.HEAL, race)
+		sim.squad_ai.update(sim)
+		_check(unit.ai_retreating and unit.ai_heal_tile == Vector2i(7, 5), "Expert recovery triggers at exact health threshold")
+		var ready_at: int = sim.ticks + (45 if race == 2 else 30) * 18
+		_check(unit.ai_heal_ready_at == ready_at, "Race-specific healing cooldown starts with retreat")
+		unit.health = unit.maximum_health * 0.9
+		sim.ticks += 1
+		sim.squad_ai.update(sim)
+		_check(unit.ai_retreating == (race == 2), "Elves wait for full HP; demons retain recovery threshold")
+		unit.health = unit.maximum_health
+		sim.ticks += 1
+		sim.squad_ai.update(sim)
+		_check(not unit.ai_retreating, "Full recovery returns to normal orders")
+		unit.health = 1
+		sim.ticks = ready_at - 1
+		sim.squad_ai.update(sim)
+		_check(not unit.ai_retreating, "Healing cooldown prevents early repeated retreat")
+		sim.ticks = ready_at
+		sim.squad_ai.update(sim)
+		_check(unit.ai_retreating, "Healing retreat becomes available at cooldown boundary")
+		# Losing the healing point ends commitment without a global retreat.
+		sim.areas[0].owner = 0
+		sim.ticks += 1
+		sim.squad_ai.update(sim)
+		_check(not unit.ai_retreating, "Lost healing point cancels recovery")
+		sim = _fixture(0)
+		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+		unit = _unit(sim, 0, race, Vector2i(20, 20))
+		unit.health = 1
+		sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.BASE, race)
+		sim.squad_ai.update(sim)
+		_check(not unit.ai_retreating and unit.ai_heal_ready_at == 0, "Healing beyond ten movement cells does not cause retreat or consume cooldown")
+		# Exactly ten cells is allowed.
+		unit.cell = Vector2i(22, 20)
+		sim.squad_ai.update(sim)
+		_check(unit.ai_retreating, "Healing point exactly ten cells away is eligible")
+	for mode: int in [ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.NORMAL, ClassicSimulation.Difficulty.EXPERT]:
+		var sim: ClassicSimulation = _fixture(0)
+		sim.difficulty = mode
+		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
+		var enemy: ClassicStudent = _unit(sim, 1, 1, Vector2i(21, 20))
+		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 0)
+		var baseline: float = ClassicRules.PUNCH[0]
+		_check(sim.get_punch_damage(human, enemy) == baseline + (1 if mode == ClassicSimulation.Difficulty.EXPERT else 0), "Owned-tile human punch bonus is Expert only")
+		sim.areas[0].owner = 1
+		_check(sim.get_punch_damage(human, enemy) == baseline, "Losing owned tile removes human bonus")
+		sim.areas[0].owner = 0
+		human.state = ClassicStudent.State.WALK
+		_check(sim.get_punch_damage(human, enemy) == baseline, "Moving humans do not receive standing bonus")
+
+	for distance: int in [10, 11]:
+		for race: int in [2, 3]:
+			var sim: ClassicSimulation = _fixture(0)
+			sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+			var guard: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
+			var invader: ClassicStudent = _unit(sim, 1, 1, Vector2i(20 + distance, 20))
+			if race == 2:
+				var wounded: ClassicStudent = _unit(sim, 2, race, Vector2i(20 + distance, 21))
+				wounded.health = 1
+				invader.cell.y += 1
+				invader.cell.x -= 1
+				invader.state = ClassicStudent.State.FIGHT
+				invader.target_id = wounded.id
+				# Use ten/eleven Manhattan cells to the ally, not diagonal distance.
+				guard.cell.y += 1
+			else:
+				sim._add_area(Vector2i(invader.cell.x / 4, invader.cell.y / 4), ClassicRules.AreaKind.RECRUIT, race)
+			sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
+			sim.squad_ai.update(sim)
+			_check((guard.priority_target_id == invader.id) == (distance == 10), "Expert protection/defence priority respects ten-cell boundary")
