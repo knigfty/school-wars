@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_base_defence_tests()
 	_human_commitment_tests()
 	_surrounded_return_tests()
 	_retaliation_leash_tests()
@@ -567,3 +568,42 @@ func _human_commitment_tests() -> void:
 			sim.squad_ai.update(sim)
 			_check(not sim.students[2].ai_retreating, "Full HP releases recovered human")
 	_check(outcomes.size() == 2, "Seeded casualty decisions exercise both fifty-percent outcomes")
+
+
+func _base_defence_tests() -> void:
+	for mode: int in 3:
+		for race: int in 4:
+			var sim: ClassicSimulation = _fixture((race + 1) % 4)
+			sim.difficulty = mode
+			sim.ticks = 0
+			var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
+			unit.state = ClassicStudent.State.STAND
+			unit.counter = 2
+			var invader: ClassicStudent = _unit(sim, 1, sim.player_team, Vector2i(21, 20))
+			invader.health = 1000
+			invader.maximum_health = 1000
+			invader.counter = 10000
+			invader.ai_retreating = true # Passive intruder isolates base-defence orders.
+			sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.BASE, race)
+			sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
+			sim._add_area(Vector2i(0, 0), ClassicRules.AreaKind.HEAL, race)
+			sim.step()
+			_check(unit.ai_base_defence_tile == Vector2i(5, 5) and unit.state == ClassicStudent.State.STAND and unit.target_id == -1, "Spawn standing animation is preserved during base invasion")
+			sim.step()
+			sim.step()
+			_check(unit.target_id == invader.id, "Every AI race targets base intruder immediately after spawn wait on every difficulty")
+			unit.health = 1
+			for tick: int in 80:
+				sim.step()
+				_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Base defenders cannot capture, flee or heal elsewhere while invaded")
+			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
+			unit.health = 100
+			sim._apply_hit(outside, unit)
+			_check(unit.retaliation_until == 0 and unit.target_id == invader.id, "Outside attacks cannot lure a locked base defender away")
+			invader.state = ClassicStudent.State.UNUSED
+			sim.occupancy.erase(invader.cell)
+			sim._update_base_defence(unit)
+			_check(unit.ai_base_defence_tile.x < 0, "Clearing last invader releases base defence")
+			sim.designate_order(unit, Vector2i(8, 5))
+			sim.start_walk(unit, Vector2i(8, 5))
+			_check(Vector2i(unit.destination.x / 4, unit.destination.y / 4) == Vector2i(8, 5), "Released defenders can follow new orders")
