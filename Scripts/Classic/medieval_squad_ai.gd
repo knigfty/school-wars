@@ -18,7 +18,7 @@ func update(sim) -> void:
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
 			_human_recover(sim, unit)
 			continue
-		if sim.difficulty == sim.Difficulty.EXPERT and unit.team in [2, 3]:
+		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 2:
 			_try_recovery(sim, unit)
 			continue
 		if unit.team == 2:
@@ -450,8 +450,10 @@ func _nearby_healing_tile(sim, unit: ClassicStudent) -> Vector2i:
 
 
 func _try_recovery(sim, unit: ClassicStudent) -> void:
-	var threshold: float = 0.2 if unit.team == 2 else 0.3
-	var recovered: float = 1.0 if unit.team == 2 else 0.8
+	if unit.team != 2:
+		return
+	var threshold: float = 0.2
+	var recovered: float = 1.0
 	if unit.ai_retreating:
 		if unit.health >= unit.maximum_health * recovered:
 			unit.ai_retreating = false
@@ -471,7 +473,7 @@ func _try_recovery(sim, unit: ClassicStudent) -> void:
 		if destination.x >= 0:
 			unit.ai_retreating = true
 			unit.ai_heal_tile = destination
-			unit.ai_heal_ready_at = sim.ticks + (45 if unit.team == 2 else 30) * ClassicRules.TICKS_PER_SECOND
+			unit.ai_heal_ready_at = sim.ticks + 45 * ClassicRules.TICKS_PER_SECOND
 			_move(sim, unit, destination)
 
 

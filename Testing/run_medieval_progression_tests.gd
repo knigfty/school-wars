@@ -47,6 +47,7 @@ func _hit(sim: ClassicSimulation, attacker: ClassicStudent, victim: ClassicStude
 
 
 func _run() -> void:
+	_test_demon_healing()
 	_test_expert_enemy_rewards()
 	_test_new_mechanics()
 	_test_humans()
@@ -419,3 +420,37 @@ func _test_expert_enemy_rewards() -> void:
 				for unit: ClassicStudent in [killer, assist]:
 					_check((unit.maximum_health - ClassicRules.HEALTH[race] if race == 2 else unit.punch_bonus) == reward, "Double reward applies only to Expert enemy kills and assists")
 					_check((" + %d " % reward) in unit.event_text, "Reward popup displays actual increment")
+
+
+func _test_demon_healing() -> void:
+	for mode: int in 3:
+		var sim: ClassicSimulation = _sim()
+		sim.difficulty = mode
+		var demon: ClassicStudent = _unit(sim, 0, 3, Vector2i(20, 20))
+		demon.state = ClassicStudent.State.SIT
+		demon.health = 2
+		demon.counter = 10000
+		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 3)
+		sim._sitting(demon)
+		_check(demon.health == 2, "Demon cannot heal on an owned heart")
+		sim.areas[sim.area_at[Vector2i(5, 5)]].kind = ClassicRules.AreaKind.BASE
+		sim._sitting(demon)
+		_check(is_equal_approx(demon.health, 2.1), "Demon can heal while seated on an owned base")
+		var assist: ClassicStudent = _unit(sim, 1, 3, Vector2i(20, 21))
+		var expired: ClassicStudent = _unit(sim, 2, 3, Vector2i(20, 22))
+		var victim: ClassicStudent = _unit(sim, 3, 1, Vector2i(21, 20))
+		demon.health = 2
+		assist.health = 2
+		expired.health = 2
+		sim.ticks = 100
+		victim.damage_contributors[demon.id] = {"tick": 100, "lifetime": demon.lifetime, "team": 3}
+		victim.damage_contributors[assist.id] = {"tick": 46, "lifetime": assist.lifetime, "team": 3}
+		victim.damage_contributors[expired.id] = {"tick": 45, "lifetime": expired.lifetime, "team": 3}
+		sim._reward_defeat(demon, victim)
+		_check(demon.health == 5, "Demon killer heals three HP without extra assist healing")
+		_check(assist.health == 3 and expired.health == 2, "Demon assist healing includes exactly three seconds and excludes older hits")
+		demon.health = demon.maximum_health - 1
+		assist.health = assist.maximum_health
+		victim.damage_contributors[assist.id] = {"tick": 100, "lifetime": assist.lifetime, "team": 3}
+		sim._reward_defeat(demon, victim)
+		_check(demon.health == demon.maximum_health and assist.health == assist.maximum_health, "Combat healing cannot exceed maximum HP")

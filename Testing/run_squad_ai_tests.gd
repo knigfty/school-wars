@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_demon_no_healing_retreat_tests()
 	_base_defence_tests()
 	_human_commitment_tests()
 	_surrounded_return_tests()
@@ -311,11 +312,11 @@ func _expert_strategy_tests() -> void:
 	sim._add_area(Vector2i(3, 3), ClassicRules.AreaKind.HEAL, 3)
 	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.squad_ai.update(sim)
-	_check(demon.ai_retreating and demon.priority_target_id == -1, "Expert demon healing takes priority over defence")
+	_check(not demon.ai_retreating and demon.priority_target_id == invader.id, "Wounded Expert demon defends rather than retreating to heal")
 	invader.state = ClassicStudent.State.UNUSED
 	sim.ticks += 18
 	sim.squad_ai.update(sim)
-	_check(demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(3, 3), "After defence demon below thirty percent seeks healing")
+	_check(not demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(8, 8), "Wounded demon captures after defence without healing retreat")
 	demon.health = demon.maximum_health
 	sim.ticks += 18
 	sim.squad_ai.update(sim)
@@ -367,7 +368,7 @@ func _player_tile_tests() -> void:
 
 
 func _expert_recovery_tests() -> void:
-	for race: int in [2, 3]:
+	for race: int in [2]:
 		var sim: ClassicSimulation = _fixture(0)
 		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 		var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
@@ -607,3 +608,20 @@ func _base_defence_tests() -> void:
 			sim.designate_order(unit, Vector2i(8, 5))
 			sim.start_walk(unit, Vector2i(8, 5))
 			_check(Vector2i(unit.destination.x / 4, unit.destination.y / 4) == Vector2i(8, 5), "Released defenders can follow new orders")
+
+
+func _demon_no_healing_retreat_tests() -> void:
+	for mode: int in 3:
+		var sim: ClassicSimulation = _fixture(0)
+		sim.difficulty = mode
+		var demon: ClassicStudent = _unit(sim, 0, 3, Vector2i(20, 20))
+		demon.health = 1
+		demon.idle_ticks = 500
+		sim._add_area(Vector2i(0, 0), ClassicRules.AreaKind.BASE, 3)
+		sim._add_area(Vector2i(3, 3), ClassicRules.AreaKind.HEAL, 3)
+		sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
+		if mode == ClassicSimulation.Difficulty.EASY:
+			sim._com_order(demon)
+		else:
+			sim.squad_ai.update(sim)
+		_check(not demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(8, 5), "Wounded demons pursue objectives instead of retreating to hearts or bases on every difficulty")

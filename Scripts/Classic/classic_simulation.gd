@@ -529,7 +529,7 @@ func _sitting(student: ClassicStudent) -> void:
 					if color != student.team:
 						area.progress[color] = 0
 				_update_leader()
-		if area.owner == student.team and area.kind != ClassicRules.AreaKind.RECRUIT and can_heal(student):
+		if area.owner == student.team and area.kind != ClassicRules.AreaKind.RECRUIT and (not medieval or student.team != 3 or area.kind == ClassicRules.AreaKind.BASE) and can_heal(student):
 			student.health = minf(student.maximum_health, student.health + ClassicRules.HEAL_PER_TICK * (2.0 if medieval and student.team == 2 and area.kind == ClassicRules.AreaKind.HEAL else 1.0))
 	student.counter -= 1
 	student.idle_ticks += 1
@@ -926,7 +926,7 @@ func uses_squad_ai() -> bool:
 func _com_order(student: ClassicStudent) -> void:
 	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
 		return
-	var healthy: bool = is_equal_approx(student.health, student.maximum_health)
+	var healthy: bool = (medieval and student.team == 3) or is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF
 	var destination: Vector2i = Vector2i.ZERO
 	var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
@@ -1077,13 +1077,17 @@ func can_capture_area(area: Dictionary, team: int) -> bool:
 
 
 func _capture_areas() -> void:
-	# Snapshot seated counts once per tick, independent of unit processing order.
+	# All living opponents contest a tile; only seated allies produce progress.
 	var seated: Dictionary = {}
+	var presence: Dictionary = {}
 	for student: ClassicStudent in students:
-		if student.state != ClassicStudent.State.SIT:
+		if not student.is_alive():
 			continue
 		var tile: Vector2i = Vector2i(student.cell.x / 4, student.cell.y / 4)
 		if not area_at.has(tile):
+			continue
+		presence[tile] = int(presence.get(tile, 0)) | (1 << student.team)
+		if student.state != ClassicStudent.State.SIT:
 			continue
 		if not seated.has(tile):
 			seated[tile] = [0, 0, 0, 0]
@@ -1093,7 +1097,7 @@ func _capture_areas() -> void:
 			continue
 		for team: int in 4:
 			var count: int = seated[area.tile][team]
-			if count == 0 or not can_capture_area(area, team):
+			if count == 0 or int(presence[area.tile]) != (1 << team) or not can_capture_area(area, team):
 				continue
 			var gain: float = float(count)
 			if team == 0:
@@ -1177,6 +1181,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			killer.show_event("+3 RANGE")
 		elif killer.level == 4:
 			killer.show_event("+1 TARGET")
+	if killer.team == 3 and killer.is_alive():
+		killer.health = minf(killer.maximum_health, killer.health + 3.0)
 	# Damage records include the killing blow, so each contributor is rewarded once.
 	for id: int in victim.damage_contributors:
 		var record: Dictionary = victim.damage_contributors[id]
@@ -1188,6 +1194,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			contributor.show_event("%d + %d HP" % [int(contributor.maximum_health), reward])
 			contributor.maximum_health += reward
 		elif contributor.team == 3:
+			if contributor.id != killer.id:
+				contributor.health = minf(contributor.maximum_health, contributor.health + 1.0)
 			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.team != player_team else 1
 			contributor.show_event("%d + %d PUNCH" % [int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus), reward])
 			contributor.punch_bonus += reward

@@ -40,6 +40,7 @@ func _seat(sim: ClassicSimulation, count: int, team: int, tile: Vector2i) -> voi
 
 
 func _run() -> void:
+	_contested_capture_tests()
 	var durations: Array[int] = [12, 9, 6, 4, 2, 1, 1, 1, 1, 1, 1, 1]
 	for count: int in range(1, 13):
 		for kind: int in [ClassicRules.AreaKind.RECRUIT, ClassicRules.AreaKind.HEAL, ClassicRules.AreaKind.BASE]:
@@ -198,3 +199,28 @@ func _run() -> void:
 
 	print("Medieval capture/base tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
+
+
+func _contested_capture_tests() -> void:
+	for mode: int in 3:
+		for kind: int in [ClassicRules.AreaKind.RECRUIT, ClassicRules.AreaKind.HEAL, ClassicRules.AreaKind.BASE]:
+			var sim: ClassicSimulation = _empty_sim()
+			sim.difficulty = mode
+			sim._add_area(Vector2i(5, 5), kind, 1 if kind == ClassicRules.AreaKind.BASE else -1)
+			sim.active[1] = false
+			_seat(sim, 1, 0, Vector2i(5, 5))
+			var enemy: ClassicStudent = sim.students[20]
+			sim._initialize_student(enemy, 2, Vector2i(21, 20))
+			sim.areas[0].progress[0] = 123.0
+			for state: int in [ClassicStudent.State.SIT, ClassicStudent.State.STAND, ClassicStudent.State.WALK, ClassicStudent.State.FIGHT, ClassicStudent.State.WAIT]:
+				enemy.state = state
+				sim._capture_areas()
+				_check(sim.areas[0].progress[0] == 123, "Living opponent in any active state pauses capture without losing progress")
+			enemy.state = ClassicStudent.State.DEAD
+			for state: int in [ClassicStudent.State.WALK, ClassicStudent.State.FIGHT]:
+				sim.students[0].state = state
+				sim._capture_areas()
+				_check(sim.areas[0].progress[0] == 123, "Moving or fighting units cannot generate capture progress")
+			sim.students[0].state = ClassicStudent.State.SIT
+			sim._capture_areas()
+			_check(sim.areas[0].progress[0] > 123, "Seated units resume capture once no living opponents remain")
