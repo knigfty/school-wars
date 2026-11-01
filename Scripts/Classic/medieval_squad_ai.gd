@@ -5,7 +5,7 @@ extends RefCounted
 var squads: Array[Array] = []
 var next_plan: int = 0
 var lifetimes: Dictionary = {}
-var hunted_team: int = -1
+var elf_orders: Array[Vector2i] = []
 
 
 func update(sim) -> void:
@@ -23,7 +23,7 @@ func update(sim) -> void:
 				unit.ai_retreating = false
 			if unit.ai_retreating:
 				_heal(sim, unit)
-		elif unit.ai_retreating and sim.ticks >= unit.ai_flee_until:
+		elif unit.team == 1 and unit.ai_retreating and sim.ticks >= unit.ai_flee_until:
 			unit.ai_retreating = false
 			# Cancel the escape destination immediately, even between squad decisions.
 			unit.state = ClassicStudent.State.STAND
@@ -33,6 +33,7 @@ func update(sim) -> void:
 		return
 	next_plan = sim.ticks + (18 if sim.difficulty == sim.Difficulty.EXPERT else 36)
 	_refresh(sim)
+	elf_orders.clear()
 	for squad: Array in squads:
 		_plan(sim, squad)
 
@@ -84,14 +85,14 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not unit.ai_retreating and sim.ticks >= unit.ai_hold_ground_until:
+		if (not unit.ai_retreating or (unit.team == 3 and sim.difficulty == sim.Difficulty.EXPERT)) and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
 		return
 	center /= ready.size()
 	var team: int = ready[0].team
-	var global_awareness: bool = sim.difficulty == sim.Difficulty.EXPERT
+	var expert: bool = sim.difficulty == sim.Difficulty.EXPERT
 	var radius: float = 16.0
 	var enemies: Array[ClassicStudent] = []
 	var allies: int = 0
@@ -106,28 +107,32 @@ func _plan(sim, squad: Array) -> void:
 		else:
 			if nearby:
 				nearby_enemies += 1
-			if nearby or global_awareness:
+			if nearby:
 				enemies.append(other)
-	# Awareness is global in Expert; being outnumbered is still a local threat.
+	# All difficulties assess nearby enemies only.
 	if team == 1 and nearby_enemies > allies:
-		var escape: Vector2i = _escape_tile(sim, ready[0], enemies)
+		var escape: Vector2i = _enemy_base(sim, ready[0])
 		for i: int in range(ready.size() - 1, -1, -1):
 			var unit: ClassicStudent = ready[i]
 			if sim.ticks >= unit.ai_flee_ready_at:
 				unit.ai_retreating = true
-				unit.ai_flee_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
+				unit.ai_flee_until = sim.ticks + 10 * ClassicRules.TICKS_PER_SECOND
 				unit.ai_flee_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
 				_move(sim, unit, escape)
 				ready.remove_at(i)
 		if ready.is_empty():
 			return
+	# Protection and territorial defence outrank regrouping.
+	if expert and team in [2, 3]:
+		_plan_expert(sim, ready, center)
+		return
 	# Rally separated members before advancing; pairs/trios remain valid squads.
 	for unit: ClassicStudent in ready:
 		if center.distance_to(Vector2(unit.cell)) > 12.0:
 			for member: ClassicStudent in ready:
 				_move(sim, member, Vector2i(center / 4.0))
 			return
-	if global_awareness:
+	if expert:
 		_plan_expert(sim, ready, center)
 		return
 	var target: ClassicStudent = null
@@ -207,13 +212,13 @@ func _heal(sim, unit: ClassicStudent) -> void:
 		if threatened and area.tile == current_tile:
 			continue
 		var distance: float = unit.cell.distance_squared_to(area.tile * 4 + Vector2i(2, 2))
-		if sim.difficulty == sim.Difficulty.EXPERT:
+		if sim.difficulty == sim.Difficulty.EXPERT and unit.team != 2:
 			distance += _danger_at(sim, unit.team, area.tile * 4 + Vector2i(2, 2)) * 10.0
 		if distance < best:
 			best = distance
 			destination = area.tile
 	if threatened:
-		var fight: bool = sim.rng.randf() < 0.5 if sim.difficulty == sim.Difficulty.NORMAL else _danger_at(sim, unit.team, unit.cell) <= 0.0
+		var fight: bool = sim.rng.randf() < 0.5 if sim.difficulty == sim.Difficulty.NORMAL or unit.team == 2 else _danger_at(sim, unit.team, unit.cell) <= 0.0
 		if fight:
 			var target: ClassicStudent = null
 			var nearest: float = INF
@@ -312,46 +317,6 @@ func _refresh_expert(sim) -> void:
 			squads.append([unit])
 		else:
 			group.append(unit)
-	_select_hunt(sim)
-
-
-func _team_power(sim, team: int) -> float:
-	var power: float = 0.0
-	for unit: ClassicStudent in sim.students:
-		if unit.is_alive() and unit.team == team:
-			power += _strength(sim, unit)
-	return power
-
-
-func _select_hunt(sim) -> void:
-	if sim.player_team == 3:
-		return
-	# Finish taking the defeated race's base before choosing the next campaign.
-	if hunted_team >= 0 and not sim.active[hunted_team]:
-		for area: Dictionary in sim.areas:
-			if area.kind == ClassicRules.AreaKind.BASE and area.tile == sim.bases[hunted_team] and sim.can_capture_area(area, 3):
-				return
-	var own_power: float = _team_power(sim, 3)
-	var best: float = INF
-	var selected: int = -1
-	for team: int in 3:
-		var enemy_power: float = _team_power(sim, team)
-		if not sim.active[team] or enemy_power <= 0.0 or own_power < enemy_power * 1.25:
-			continue
-		var distance: float = INF
-		for demon: ClassicStudent in sim.students:
-			if not demon.is_alive() or demon.team != 3:
-				continue
-			for enemy: ClassicStudent in sim.students:
-				if enemy.is_alive() and enemy.team == team:
-					distance = minf(distance, demon.cell.distance_to(enemy.cell))
-		# Retain a viable campaign instead of switching races every decision.
-		if team == hunted_team:
-			distance -= 8.0
-		if distance < best:
-			best = distance
-			selected = team
-	hunted_team = selected
 
 
 func _focus(sim, ready: Array[ClassicStudent], target: ClassicStudent) -> void:
@@ -370,7 +335,7 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	var target: ClassicStudent = null
 	var best: float = INF
 	for enemy: ClassicStudent in sim.students:
-		if not enemy.is_alive() or enemy.team == team:
+		if not enemy.is_alive() or enemy.team == team or center.distance_to(Vector2(enemy.cell)) > 16.0:
 			continue
 		var score: float = center.distance_to(Vector2(enemy.cell))
 		if team == 2:
@@ -381,14 +346,9 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 			if not protects:
 				continue
 		elif team == 3:
-			if hunted_team >= 0:
-				if enemy.team != hunted_team:
-					continue
-			else:
-				# Without campaign superiority, defend owned land instead of chasing.
-				var tile: Vector2i = Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
-				if not sim.area_at.has(tile) or sim.areas[sim.area_at[tile]].owner != team:
-					continue
+			var tile: Vector2i = Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
+			if not sim.area_at.has(tile) or sim.areas[sim.area_at[tile]].owner != team:
+				continue
 			score += enemy.health * 0.25
 		else:
 			score += enemy.health * 0.4
@@ -396,8 +356,21 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 			best = score
 			target = enemy
 	if target != null and team != 0:
+		for unit: ClassicStudent in ready:
+			unit.ai_retreating = false
 		_focus(sim, ready, target)
 		return
+	if team == 3:
+		for i: int in range(ready.size() - 1, -1, -1):
+			var unit: ClassicStudent = ready[i]
+			if unit.health < unit.maximum_health * 0.3 or (unit.ai_retreating and unit.health < unit.maximum_health * 0.8):
+				unit.ai_retreating = true
+				_recover(sim, unit)
+				ready.remove_at(i)
+			else:
+				unit.ai_retreating = false
+		if ready.is_empty():
+			return
 	var objective: Vector2i = Vector2i(-1, -1)
 	best = INF
 	for area: Dictionary in sim.areas:
@@ -407,21 +380,64 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 		if team == 0:
 			var occupied: bool = false
 			for enemy: ClassicStudent in sim.students:
-				if enemy.is_alive() and enemy.team != team and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == area.tile:
+				if enemy.is_alive() and enemy.team != team and center.distance_to(Vector2(enemy.cell)) <= 16.0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == area.tile:
 					occupied = true
 					break
 			if occupied:
 				continue
-		if team == 3:
-			if hunted_team >= 0 and area.tile == sim.bases[hunted_team] and area.kind == ClassicRules.AreaKind.BASE:
-				score -= 1000.0
-			elif _danger_at(sim, team, area.tile * 4 + Vector2i(2, 2)) > 0.0:
-				continue
+		if team == 2:
+			score += _elf_spacing_cost(area.tile, ready)
 		if score < best:
 			best = score
 			objective = area.tile
+	if objective.x < 0 and target == null and team == 2:
+		for y: int in 16:
+			for x: int in 16:
+				var tile: Vector2i = Vector2i(x, y)
+				var score: float = center.distance_to(Vector2(tile * 4 + Vector2i(2, 2))) + _elf_spacing_cost(tile, ready)
+				if score < best:
+					best = score
+					objective = tile
 	if objective.x >= 0:
+		if team == 2:
+			elf_orders.append(objective)
 		for unit: ClassicStudent in ready:
 			_move(sim, unit, objective)
 	elif target != null:
 		_focus(sim, ready, target)
+
+
+func _enemy_base(sim, unit: ClassicStudent) -> Vector2i:
+	var destination: Vector2i = Vector2i(unit.cell.x / 4, unit.cell.y / 4)
+	var best: float = INF
+	for area: Dictionary in sim.areas:
+		if area.kind == ClassicRules.AreaKind.BASE and area.owner >= 0 and area.owner != unit.team and sim.active[area.owner]:
+			var distance: float = unit.cell.distance_squared_to(area.tile * 4 + Vector2i(2, 2))
+			if distance < best:
+				best = distance
+				destination = area.tile
+	return destination
+
+
+func _recover(sim, unit: ClassicStudent) -> void:
+	var destination: Vector2i = Vector2i(-1, -1)
+	var best: float = INF
+	for area: Dictionary in sim.areas:
+		if area.owner == unit.team and area.kind != ClassicRules.AreaKind.RECRUIT:
+			var distance: float = unit.cell.distance_squared_to(area.tile * 4 + Vector2i(2, 2))
+			if distance < best:
+				best = distance
+				destination = area.tile
+	if destination.x >= 0:
+		_move(sim, unit, destination)
+
+
+func _elf_spacing_cost(tile: Vector2i, ready: Array[ClassicStudent]) -> float:
+	var cost: float = 0.0
+	var cell: Vector2 = Vector2(tile * 4 + Vector2i(2, 2))
+	for squad: Array in squads:
+		if squad[0].team == 2 and not squad.has(ready[0]):
+			cost += maxf(0.0, 12.0 - cell.distance_to(Vector2(squad[0].cell))) * 20.0
+	for destination: Vector2i in elf_orders:
+		cost += maxf(0.0, 12.0 - cell.distance_to(Vector2(destination * 4 + Vector2i(2, 2)))) * 100.0
+	return cost

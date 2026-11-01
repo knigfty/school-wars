@@ -84,11 +84,12 @@ func _run() -> void:
 	sim = _fixture()
 	var orc: ClassicStudent = _unit(sim, 0, 1, Vector2i(8, 8))
 	sim.bases[1] = Vector2i.ZERO
+	sim._add_area(Vector2i(15, 15), ClassicRules.AreaKind.BASE, 0)
 	_unit(sim, 1, 0, Vector2i(9, 8))
 	_unit(sim, 2, 0, Vector2i(9, 9))
 	sim.squad_ai.update(sim)
 	_check(orc.ai_retreating and orc.target_id == -1, "Outnumbered orc flees")
-	_check(orc.destination.distance_to(Vector2i.ZERO) > orc.cell.distance_to(Vector2i.ZERO), "Orc draws enemies away from base")
+	_check(orc.destination.distance_to(Vector2i.ZERO) > orc.cell.distance_to(Vector2i.ZERO), "Orc flees toward enemy base")
 
 	sim = _fixture()
 	var a: ClassicStudent = _unit(sim, 0, 1, Vector2i(20, 20))
@@ -136,7 +137,7 @@ func _run() -> void:
 			weak = _unit(sim, 2, (team + 1) % 4, Vector2i(61, 61))
 			weak.health = 1
 			sim.squad_ai.update(sim)
-			_check((a.priority_target_id == weak.id and b.priority_target_id == weak.id) == (mode == ClassicSimulation.Difficulty.EXPERT and team != 2), "Whole-map Expert awareness for race %d" % team)
+			_check((a.priority_target_id == weak.id and b.priority_target_id == weak.id) == false, "Whole-map Expert awareness for race %d" % team)
 	# Remote enemies must not make locally safe Expert orcs flee.
 	sim = _fixture(0)
 	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
@@ -144,7 +145,7 @@ func _run() -> void:
 	for i: int in 3:
 		_unit(sim, i + 1, 0, Vector2i(58 + i, 60))
 	sim.squad_ai.update(sim)
-	_check(not a.ai_retreating and a.priority_target_id >= 0, "Expert orcs distinguish distant enemies from local outnumbering")
+	_check(not a.ai_retreating and a.priority_target_id == -1, "Expert orcs ignore distant enemies")
 	print("Squad AI tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 
@@ -188,7 +189,7 @@ func _retreat_timing_tests() -> void:
 		if supported:
 			_check(not elf.ai_retreating and elf.priority_target_id == enemy.id, "Supported Expert elf fights back")
 		else:
-			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(12, 12), "Unsupported Expert elf seeks another healing spot")
+			_check(elf.ai_retreating or elf.priority_target_id == enemy.id, "Expert elves use Normal healing choices")
 	var choices: Dictionary = {}
 	for seed_value: int in 24:
 		sim = _fixture(0)
@@ -207,13 +208,13 @@ func _retreat_timing_tests() -> void:
 	_unit(sim, 1, 0, Vector2i(21, 20))
 	_unit(sim, 2, 0, Vector2i(21, 21))
 	sim.squad_ai.update(sim)
-	_check(orc.ai_flee_until == 454 and orc.ai_flee_ready_at == 940, "Orc flee lasts three seconds with thirty-second reuse")
-	sim.ticks = 453
+	_check(orc.ai_flee_until == 580 and orc.ai_flee_ready_at == 940, "Orc flee lasts ten seconds with thirty-second reuse")
+	sim.ticks = 579
 	sim.squad_ai.update(sim)
-	_check(orc.ai_retreating, "Orc can flee before three seconds elapse")
-	sim.ticks = 454
+	_check(orc.ai_retreating, "Orc can flee before ten seconds elapse")
+	sim.ticks = 580
 	sim.squad_ai.update(sim)
-	_check(not orc.ai_retreating and orc.priority_target_id >= 0, "Orc returns to combat at three seconds despite outnumbering")
+	_check(not orc.ai_retreating and orc.priority_target_id >= 0, "Orc returns to combat at ten seconds despite outnumbering")
 	sim.ticks = 939
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
@@ -221,7 +222,7 @@ func _retreat_timing_tests() -> void:
 	sim.ticks = 940
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
-	_check(orc.ai_retreating and orc.ai_flee_until == 994, "Orc may flee again after thirty seconds")
+	_check(orc.ai_retreating and orc.ai_flee_until == 1120, "Orc may flee again after thirty seconds")
 	sim._initialize_student(orc, 1, Vector2i(20, 20))
 	_check(orc.ai_flee_ready_at == 0 and not orc.ai_retreating, "New orc lifetime resets flee cooldown")
 
@@ -297,21 +298,36 @@ func _expert_strategy_tests() -> void:
 	sim = _fixture(0)
 	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 	var demon: ClassicStudent = _unit(sim, 0, 3, Vector2i(20, 20))
-	var strong: ClassicStudent = _unit(sim, 1, 0, Vector2i(21, 20))
-	strong.punch_bonus = 100
-	var weak: ClassicStudent = _unit(sim, 2, 2, Vector2i(32, 20))
-	weak.health = 1
+	demon.health = 1
+	var invader: ClassicStudent = _unit(sim, 1, 0, Vector2i(21, 20))
+	invader.punch_bonus = 100
+	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, 3)
+	sim._add_area(Vector2i(3, 3), ClassicRules.AreaKind.HEAL, 3)
+	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.squad_ai.update(sim)
-	_check(sim.squad_ai.hunted_team == 2 and demon.priority_target_id == weak.id, "Demons choose beatable race rather than nearer stronger race")
-	weak.health = 1000
-	sim._add_area(Vector2i(5, 8), ClassicRules.AreaKind.RECRUIT, -1)
+	_check(demon.priority_target_id == invader.id and not demon.ai_retreating, "Wounded Expert demon defends owned tile even against stronger enemy")
+	invader.state = ClassicStudent.State.UNUSED
 	sim.ticks += 18
 	sim.squad_ai.update(sim)
-	_check(sim.squad_ai.hunted_team == -1 and demon.priority_target_id == -1, "Demons abandon unwinnable campaign and capture")
-	weak.state = ClassicStudent.State.UNUSED
-	sim.active[2] = false
-	sim.squad_ai.hunted_team = 2
-	sim._add_area(sim.bases[2], ClassicRules.AreaKind.BASE, 2)
+	_check(demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(3, 3), "After defence demon below thirty percent seeks healing")
+	demon.health = demon.maximum_health
 	sim.ticks += 18
 	sim.squad_ai.update(sim)
-	_check(Vector2i(demon.destination.x / 4, demon.destination.y / 4) == sim.bases[2], "Demons capture defeated campaign race base")
+	_check(not demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(8, 8), "Healthy demon captures after defence")
+	sim = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	demon = _unit(sim, 0, 3, Vector2i(2, 2))
+	invader = _unit(sim, 1, 1, Vector2i(61, 61))
+	sim._add_area(Vector2i(15, 15), ClassicRules.AreaKind.RECRUIT, 3)
+	sim.squad_ai.update(sim)
+	_check(demon.priority_target_id == -1, "Distant invasion does not grant Expert demon global awareness")
+
+	# Separate objectives prevent nearby elf groups from piling onto one tile.
+	sim = _fixture(0)
+	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
+	for id: int in 8:
+		_unit(sim, id, 2, Vector2i(20 + id, 20))
+	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
+	sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
+	sim.squad_ai.update(sim)
+	_check(sim.students[0].destination.distance_to(sim.students[4].destination) >= 12, "Expert elf groups choose separated destinations")

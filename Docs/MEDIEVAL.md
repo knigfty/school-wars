@@ -110,7 +110,7 @@ race and persists when returning to race selection or replaying a match.
 - **Normal:** persistent squads of 2–4 where population allows, with strategic
   decisions every two seconds. It shares Easy's 400-tick opening wait (about
   22.2 seconds); this wait applies only at match start, not to reinforcements.
-- **Expert:** squad decisions every second, no opening wait, and whole-map unit/stat awareness. Enemy recruitment runs at 1.5 times the Normal rate (two-thirds the interval); the player, Easy, Normal and Classic spawn rates remain unchanged.
+- **Expert:** squad decisions every second, no opening wait, and local enemy awareness. Enemy recruitment runs at 1.5 times the Normal rate (two-thirds the interval); the player, Easy, Normal and Classic spawn rates remain unchanged.
 
 Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
@@ -120,14 +120,11 @@ Elves below 20% HP seek an owned heart or base and normally recover to 80% HP.
 All medieval elves, including player units, heal only while sitting on an owned
 heart/base after three seconds without being attacked. Active in-range attacks
 block healing even when a punch misses. When threatened, Normal elves randomly
-choose to fight back or seek another healing spot. Expert evaluates nearby allied
-and enemy combat strength, fighting with sufficient support and otherwise choosing
-a safer healing destination. Decisions commit for three seconds to limit oscillation;
+choose to fight back or seek another healing spot. Expert elves use the same random threatened-healing choice as Normal. Decisions commit for three seconds to limit oscillation;
 arrival under attack triggers a new decision. Retreat does not grant immunity.
 Orcs focus a shared victim; when locally outnumbered they can flee for at most
-three seconds, once per unit every thirty seconds measured from flee start.
-Cooldown orcs keep fighting even when squadmates flee. They choose space away
-from their base to buy recruitment time. Demons favour low-HP
+ten seconds, once per unit every thirty seconds measured from flee start.
+Cooldown orcs keep fighting even when squadmates flee. They flee toward the nearest active enemy-owned base. Demons favour low-HP
 prey and compare their squad's health, damage and reach against nearby defenders
 before selecting an attack. Orcs value spades; elves value hearts.
 
@@ -141,8 +138,10 @@ Human fourth-level attacks snapshot at most one secondary enemy before applying 
 
 ### Expert race strategy
 
-Expert builds on Normal's combat, healing and flee rules. Humans fill squads to four before creating another and prioritize the nearest capturable tile with no enemy occupants. Orcs fill squads to six and focus a shared enemy. Unlike Normal, Expert does not split a full squad to form a pair with one extra recruit.
+Expert retains no opening wait and 50% faster enemy recruitment. Enemy unit awareness is local (16 cells, the same as Normal); there is no global army/stat evaluation or demon race campaign. Known tile ownership and base locations still guide movement.
 
-Elves form groups of four core units; elves with unlocked range (28+ maximum HP) can join beyond that limit. Healthy members prioritize attackers currently fighting allies below 20% HP, then capture objectives. Wounded elves retain their retreat, healing safety window and supported fight-back behaviour.
+Humans fill squads to four and prioritize nearby unoccupied capture objectives. Orcs fill squads to six and focus one nearby enemy. Outnumbered orcs in Normal and Expert flee toward an enemy-owned base for up to ten seconds, retaining the thirty-second per-unit cooldown.
 
-Demons fill groups to four. They assess every race's living units using summed current HP × punch × range weighting, thus including population, injuries and upgrades, and compare it with their own army. Campaigns require a 25% estimated strength advantage. They choose the nearest eligible race by unit locations, retain a viable campaign to reduce switching, focus its units, and prioritize taking its base after elimination. If no race is beatable, they capture safe tiles and defend owned tiles instead of hunting. This is a heuristic assessment, not a guarantee of victory; positioning and reinforcements can change the result, so it is reassessed each decision.
+Elves use Normal's healing and combat rules with four core members per group; ranged elves may join beyond that limit. They prioritize nearby attackers fighting allies below 20% HP, then capture tiles. Group destinations are spaced apart with a three-tile separation preference, except when responding to the same threatened ally.
+
+Demons form groups of four and aggressively focus nearby enemies on their owned tiles, regardless of the strength comparison or their own remaining HP. Once those threats are gone, demons below 30% HP seek an owned heart/base and recover to 80% before returning. Healthy members resume capture orders. Defending owned land takes priority over healing whenever a nearby invasion is detected.
