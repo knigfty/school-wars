@@ -24,6 +24,7 @@ func _fixture(mode: int, race: int) -> ClassicSimulation:
 	sim.students[1].previous_cell = Vector2i(24, 20)
 	return sim
 func _run() -> void:
+	_test_blocking_retreat()
 	for mode: int in 3:
 		for race: int in [0, 2, 3]:
 			var sim := _fixture(mode, race)
@@ -79,3 +80,30 @@ func _run() -> void:
 		_check(not sim.proximity_ai.active(elf) and elf.target_id == -1, "Healing elves do not initiate proximity attacks")
 	print("Proximity AI tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
+
+func _test_blocking_retreat() -> void:
+	for mode: int in 3:
+		var sim := _fixture(mode, 3)
+		var demon: ClassicStudent = sim.students[0]
+		var primary: ClassicStudent = sim.students[1]
+		sim.proximity_ai.update(sim)
+		primary.cell = Vector2i(40, 40)
+		demon.state = ClassicStudent.State.STAND
+		demon.previous_cell = demon.cell
+		var blocker: ClassicStudent = sim.students[2]
+		sim._initialize_student(blocker, 2, demon.cell + Vector2i.RIGHT)
+		blocker.state = ClassicStudent.State.WAIT
+		blocker.ai_retreating = true
+		blocker.ai_elf_recovering = true
+		blocker.health = 100
+		blocker.maximum_health = 100
+		for tick: int in 60:
+			sim.ticks += 1
+			sim.proximity_ai.update(sim)
+			if demon.state == ClassicStudent.State.FIGHT:
+				sim._fighting(demon)
+		_check(blocker.health < 100, "Demon damages adjacent retreating blocker while primary pursuit is distant")
+		_check(sim.proximity_ai.engagements[demon.id].target == primary.id, "Clearing blocker retains original pursuit commitment")
+		blocker.state = ClassicStudent.State.DEAD
+		sim.proximity_ai.update(sim)
+		_check(demon.priority_target_id == primary.id, "Demon resumes original pursuit after blocker dies")

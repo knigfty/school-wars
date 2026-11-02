@@ -10,7 +10,11 @@ func allows_cell(unit: ClassicStudent, cell: Vector2i) -> bool:
 	return not active(unit) or unit.team != 0 or Vector2i(cell.x / 4, cell.y / 4) == engagements[unit.id].origin
 
 func may_engage(sim, unit: ClassicStudent, target: ClassicStudent) -> bool:
-	if not active(unit) or engagements[unit.id].target != target.id:
+	if not active(unit):
+		return false
+	if unit.team == 3 and target.id == unit.target_id and sim._within_attack_range(unit, target):
+		return true
+	if engagements[unit.id].target != target.id:
 		return false
 	if unit.team == 2:
 		return sim._within_attack_range(unit, target)
@@ -70,6 +74,13 @@ func update(sim) -> void:
 			unit.ranged_response_id = -1
 			unit.ai_retreating = false
 		var target: ClassicStudent = sim.students[engagements[unit.id].target]
+		# Do not wait beside a hostile blocker while pursuing a distant victim.
+		# Clear immediate melee contact, then resume the original lifetime-bound pursuit.
+		if unit.team == 3 and not sim._within_attack_range(unit, target):
+			for blocker: ClassicStudent in sim.students:
+				if blocker.is_alive() and blocker.team != unit.team and sim._within_attack_range(unit, blocker):
+					target = blocker
+					break
 		unit.priority_target_id = target.id
 		unit.target_id = target.id
 		if unit.state == ClassicStudent.State.WALK:

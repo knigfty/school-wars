@@ -43,6 +43,7 @@ func begin(sim, unit: ClassicStudent) -> bool:
 	unit.ai_retreating = true
 	unit.ai_heal_tile = goal
 	unit.ai_elf_arrived = false
+	unit.ai_elf_retreat_started_at = sim.ticks
 	update(sim, unit)
 	return true
 
@@ -68,6 +69,7 @@ func update(sim, unit: ClassicStudent) -> void:
 		if not unit.ai_elf_arrived:
 			unit.ai_heal_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
 		unit.ai_elf_arrived = true
+		unit.ai_elf_retreat_started_at = -1
 		unit.ai_heal_tile = tile
 		unit.ai_retreating = false
 		if unit.health >= unit.maximum_health:
@@ -92,6 +94,18 @@ func update(sim, unit: ClassicStudent) -> void:
 		return
 	if unit.ai_elf_arrived and not owned_healing:
 		unit.ai_elf_arrived = false
+		unit.ai_elf_retreat_started_at = sim.ticks
+	if unit.ai_elf_retreat_started_at >= 0 and sim.ticks - unit.ai_elf_retreat_started_at >= 15 * ClassicRules.TICKS_PER_SECOND:
+		unit.ai_elf_recovering = false
+		unit.ai_elf_arrived = false
+		unit.ai_elf_retreat_started_at = -1
+		unit.ai_heal_tile = Vector2i(-1, -1)
+		if unit.state == ClassicStudent.State.WALK:
+			unit.destination = unit.cell # Finish only the already reserved step.
+		# Reuse the existing fight decision hold, avoiding immediate low-HP restart.
+		unit.ai_hold_ground_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
+		sim.ranged_response._release(unit)
+		return
 	unit.ai_retreating = true
 	# A lost/contested goal is replaced, without releasing the retreat commitment.
 	if not safe_tile(sim, unit.ai_heal_tile):

@@ -35,6 +35,7 @@ var returning_to_tile: bool = false
 var ai_retreating: bool = false
 var ai_elf_recovering: bool = false
 var ai_elf_arrived: bool = false
+var ai_elf_retreat_started_at: int = -1
 var ai_flee_until: int = 0
 var ai_flee_ready_at: int = 0
 var ai_flee_cooldown_pending: bool = false

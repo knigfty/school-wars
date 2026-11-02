@@ -742,3 +742,8 @@ Return movement recovery: an interrupted return resumes routing from a stationar
 
 
 Enemy interception runs every simulation tick on every difficulty. Elves acquire moving and stationary enemies within their reach even during travel; a reserved step finishes before attacking. At one-cell reach, elves are the exception to the ordinary melee restriction on moving targets. Healing recovery suppresses initiation but permits retaliation without healing during combat. Demons acquire within three Manhattan movement cells and pursue their chosen enemy until either side dies, regardless of subsequent distance. Humans acquire within max(3, current attack reach), cannot route outside their encounter tile, and return there to regroup when combat ends. Their strategic squads resume after regrouping. Detection includes walkers, so passing enemies do not wait for a strategic decision interval. Player-controlled orders are unchanged.
+
+
+Elf retreat travel is limited to fifteen battle seconds from departure. Changing or losing a destination does not reset this deadline. Arrival at the exact deadline enters healing; already seated recovery can continue to full HP without a travel timeout. An unsuccessful retreat releases the fallback state, restores normal movement, and uses the existing three-second fight hold before another retreat attempt; it does not spend the arrival-only cooldown. A new travel phase after losing an occupied healing spot receives its own fifteen-second deadline.
+
+A demon pursuing a distant enemy now attacks adjacent hostile blockers, including retreating elves in waiting states, instead of idling beside them. Its original target and lifetime remain recorded, and pursuit resumes after the blocker is removed.

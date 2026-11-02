@@ -226,6 +226,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.ai_retreating = false
 	student.ai_elf_recovering = false
 	student.ai_elf_arrived = false
+	student.ai_elf_retreat_started_at = -1
 	student.ai_flee_until = 0
 	student.ai_flee_ready_at = 0
 	student.ai_flee_cooldown_pending = false
