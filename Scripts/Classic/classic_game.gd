@@ -23,6 +23,7 @@ var modal: Control
 var cards: Array[Button] = []
 var status: RichTextLabel
 var selection_label: Label
+var character_info: PanelContainer
 var recruit_panel: PanelContainer
 var recruit_bar: ProgressBar
 var recruit_label: Label
@@ -234,6 +235,10 @@ func _build_hud() -> void:
 	recruit_bar.add_theme_stylebox_override("background", _panel(Color("303030")))
 	recruit_box.add_child(recruit_bar)
 	hud.add_child(recruit_panel)
+	if medieval:
+		character_info = preload("res://Scripts/Classic/character_info_panel.gd").new()
+		character_info.add_theme_stylebox_override("panel", recruit_style.duplicate())
+		hud.add_child(character_info)
 	minimap = ClassicMinimap.new()
 	minimap.board = board
 	hud.add_child(minimap)
@@ -328,6 +333,12 @@ func _layout() -> void:
 	hint_panel.size = Vector2(minf(size.x - 28, 520), 32)
 	recruit_panel.position = Vector2(14, size.y - 62)
 	recruit_panel.size = Vector2(225, 48)
+	if character_info != null:
+		# Fit between spawning and minimap; stack above spawning on narrow windows.
+		var available: float = size.x - 459.0
+		var stacked: bool = available < 460.0
+		character_info.position = Vector2(14 if stacked else 253, size.y - (68 if stacked else 14) - maxf(48, character_info.get_combined_minimum_size().y))
+		character_info.size = Vector2(maxf(460, available), maxf(48, character_info.get_combined_minimum_size().y))
 	minimap.position = size - Vector2(190, 122)
 	minimap.size = Vector2(176, 104)
 	announcement_label.position = Vector2(0, 68)
@@ -346,6 +357,8 @@ func _start_match(team: int) -> void:
 	if medieval:
 		_update_difficulty_tooltip(difficulty_selector.selected)
 	_team = team
+	if character_info != null:
+		character_info.reset()
 	recruit_bar.add_theme_stylebox_override("fill", _panel(ClassicRules.COLORS[_team].lightened(0.3)))
 	_seed = int(Time.get_unix_time_from_system() * 1000000.0) ^ Time.get_ticks_usec()
 	board.muted = _muted
@@ -363,6 +376,8 @@ func _start_match(team: int) -> void:
 func _show_menu() -> void:
 	board.paused = true
 	board.stop_audio()
+	if character_info != null:
+		character_info.reset()
 	board.hide()
 	hud.hide()
 	modal.hide()
@@ -428,6 +443,8 @@ func _announce(text: String) -> void:
 
 func _update_selection() -> void:
 	selection_label.text = "L-click to select · R-click drag to pan · Wheel to zoom"
+	if character_info != null and board.simulation != null:
+		character_info.refresh(board.simulation, board.selected, 0.0)
 
 
 func _update_recruitment() -> void:
@@ -471,8 +488,9 @@ func _process(delta: float) -> void:
 		_announcement_time = maxf(0.0, _announcement_time - delta)
 		if _announcement_time <= 0.0:
 			announcement_label.text = ""
-	_update_selection()
 	_update_recruitment()
+	if character_info != null:
+		character_info.refresh(board.simulation, board.selected, delta)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

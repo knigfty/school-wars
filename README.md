@@ -124,3 +124,9 @@ Some installations name the executable `godot4`.
 ## Current scope
 
 This prototype implements the complete menu-to-result loop, player-team selection, opponent territory AI, navigation, constrained camera control, capture, combat, health, team traits, elimination results, and reinforcement economy. Sound, advanced tactical AI, and full frame-by-frame sprite animation remain future work.
+
+### Medieval character information
+
+Selecting one warrior displays live HP (current/maximum), punch, range, movement speed, and attack speed in a panel between spawning and the minimap. The panel shares the spawning panel style and font. Other stats show base + gained values; movement uses the base-speed multiplier and attack speed uses swings per second (the current unmodified cycle is 1.2/s). Punch includes active territorial/group bonuses. Multiple selection shows `Number of units: <count>`. Clearing selection retains the last snapshot for five seconds, while a new selection replaces it immediately. New matches and returning to the menu clear the panel. On narrow windows the panel stacks above spawning. No Godot editor setup is required.
+
+Run `godot --headless --path . --script res://Testing/run_character_info_tests.gd` to verify selection, live stats, dismissal, and HUD integration.
