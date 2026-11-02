@@ -91,13 +91,13 @@ func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 			spawn_student(color)
 
 
-func _mirrored_tiles(tile: Vector2i) -> Array[Vector2i]:
+func _rotated_tiles(tile: Vector2i) -> Array[Vector2i]:
 	var edge: int = ClassicRules.BOARD_SIZE - 1
-	return [tile, Vector2i(edge - tile.x, tile.y), Vector2i(tile.x, edge - tile.y), Vector2i(edge - tile.x, edge - tile.y)]
+	return [tile, Vector2i(edge - tile.y, tile.x), Vector2i(edge - tile.x, edge - tile.y), Vector2i(tile.y, edge - tile.x)]
 
 
 func _generate_symmetric_neutral_areas() -> void:
-	# Seed one quadrant and reflect whole groups: kinds and base distances match.
+	# Repeat one quadrant at 0/90/180/270 degrees so all four corners match.
 	var candidates: Array[Vector2i] = []
 	for y: int in ClassicRules.BOARD_SIZE / 2:
 		for x: int in ClassicRules.BOARD_SIZE / 2:
@@ -110,7 +110,7 @@ func _generate_symmetric_neutral_areas() -> void:
 		candidates[other] = saved
 	var remaining: int = rng.randi_range(4, 7)
 	for tile: Vector2i in candidates:
-		var group: Array[Vector2i] = _mirrored_tiles(tile)
+		var group: Array[Vector2i] = _rotated_tiles(tile)
 		var clear: bool = true
 		for mirrored: Vector2i in group:
 			if area_at.has(mirrored):

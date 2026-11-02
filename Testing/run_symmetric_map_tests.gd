@@ -31,8 +31,8 @@ func _run() -> void:
 			for profile: Dictionary in distance_profiles:
 				_check(profile == distance_profiles[0], "Every race has identical distances to each objective kind")
 			for area: Dictionary in sim.areas:
-				for reflected: Vector2i in [Vector2i(15 - area.tile.x, area.tile.y), Vector2i(area.tile.x, 15 - area.tile.y), Vector2i(15 - area.tile.x, 15 - area.tile.y)]:
-					_check(sim.area_at.has(reflected) and sim.areas[sim.area_at[reflected]].kind == area.kind, "All quadrants mirror both placement and tile type")
+				for reflected: Vector2i in [Vector2i(15 - area.tile.y, area.tile.x), Vector2i(15 - area.tile.x, 15 - area.tile.y), Vector2i(area.tile.y, 15 - area.tile.x)]:
+					_check(sim.area_at.has(reflected) and sim.areas[sim.area_at[reflected]].kind == area.kind, "All four corners match tile position and type under quarter-turn rotation")
 				for direction: Vector2i in ClassicRules.DIRECTIONS:
 					_check(not sim.area_at.has(area.tile + direction), "Objectives retain the existing non-adjacency rule across seams and near bases")
 				_check(area.owner == (-1 if area.kind != ClassicRules.AreaKind.BASE else sim.bases.find(area.tile)), "Neutral ownership and race bases are correct")
