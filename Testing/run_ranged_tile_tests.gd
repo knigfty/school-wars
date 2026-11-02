@@ -98,11 +98,11 @@ func _retaliation(mode: int) -> void:
 	enemy.health = 100
 	sim._add_area(Vector2i(7, 5), ClassicRules.AreaKind.BASE, 0)
 	sim._apply_hit(elf, enemy)
-	_check(enemy.priority_target_id == elf.id and enemy.ranged_pursuit_id == elf.id and not enemy.tile_guard_active, "Enemy defender chooses unlimited counter-pursuit")
-	_check(sim._may_engage(enemy, elf), "Counter-pursuit can cross old guard tile boundaries")
+	_check(enemy.ranged_pursuit_id == -1 and not sim.proximity_ai.active(enemy), "Distant ranged hit does not create unlimited human pursuit")
+	_check(not sim._may_engage(enemy, elf), "Human cannot pursue distant shooter outside its tile")
 	_check(not sim._update_base_defence(enemy), "Counter-pursuit is not relocked by base defence")
 	elf.cell = Vector2i(10, 20)
-	_check(sim._may_engage(enemy, elf), "Counter-pursuit remains valid far beyond original leash")
+	_check(not sim._may_engage(enemy, elf), "Human does not follow shooter beyond local encounter")
 	# Melee guards on ordinary ground also retaliate across a cell-adjacent edge.
 	var guard: ClassicStudent = _unit(sim, 2, 2, Vector2i(23, 30))
 	var hitter: ClassicStudent = _unit(sim, 3, 1, Vector2i(24, 30))

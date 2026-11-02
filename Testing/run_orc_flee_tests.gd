@@ -35,7 +35,7 @@ func _run() -> void:
 		sim._add_area(Vector2i(3,3), ClassicRules.AreaKind.RECRUIT, -1)
 		sim.orc_flee.begin(sim, orc)
 		_check(orc.ai_flee_quadrant == 3 and orc.ai_flee_phase == 1 and orc.ai_flee_goal == Vector2i(12,12), "First half heads toward least-enemy quadrant")
-		_check(orc.ai_flee_until == 280 and orc.ai_flee_ready_at == 640 and not orc.tile_guard_active, "Flee keeps ten-second duration, thirty-second cooldown, and travel-first behaviour")
+		_check(orc.ai_flee_until == 280 and orc.ai_flee_ready_at == 0 and orc.ai_flee_cooldown_pending and not orc.tile_guard_active, "Flee lasts ten seconds without spending cooldown before sitting")
 		sim.ticks = 189
 		sim.orc_flee.update(sim, orc)
 		_check(orc.ai_flee_phase == 1, "Travel phase lasts until exact halfway point")
@@ -51,12 +51,31 @@ func _run() -> void:
 		orc.previous_cell = orc.cell
 		sim.occupancy[orc.cell] = orc.id
 		orc.state = ClassicStudent.State.SIT
+		sim.orc_flee.update(sim, orc)
+		_check(orc.ai_flee_ready_at == sim.ticks + 180 and not orc.ai_flee_cooldown_pending, "Ten-second cooldown begins only on arrival and sitting")
 		sim._capture_areas()
 		_check(sim.areas[sim.area_at[Vector2i(14,14)]].progress[1] > 0, "Phase-two fleeing orc can capture")
 		sim.ticks = 280
 		sim.orc_flee.update(sim, orc)
 		_check(not orc.ai_retreating and orc.ai_flee_phase == 0 and orc.designated_tile == Vector2i(14,14), "Flee ends without restoring old enemy-base chase")
 		_check(sim.get_movement_multiplier(orc) == 1 and sim.get_retreat_text(orc).is_empty(), "Flee effects expire exactly at window end")
+		# A delayed arrival must not consume reuse time while still travelling.
+		orc.ai_flee_cooldown_pending = true
+		orc.ai_flee_ready_at = 0
+		orc.state = ClassicStudent.State.WALK
+		sim.ticks = 1000
+		sim.orc_flee.update(sim, orc)
+		sim.orc_flee.begin(sim, orc)
+		_check(orc.ai_flee_phase == 0 and orc.ai_flee_ready_at == 0, "Unsettled orcs cannot restart flee even after a long journey")
+		orc.state = ClassicStudent.State.SIT
+		sim.orc_flee.update(sim, orc)
+		_check(orc.ai_flee_ready_at == 1180, "Late sitting starts a fresh full ten-second cooldown")
+		sim.ticks = 1179
+		sim.orc_flee.begin(sim, orc)
+		_check(orc.ai_flee_phase == 0, "Cooldown blocks flee until the exact boundary")
+		sim.ticks = 1180
+		sim.orc_flee.begin(sim, orc)
+		_check(orc.ai_flee_phase == 1, "Flee is available at ten seconds after sitting")
 		sim._initialize_student(orc,1,Vector2i(20,20))
 		_check(orc.ai_flee_phase == 0 and orc.ai_flee_quadrant == -1, "Fresh lifetime resets itinerary")
 	print("Orc flee tests: %d failure(s)" % failures)

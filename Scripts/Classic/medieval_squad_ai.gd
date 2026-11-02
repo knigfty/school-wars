@@ -14,7 +14,7 @@ func update(sim) -> void:
 		return
 	for unit: ClassicStudent in sim.students:
 		sim.orc_flee.update(sim, unit)
-		if sim.ranged_response.active(unit) or not unit.is_alive() or unit.team == sim.player_team or unit.tile_order_busy or unit.ai_base_defence_tile.x >= 0 or unit.retaliation_until > 0 or unit.returning_to_tile:
+		if sim.proximity_ai.active(unit) or sim.ranged_response.active(unit) or not unit.is_alive() or unit.team == sim.player_team or unit.tile_order_busy or unit.ai_base_defence_tile.x >= 0 or unit.retaliation_until > 0 or unit.returning_to_tile:
 			continue
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
 			_human_recover(sim, unit)
@@ -78,7 +78,7 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not unit.ai_elf_recovering and not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
+		if not sim.proximity_ai.active(unit) and not unit.ai_elf_recovering and not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
@@ -106,7 +106,7 @@ func _plan(sim, squad: Array) -> void:
 	if team == 1 and nearby_enemies > allies:
 		for i: int in range(ready.size() - 1, -1, -1):
 			var unit: ClassicStudent = ready[i]
-			if sim.ticks >= unit.ai_flee_ready_at:
+			if not unit.ai_flee_cooldown_pending and sim.ticks >= unit.ai_flee_ready_at:
 				sim.orc_flee.begin(sim, unit)
 				ready.remove_at(i)
 		if ready.is_empty():

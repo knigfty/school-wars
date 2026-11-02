@@ -37,6 +37,7 @@ var ai_elf_recovering: bool = false
 var ai_elf_arrived: bool = false
 var ai_flee_until: int = 0
 var ai_flee_ready_at: int = 0
+var ai_flee_cooldown_pending: bool = false
 var ai_flee_quadrant: int = -1
 var ai_flee_phase: int = 0
 var ai_flee_goal: Vector2i = Vector2i(-1, -1)

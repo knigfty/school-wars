@@ -215,21 +215,24 @@ func _retreat_timing_tests() -> void:
 	_unit(sim, 1, 0, Vector2i(21, 20))
 	_unit(sim, 2, 0, Vector2i(21, 21))
 	sim.squad_ai.update(sim)
-	_check(orc.ai_flee_until == 580 and orc.ai_flee_ready_at == 940, "Orc flee lasts ten seconds with thirty-second reuse")
+	_check(orc.ai_flee_until == 580 and orc.ai_flee_ready_at == 0 and orc.ai_flee_cooldown_pending, "Orc flee leaves cooldown pending until sitting")
 	sim.ticks = 579
 	sim.squad_ai.update(sim)
 	_check(orc.ai_retreating, "Orc can flee before ten seconds elapse")
 	sim.ticks = 580
 	sim.squad_ai.update(sim)
 	_check(not orc.ai_retreating and orc.ai_flee_phase == 0, "Orc ends its flee window at ten seconds while keeping the new tile assignment")
-	sim.ticks = 939
+	orc.state = ClassicStudent.State.SIT
+	sim.orc_flee.update(sim, orc)
+	_check(orc.ai_flee_ready_at == 760, "Orc cooldown starts ten seconds after sitting")
+	sim.ticks = 759
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
 	_check(not orc.ai_retreating, "Orc cannot flee during cooldown")
-	sim.ticks = 940
+	sim.ticks = 760
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)
-	_check(orc.ai_retreating and orc.ai_flee_until == 1120, "Orc may flee again after thirty seconds")
+	_check(orc.ai_retreating and orc.ai_flee_until == 940, "Orc may flee again ten seconds after sitting")
 	sim._initialize_student(orc, 1, Vector2i(20, 20))
 	_check(orc.ai_flee_ready_at == 0 and not orc.ai_retreating, "New orc lifetime resets flee cooldown")
 

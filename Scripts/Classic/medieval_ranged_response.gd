@@ -8,10 +8,12 @@ func active(unit: ClassicStudent) -> bool:
 	return unit.ranged_response_id >= 0 and groups.has(unit.ranged_response_id)
 
 func on_hit(sim, defender: ClassicStudent, attacker: ClassicStudent) -> void:
+	if defender.team == 0:
+		return # Humans intercept locally; ranged hits must not create unlimited chases.
 	if defender.team == 2:
 		sim.elf_recovery.threat(sim, defender, attacker)
 		return
-	if active(defender) or defender.ai_retreating:
+	if sim.proximity_ai.active(defender) or active(defender) or defender.ai_retreating:
 		return
 	var members: Array = []
 	var origin: Vector2i = Vector2i(defender.cell.x / 4, defender.cell.y / 4)
@@ -138,7 +140,7 @@ func _retreat(sim, group: Dictionary, heal: bool, goal: Vector2i = Vector2i(-1, 
 			unit.state = ClassicStudent.State.SIT
 
 func _orc_decide(sim, group: Dictionary, unit: ClassicStudent) -> void:
-	if sim.ticks < unit.ai_flee_ready_at:
+	if unit.ai_flee_cooldown_pending or sim.ticks < unit.ai_flee_ready_at:
 		return
 	var allies: int = 0
 	var attackers: int = 0

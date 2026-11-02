@@ -2,13 +2,15 @@ extends RefCounted
 
 ## One shared flee itinerary for ordinary and ranged-response orc AI.
 const DURATION: int = 10 * ClassicRules.TICKS_PER_SECOND
-const COOLDOWN: int = 30 * ClassicRules.TICKS_PER_SECOND
+const COOLDOWN: int = 10 * ClassicRules.TICKS_PER_SECOND
 
 func begin(sim, unit: ClassicStudent) -> void:
+	if unit.ai_flee_cooldown_pending or unit.ai_flee_phase > 0 or sim.ticks < unit.ai_flee_ready_at:
+		return
 	unit.ai_retreating = true
 	unit.ai_spawn_wait = false
 	unit.ai_flee_until = sim.ticks + DURATION
-	unit.ai_flee_ready_at = sim.ticks + COOLDOWN
+	unit.ai_flee_cooldown_pending = true
 	unit.ai_flee_quadrant = _quiet_quadrant(sim, unit)
 	unit.ai_flee_phase = 1
 	var quadrant: int = unit.ai_flee_quadrant
@@ -69,7 +71,12 @@ func _move(sim, unit: ClassicStudent, goal: Vector2i, capture: bool) -> void:
 		unit.state = ClassicStudent.State.SIT
 
 func update(sim, unit: ClassicStudent) -> void:
-	if not unit.is_alive() or unit.team != 1 or unit.ai_flee_phase == 0:
+	if not unit.is_alive() or unit.team != 1:
+		return
+	if unit.ai_flee_cooldown_pending and unit.state == ClassicStudent.State.SIT and (unit.ai_flee_phase == 0 or (unit.ai_flee_phase == 2 and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == unit.ai_flee_goal)):
+		unit.ai_flee_cooldown_pending = false
+		unit.ai_flee_ready_at = sim.ticks + COOLDOWN
+	if unit.ai_flee_phase == 0:
 		return
 	if sim.ticks >= unit.ai_flee_until:
 		unit.ai_retreating = false
