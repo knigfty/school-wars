@@ -239,6 +239,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.ai_heal_ready_at = 0
 	student.lifetime += 1
 	student.damage_contributors.clear()
+	student.orc_conversion_hits.clear()
 	student.team = team
 	student.cell = cell
 	student.previous_cell = cell
@@ -1079,6 +1080,10 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 	if medieval:
 		target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime, "team": student.team}
 		target.last_attacked_tick = ticks
+		if student.team == 1:
+			while not target.orc_conversion_hits.is_empty() and ticks - target.orc_conversion_hits[0] > 5 * ClassicRules.TICKS_PER_SECOND:
+				target.orc_conversion_hits.pop_front()
+			target.orc_conversion_hits.append(ticks)
 	target.health -= get_punch_damage(student, target)
 	if target.health <= 0.0:
 		target.health = 0.0
@@ -1338,9 +1343,8 @@ func get_priority_spawn_base(team: int) -> Vector2i:
 
 func get_orc_conversion_chance(victim: ClassicStudent) -> float:
 	var count: int = 0
-	for id: int in victim.damage_contributors:
-		var record: Dictionary = victim.damage_contributors[id]
-		if record.get("team", students[id].team) == 1 and ticks - int(record.tick) <= 3 * ClassicRules.TICKS_PER_SECOND:
+	for hit_tick: int in victim.orc_conversion_hits:
+		if ticks - hit_tick <= 5 * ClassicRules.TICKS_PER_SECOND:
 			count += 1
 	return minf(1.0, count * 0.25)
 
@@ -1413,7 +1417,7 @@ func get_attack_range(student: ClassicStudent) -> int:
 
 func get_movement_multiplier(student: ClassicStudent) -> float:
 	if medieval and student.team == 2 and student.ai_retreating:
-		return 0.8
+		return 0.7
 	if medieval and student.team == 1 and student.team != player_team and student.ai_retreating and ticks < student.ai_flee_until:
 		return 1.3
 	if medieval and student.team == 3:
@@ -1489,6 +1493,7 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			contributor.show_event("%d + %d PUNCH" % [int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus), reward])
 			contributor.punch_bonus += reward
 	victim.damage_contributors.clear()
+	victim.orc_conversion_hits.clear()
 
 
 func _convert_to_orc(victim: ClassicStudent) -> void:

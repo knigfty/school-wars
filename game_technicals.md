@@ -261,7 +261,7 @@ Orcs scan **two large tiles in four-direction tile distance** around their curre
 
 The two-phase split uses battle time, so fast-forward accelerates both halves together. Finding a distant quadrant does not teleport the orc there: the second phase starts at the halfway point even if it is still travelling. Capture still requires arrival, clearing, the standing interval, and sitting; five seconds does not guarantee a completed capture. At the end of the ten-second window the speed boost and `Flee!` label end, the old counter-pursuit is discarded, and the selected tile remains its new order. The ten-second reuse cooldown starts only after the orc reaches a tile and sits; until that event, a pending cooldown prevents restarting flee. The same itinerary is used by ordinary squad fleeing and individual responses to ranged fire.
 
-Elves below 30% HP seek the nearest uncontested owned heart/base on every difficulty with no distance limit. Travel is 20% slower, cooldown is thirty seconds from arrival, and recovery continues to full HP. They retaliate at the healing spot without healing during combat.
+Elves below 30% HP seek the nearest uncontested owned heart/base on every difficulty with no distance limit. Travel is 30% slower, cooldown is thirty seconds from arrival, and recovery continues to full HP. They retaliate at the healing spot without healing during combat.
 
 Demon casualties are measured against the response's **original recorded members**, counting deaths and conversions as losses. Losing two of four, three of five, or one of two reaches the half-loss threshold. The casualty roll is made once per response; choosing to fight does not create a new 50% chance on every later hit or death. The survivors flee or continue pursuing together. This is a ranged-response exception to demons' usual refusal to retreat for healing; it does not grant heart healing or create an ordinary low-HP demon retreat.
 
@@ -402,16 +402,16 @@ The last column is not DPS; misses and attack timing still apply. Being nearby, 
 
 ### Conversion chance
 
-Conversion is checked **only when an orc lands the killing blow**. The chance depends on how many distinct orcs successfully damaged that particular victim in the preceding three battle seconds, including the killer's final hit:
+Conversion is checked **only when an orc lands the killing blow**. The chance depends on how many successful orc hit stacks remain on that particular victim from the preceding five battle seconds, including the killer's final hit:
 
-| Distinct recent orc damage contributors | Conversion chance |
+| Unexpired successful orc hit stacks | Conversion chance |
 | ---: | ---: |
 | 1 | 25% |
 | 2 | 50% |
 | 3 | 75% |
 | 4 or more | 100% |
 
-Multiple hits from one orc still count as one contributor. Misses do not qualify. The three-second boundary is inclusive. A recent contributing orc does not have to still be alive for its recorded hit to count toward the conversion roll; this differs from receiving an individual living-assistant reward.
+Each successful damaging attack adds a separate +25 percentage-point stack, even from the same orc. Each stack expires independently five seconds after its own hit; later hits do not refresh older stacks. Misses do not qualify. The five-second boundary is inclusive. A contributing orc does not have to still be alive for its unexpired hits to count toward the conversion roll; this differs from receiving an individual living-assistant reward.
 
 Conversion is rolled once on death. It does not accumulate a meter across several different victims, and a non-orc final blow cannot convert the victim merely because orcs assisted.
 
@@ -578,7 +578,7 @@ Groups make a fresh strategic decision every two seconds. Their usual attack awa
 
 - **Humans** advance and fight as a group, then seek capturable objectives when no local target is selected.
 - **Orcs** favour a shared victim based on distance and current HP. When nearby enemies outnumber nearby allies, eligible orcs use the two-phase ten-second flee itinerary: relocate toward the least-enemy quadrant, then seek a capture target within it. Each warrior waits for a ten-second cooldown that starts only after reaching a tile and sitting.
-- **Elves** use the shared recovery rules on every difficulty: below 30% HP, nearest safe owned heart/base at any distance, 20% slower travel, thirty-second cooldown from arrival, full HP before resuming normal orders. Threatened tile defenders can choose fight or retreat; a fight choice holds for three seconds.
+- **Elves** use the shared recovery rules on every difficulty: below 30% HP, nearest safe owned heart/base at any distance, 30% slower travel, thirty-second cooldown from arrival, full HP before resuming normal orders. Threatened tile defenders can choose fight or retreat; a fight choice holds for three seconds.
 - **Demons** favour weak nearby victims, while comparing their group's combat strength against nearby defenders. Their estimate combines current HP, permanent punch, and extra reach. They can reject a locally dangerous attack instead of blindly focusing the nearest enemy. They never retreat specifically to heal.
 
 When seeking objectives, Normal orcs favour spades and Normal elves favour hearts. Normal's strategic objective search is not restricted to the 16-cell combat-awareness radius. If no capturable objectives remain and no local victim is available, a group can advance toward a more distant opponent. Awareness radius should therefore not be read as universal fog of war.
@@ -607,7 +607,7 @@ Enemy elves form groups of up to **four core warriors**. Elves whose reach has g
 
 Among available units, their strategic ordering is recovery, protection of badly wounded allies, capture, then ordinary group attacks. An enemy actively fighting an elf at 20% HP or lower receives high protection priority when an available guard is within **ten four-direction movement cells** of the wounded ally. Only nearby eligible responders are sent.
 
-AI elves on every difficulty begin recovery **below 30% HP** and choose the nearest owned heart/base with no living enemies. There is no distance limit. Retreat travel runs at **80% movement speed** and remains committed until reaching a safe healing tile, rerouting if the goal is lost or contested. The **30-second cooldown starts on arrival**. Recovery continues until **100% HP**. At the healing spot, elves retaliate in place against attackers in reach; fighting and incoming attacks block healing. A threatened tile defender may choose fight or retreat with equal probability, subject to cooldown and a safe goal. Choosing fight holds that choice for three seconds before reconsideration. Player commands remain unchanged.
+AI elves on every difficulty begin recovery **below 30% HP** and choose the nearest owned heart/base with no living enemies. There is no distance limit. Retreat travel runs at **70% movement speed** and remains committed until reaching a safe healing tile, rerouting if the goal is lost or contested. The **30-second cooldown starts on arrival**. Recovery continues until **100% HP**. At the healing spot, elves retaliate in place against attackers in reach; fighting and incoming attacks block healing. A threatened tile defender may choose fight or retreat with equal probability, subject to cooldown and a safe goal. Choosing fight holds that choice for three seconds before reconsideration. Player commands remain unchanged.
 
 Groups penalise capture destinations close to other elf groups or already chosen elf destinations. This spreads pressure and reduces unnecessary clustering; it does not create permanent lanes or guaranteed spacing.
 
@@ -679,7 +679,7 @@ A human at 5/20 HP lands its first killing blow. It becomes **5/22 HP**, retains
 
 ### Four orcs do not guarantee conversion just by arriving
 
-Four orcs surround an elf. If only two successfully damaged it in the final three seconds, an orc killing blow has **50%**, not 100%, conversion chance. Four distinct successful recent orc contributors raise it to 100%. A human stealing the final blow prevents the conversion roll altogether.
+Four orcs surround an elf. If only two successful hits occurred in the final five seconds, including the killing blow, the conversion chance is **50%**. Four unexpired hit stacks raise it to 100%, even if one orc landed all four attacks. A human stealing the final blow prevents the conversion roll altogether.
 
 ### An elf grows without securing the final hit
 
@@ -709,7 +709,7 @@ The rules create several connected pressures:
 
 - **Territory and army growth:** spades shorten the replacement cycle; hearts preserve experienced survivors; conquered bases add capacity and deployment locations. A valuable objective can therefore matter even when no warrior remains sitting on it.
 - **Quality and replacement:** regular recruits return at starting strength, while surviving humans, elves, and demons accumulate lifetime advantages. Reinforcement volume and veteran preservation solve different problems.
-- **Focus and participation:** concentrating damage removes a victim quickly, but melee access is limited. Orcs benefit from several distinct recent contributors; elves and demons benefit from qualifying assists. Reach growth lets veterans participate from additional cells.
+- **Focus and participation:** concentrating damage removes a victim quickly, but melee access is limited. Orcs benefit from repeated successful hit stacks; elves and demons benefit from qualifying assists. Reach growth lets veterans participate from additional cells.
 - **Commitment and distraction:** tile orders provide a bounded clear-capture-defend job. Focus orders pursue a chosen warrior. A melee guard can be drawn into the adjacent tile; a ranged guard fires while staying on its own tile. An enemy choosing a distinct counter-pursuit order after taking ranged damage can chase without that guard leash.
 - **Probability and positioning:** hit chance creates uncertainty, while occupied cells, valid contact, retreat paths, and available attack positions determine how many useful hit attempts happen at all.
 - **Race-specific territory value:** human groups exploit capture breakpoints; orcs turn hearts and spades into capacity; elves recover especially well on hearts; demons rely on bases and combat healing instead of heart regeneration, while using hearts as additional spawning accelerators.

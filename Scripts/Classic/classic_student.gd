@@ -50,6 +50,8 @@ var is_converted: bool = false
 var lifetime: int = 0
 # Per-victim successful damage: attacker ID -> tick and attacker lifetime.
 var damage_contributors: Dictionary = {}
+# Successful orc hits each expire independently, separate from assist credit.
+var orc_conversion_hits: Array[int] = []
 var punch_bonus: int = 0
 var home_punch_until: int = -1
 var level: int = 0

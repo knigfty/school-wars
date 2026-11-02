@@ -34,6 +34,7 @@ func _run() -> void:
 		for player: int in [0, 1, 3]:
 			_conversion(mode, player)
 			_retreats(mode, player)
+		_conversion_hit_stacks(mode)
 		_stacked_orc_damage(mode)
 		_spawning(mode)
 		_elf_and_demon_balance(mode)
@@ -164,3 +165,28 @@ func _stacked_orc_damage(mode: int) -> void:
 		_check(sim.get_orc_group_bonus(sim.students[3], target) == 1, "Out-of-contact orcs do not inflate group damage")
 		sim.students[2].target_id = -1
 		_check(sim.get_orc_group_bonus(sim.students[3], target) == 0, "Different targets do not inflate group damage")
+
+func _conversion_hit_stacks(mode: int) -> void:
+	var sim: ClassicSimulation = _fixture(mode, 0)
+	var orc: ClassicStudent = _unit(sim, 0, 1, Vector2i(20, 20))
+	orc.is_converted = true
+	var victim: ClassicStudent = _unit(sim, 1, 2, Vector2i(21, 20))
+	victim.health = 1000
+	victim.maximum_health = 1000
+	for hit: int in 4:
+		sim.ticks = 100 + hit * 10
+		sim._apply_hit(orc, victim)
+		_check(sim.get_orc_conversion_chance(victim) == (hit + 1) * 0.25, "Repeated hits by one converted orc each add a conversion stack")
+	sim.ticks = 190
+	_check(sim.get_orc_conversion_chance(victim) == 1.0, "Five-second boundary includes oldest stack")
+	sim.ticks = 191
+	_check(sim.get_orc_conversion_chance(victim) == 0.75, "Oldest stack expires independently without refreshing")
+	sim.ticks = 201
+	_check(sim.get_orc_conversion_chance(victim) == 0.5, "Each stack has its own five-second lifetime")
+	sim.ticks = 221
+	_check(sim.get_orc_conversion_chance(victim) == 0.0, "All stacks eventually expire")
+	var human: ClassicStudent = _unit(sim, 2, 0, Vector2i(22, 20))
+	sim._apply_hit(human, victim)
+	_check(sim.get_orc_conversion_chance(victim) == 0.0, "Non-orc damage adds no conversion stack")
+	sim._initialize_student(victim, 2, Vector2i(21, 20))
+	_check(victim.orc_conversion_hits.is_empty(), "New unit lifetime clears conversion stacks")

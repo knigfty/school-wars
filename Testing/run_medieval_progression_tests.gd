@@ -224,16 +224,10 @@ func _test_conversion() -> void:
 	chances.ticks = 100
 	var prey: ClassicStudent = _unit(chances, 10, 2, Vector2i(20, 20))
 	for count: int in range(1, 6):
-		var attacker: ClassicStudent = _unit(chances, count, 1, Vector2i(count, 0))
-		prey.damage_contributors[attacker.id] = {"tick": 46, "lifetime": attacker.lifetime, "team": 1}
-		_check(is_equal_approx(chances.get_orc_conversion_chance(prey), minf(1.0, count * 0.25)), "Distinct recent orcs add 25 percent, capped at 100")
+		prey.orc_conversion_hits.append(10)
+		_check(is_equal_approx(chances.get_orc_conversion_chance(prey), minf(1.0, count * 0.25)), "Each hit stack adds 25 percent, capped at 100")
 	chances.ticks = 101
-	_check(chances.get_orc_conversion_chance(prey) == 0.0, "Orc hits expire after three seconds")
-	prey.damage_contributors.clear()
-	prey.damage_contributors[1] = {"tick": 101, "lifetime": 1, "team": 1}
-	prey.damage_contributors[1] = {"tick": 101, "lifetime": 1, "team": 1}
-	prey.damage_contributors[2] = {"tick": 101, "lifetime": 1, "team": 0}
-	_check(chances.get_orc_conversion_chance(prey) == 0.25, "Repeated hits and non-orc hits do not increase conversion chance")
+	_check(chances.get_orc_conversion_chance(prey) == 0.0, "Orc stacks expire after five seconds")
 	var kills: int = 0
 	var conversions: int = 0
 	for seed_value: int in 300:
@@ -276,7 +270,7 @@ func _test_conversion() -> void:
 		var victim: ClassicStudent = _unit(guaranteed, 10, 2, Vector2i(21, 20))
 		for id: int in range(1, 4):
 			var helper: ClassicStudent = _unit(guaranteed, id, 1, Vector2i(id, 0))
-			victim.damage_contributors[id] = {"tick": guaranteed.ticks, "lifetime": helper.lifetime, "team": 1}
+			victim.orc_conversion_hits.append(guaranteed.ticks)
 		victim.health = 1
 		killer.state = ClassicStudent.State.FIGHT
 		killer.direction = 0
@@ -286,7 +280,7 @@ func _test_conversion() -> void:
 		guaranteed.rng.seed = seed_value
 		guaranteed._fighting(killer)
 		if victim.health == 0:
-			_check(victim.state == ClassicStudent.State.UNUSED and guaranteed.students.back().team == 1, "Four recent orc hitters guarantee conversion on a lethal hit")
+			_check(victim.state == ClassicStudent.State.UNUSED and guaranteed.students.back().team == 1, "Four recent hit stacks guarantee conversion on a lethal orc hit")
 
 	var sim: ClassicSimulation = _sim()
 	for id: int in 12:

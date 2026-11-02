@@ -78,7 +78,7 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 | Human | Kills 1/4/7/... | +2 maximum HP each time |
 | Human | Kills 2/5/8/... | +2 permanent punch each time |
 | Human | Kills 3/6/9/... | +2 attack reach each time |
-| Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
+| Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ successful hit stacks in the previous five seconds, including repeated hits by one orc |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
 | Elf | Bonus maximum HP above the starting 25 | +1 reach per 2 HP until 3 cells, per 3 additional HP until 5 cells, then per 4 additional HP forever |
 | Demon | Killing blow / qualifying damage assist in the last 3 seconds | Guaranteed kill punch (+2 Expert, +1 otherwise); 50% chance of +1 assist punch |
@@ -115,7 +115,7 @@ Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
 Single surviving warriors can still act until another recruit is available.
 Humans capture together and choose their next objective once ownership changes.
-AI elves below 30% HP seek the nearest uncontested owned heart/base without a distance limit and recover fully. Retreat movement is 20% slower; the thirty-second cooldown starts on arrival. All medieval elves, including player units, heal only while sitting on an owned heart/base after three seconds without being attacked. Active in-range attacks block healing even when a punch misses. Healing AI elves retaliate in place without healing during combat. Threatened tile defenders may choose fight or healing retreat if cooldown allows; fighting holds for three seconds before reconsideration. Retreat does not grant immunity.
+AI elves below 30% HP seek the nearest uncontested owned heart/base without a distance limit and recover fully. Retreat movement is 30% slower; the thirty-second cooldown starts on arrival. All medieval elves, including player units, heal only while sitting on an owned heart/base after three seconds without being attacked. Active in-range attacks block healing even when a punch misses. Healing AI elves retaliate in place without healing during combat. Threatened tile defenders may choose fight or healing retreat if cooldown allows; fighting holds for three seconds before reconsideration. Retreat does not grant immunity.
 Orcs focus a shared victim; when locally outnumbered they can flee for at most
 ten seconds, with a ten-second cooldown beginning only when the orc reaches a tile and sits.
 Cooldown orcs keep fighting even when squadmates flee. They flee toward the nearest active enemy-owned base. Demons favour low-HP
@@ -173,7 +173,7 @@ Returning guards retry their route after an interrupted walk leaves them standin
 
 ### Unified Elf retreat (all difficulties)
 
-AI elves begin recovery below 30% current/maximum HP, or may choose recovery with a 50% roll when defending a threatened tile. A fight choice holds for three seconds before reconsideration. Retreat requires the cooldown to be ready and a safe destination: the nearest owned heart/base containing no living enemies, measured to the nearest tile cell with no distance limit. A committed retreat remains active if its goal is lost or contested, searches for another safe destination, and moves at 80% normal speed. It does not cancel just because HP rises en route. The 30-second cooldown starts on arrival, not departure. At the healing spot, normal speed returns but recovery remains committed until full HP. Elves retaliate against attackers in reach without leaving their healing spot; fighting never heals, and seated healing resumes only after the existing three-second safe interval. Explicit player control remains unchanged.
+AI elves begin recovery below 30% current/maximum HP, or may choose recovery with a 50% roll when defending a threatened tile. A fight choice holds for three seconds before reconsideration. Retreat requires the cooldown to be ready and a safe destination: the nearest owned heart/base containing no living enemies, measured to the nearest tile cell with no distance limit. A committed retreat remains active if its goal is lost or contested, searches for another safe destination, and moves at 70% normal speed. It does not cancel just because HP rises en route. The 30-second cooldown starts on arrival, not departure. At the healing spot, normal speed returns but recovery remains committed until full HP. Elves retaliate against attackers in reach without leaving their healing spot; fighting never heals, and seated healing resumes only after the existing three-second safe interval. Explicit player control remains unchanged.
 
 Orc group damage counts earlier engaged, in-contact teammates on the same victim in stable unit-ID order. Four regular attackers deal 2/3/4/5 punch (14 total if each connects once). Converted orcs both contribute and receive these bonuses, on top of inherited permanent punch, subject to their final punch cap of 10.
 

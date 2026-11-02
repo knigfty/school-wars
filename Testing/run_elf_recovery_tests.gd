@@ -36,7 +36,7 @@ func _run() -> void:
 		sim.elf_recovery.update(sim, elf)
 		_check(elf.ai_heal_tile == Vector2i(12, 12) and elf.ai_retreating, "All difficulties choose distant safe base over contested nearby heart")
 		_check(elf.ai_heal_ready_at == 0, "Travel does not start cooldown")
-		_check(is_equal_approx(sim.get_movement_multiplier(elf), 0.8), "Retreat speed reduced by twenty percent")
+		_check(is_equal_approx(sim.get_movement_multiplier(elf), 0.7), "Retreat speed reduced by thirty percent")
 		# Losing every healing tile retains retreat; a recovered goal resumes it.
 		sim.areas[1].owner = 3
 		sim.elf_recovery.update(sim, elf)
