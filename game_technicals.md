@@ -174,9 +174,9 @@ The following tile-order policy applies to **every race, every difficulty, and t
 
 ### Arrival and clearing
 
-Warriors assigned to a tile first clear enemies inside that tile. They coordinate around a shared victim, normally preferring the weakest enemy by current HP. An existing valid shared target helps keep the group focused rather than independently scattering across enemies.
+Warriors assigned to a tile first clear enemies inside that tile. Warriors with increased reach scan the destination while approaching: if a victim on that tile is already within their reach, they stop and attack from that distance without first entering. A reachable victim takes priority over an unreachable weaker victim, and shared targeting only overrides a ranged choice when the shared victim is reachable. Melee units continue closing in. Firing from outside does not produce capture progress; when the enemies are gone, the ranged warriors resume travelling to the ordered tile, then clear, sit, and capture normally. They coordinate around a shared victim, normally preferring the weakest enemy by current HP. An existing valid shared target helps keep the group focused rather than independently scattering across enemies.
 
-Before the tile belongs to the warriors' race, they do not chase its defenders outside it. Removing the last enemy starts a **one-second standing period**. If another enemy enters, clearing resumes and that clear period is reset. Once the tile remains clear, the warriors sit.
+Before the tile belongs to the warriors' race, the tile-clearing order targets enemies on that tile rather than chasing them elsewhere. Ranged units may fire into it from outside as described above. Removing the last enemy starts a **one-second standing period**. If another enemy enters, clearing resumes and that clear period is reset. Once the tile remains clear, the warriors sit.
 
 Only sitting warriors generate capture progress. Walking, standing, fighting, or merely being selected does not capture anything.
 
@@ -210,11 +210,17 @@ Human capture is deliberately nonlinear. Two humans are not twice as fast as one
 
 After capture, the group holds its assigned tile. An opponent inside it is dealt with before an opponent outside it.
 
-Once the guarded tile is owned by the defenders' race, an enemy within **one movement cell of the tile's border** can trigger a coordinated defence. This is a side-adjacency test; a diagonally touching outside cell can be two steps from the nearest cell inside and will not meet the one-cell test.
+For **one-cell melee defenders**, once the guarded tile is owned by their race, an enemy within **one movement cell of the tile's border** can trigger a coordinated defence. This is a side-adjacency test; a diagonally touching outside cell can be two steps from the nearest cell inside and will not meet the one-cell test.
 
-Defenders may pursue a chosen threat into one **directly side-adjacent large tile**. They cannot chase it into a diagonal tile or a second tile beyond that. Killing the victim or having it leave the allowed area ends the pursuit, and defenders return to their assigned tile. If completely surrounded on the return, a warrior can fight a nearby enemy to try to free a route rather than remain helplessly trapped.
+**Melee defenders** may pursue a chosen threat into one **directly side-adjacent large tile**. They cannot chase it into a diagonal tile or a second tile beyond that. Killing the victim or having it leave the allowed area ends the pursuit, and defenders return to their assigned tile. If completely surrounded on the return, a warrior can fight a nearby enemy to try to free a route rather than remain helplessly trapped.
 
-Ordinary ground does not become owned territory. A ground order can hold and clear that location, but it does not create the owned-objective border-defence benefit.
+**Increased-range defenders** use their own attack reach as their detection distance, measured from their current cell. An enemy does not have to be one cell from the tile border, or even in a directly adjacent tile, to be fired upon. These defenders remain on their assigned tile while guarding: they do not step outside it to extend their range or chase an enemy that leaves reach. They may reposition inside the tile to fight an intruder. Targets inside the defended tile still take priority over outside threats.
+
+Ordinary ground does not become owned territory. A ground order can hold and clear that location, but it does not create the owned-objective melee border-defence benefit. Increased-range warriors holding ordinary ground can still fire at enemies within their own reach.
+
+Idle or seated defenders respond to incoming damage under these guard restrictions. Even melee defenders holding ordinary ground can return a hit from a directly reachable adjacent enemy while staying in place. A player ranged defender that can reach its attacker returns fire and holds its tile. Player melee defenders can retaliate within their ordinary permitted defence area; an attacker beyond their reach and leash cannot be countered by extending those limits.
+
+Enemy defenders have a further choice: if a ranged attacker hits them from beyond their own reach, they can abandon their tile assignment and focus that attacker. This counter-pursuit has **no tile-distance leash**, including across the old adjacent-tile boundary. A new strategic order or retreat can replace the pursuit, and an existing retreat is not cancelled simply because a ranged hit lands. Enemies able to reach the shooter can return fire instead. These rules apply across Easy, Normal, and Expert and to both player and enemy increased-range units; the enemy pursuit exception specifically belongs to enemy AI.
 
 An explicit new order can change the assignment. Enemy planners can likewise issue fresh orders to available units; the leash restricts an existing automatic defence, rather than forbidding future strategic movement.
 
@@ -224,7 +230,7 @@ An original home base cannot be captured while its original race remains active.
 
 Once conquered, a base can be taken again while its new owner is still alive. Its protection does not reset around each new owner. Every enemy base you currently own adds **six regular-unit capacity** and becomes another reinforcement location. Losing it removes that capacity bonus and spawn location immediately.
 
-Enemy warriors inside an invaded owned base prioritise intruders after their short initial standing animation. This local defence can happen during Easy or Normal's opening strategic delay. The opening delay is not immunity from counterattacks.
+Enemy warriors inside an invaded owned base normally prioritise intruders after their short initial standing animation. A deliberate counter-pursuit response to ranged damage can release that base assignment. This local defence can happen during Easy or Normal's opening strategic delay. The opening delay is not immunity from counterattacks.
 
 ## 7. Healing and recovery
 
@@ -657,7 +663,7 @@ The rules create several connected pressures:
 - **Territory and army growth:** spades shorten the replacement cycle; hearts preserve experienced survivors; conquered bases add capacity and deployment locations. A valuable objective can therefore matter even when no warrior remains sitting on it.
 - **Quality and replacement:** regular recruits return at starting strength, while surviving humans, elves, and demons accumulate lifetime advantages. Reinforcement volume and veteran preservation solve different problems.
 - **Focus and participation:** concentrating damage removes a victim quickly, but melee access is limited. Orcs benefit from several distinct recent contributors; elves and demons benefit from qualifying assists. Reach growth lets veterans participate from additional cells.
-- **Commitment and distraction:** tile orders provide a bounded clear-capture-defend job. Focus orders pursue a chosen warrior. A defender can be drawn into the adjacent tile, but cannot be automatically dragged across the entire battlefield by that same guard assignment.
+- **Commitment and distraction:** tile orders provide a bounded clear-capture-defend job. Focus orders pursue a chosen warrior. A melee guard can be drawn into the adjacent tile; a ranged guard fires while staying on its own tile. An enemy choosing a distinct counter-pursuit order after taking ranged damage can chase without that guard leash.
 - **Probability and positioning:** hit chance creates uncertainty, while occupied cells, valid contact, retreat paths, and available attack positions determine how many useful hit attempts happen at all.
 - **Race-specific territory value:** human groups exploit capture breakpoints; orcs turn hearts and spades into capacity; elves recover especially well on hearts; demons rely on bases and combat healing instead of heart regeneration, while using hearts as additional spawning accelerators.
 
