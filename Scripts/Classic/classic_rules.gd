@@ -5,6 +5,8 @@ extends RefCounted
 const TICKS_PER_SECOND: int = 18
 # Two 2-tick wind-ups and an 11-tick recovery per repeating swing.
 const ATTACK_CYCLE_TICKS: int = 15
+const CONVERTED_ORC_MAX_HP: float = 30.0
+const CONVERTED_ORC_MAX_PUNCH: float = 10.0
 const BOARD_SIZE: int = 16
 const CELLS_PER_TILE: int = 4
 const GRID_SIZE: int = BOARD_SIZE * CELLS_PER_TILE

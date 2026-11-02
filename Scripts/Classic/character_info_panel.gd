@@ -56,10 +56,9 @@ func refresh(sim: ClassicSimulation, selected: Array[int], delta: float) -> void
 		punch += 1.0
 	if sim.medieval and unit.team == 1 and unit.state == ClassicStudent.State.FIGHT and unit.target_id >= 0 and unit.target_id < sim.students.size():
 		var target: ClassicStudent = sim.students[unit.target_id]
-		for ally: ClassicStudent in sim.students:
-			if ally.id < unit.id and ally.team == 1 and ally.state == ClassicStudent.State.FIGHT and ally.target_id == target.id and sim._contact_target(ally, target):
-				punch += 1.0
-				break
+		punch += sim.get_orc_group_bonus(unit, target)
+	if sim.medieval and unit.team == 1 and unit.is_converted:
+		punch = minf(punch, ClassicRules.CONVERTED_ORC_MAX_PUNCH)
 	_labels[0].text = "HP: %s/%s" % [_number(unit.health), _number(unit.maximum_health)]
 	_labels[1].text = "PUNCH: %s" % _split(base_punch, punch)
 	_labels[2].text = "RANGE: %s" % _split(1.0, sim.get_attack_range(unit))

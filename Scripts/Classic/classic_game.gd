@@ -465,7 +465,7 @@ func _update_recruitment() -> void:
 		if not free_base_cell:
 			recruit_label.text = "Base blocked · clear space to recruit"
 		else:
-			var seconds: float = float(threshold + 1 - progress) / (2 + sim.get_recruit_tiles(_team)) / 18.0
+			var seconds: float = float(threshold + 1 - progress) / (2 + sim.get_spawn_boost_tiles(_team)) / 18.0
 			recruit_label.text = "Spawning · next cycle in %.1fs" % seconds
 
 

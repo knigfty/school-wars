@@ -40,7 +40,7 @@ The battlefield contains **16 × 16 large tiles**. Each large tile contains **4 
 | Tile | Main benefit | Important restriction |
 | --- | --- | --- |
 | Spade | Speeds up the owner's reinforcement cycle | Does not heal or directly increase punch |
-| Heart | Heals eligible seated friendly warriors | Does not directly speed spawning |
+| Heart | Heals eligible seated friendly warriors; speeds demon spawning | Only demons receive its spawning boost; demons cannot heal on it |
 | Base | Produces reinforcements and heals seated friendly warriors | An original home base is protected from capture until its original race is eliminated |
 | Ordinary ground | Space for movement, formations, and fighting | Has no capture reward or ownership benefit |
 
@@ -251,15 +251,19 @@ Each race has one shared reinforcement meter. It advances continuously while the
 
 The meter's progress per battle step is:
 
-> 2 + number of currently owned spades.
+> Humans, Orcs, Elves: 2 + currently owned spades.
+>
+> Demons: 2 + currently owned spades + currently owned hearts.
 
-Its target is **1,500 for Humans, Elves, and Demons**, and **750 for Orcs**. Consequently, medieval orcs spawn twice as fast as the other races when both sides own the same number of spades.
+Its target is **1,500 for Humans, Elves, and Demons**, and **750 for Orcs**. Consequently, medieval orcs spawn twice as fast as the other races when both sides have the same number of spawning-boost objectives. Demon hearts count toward that comparison.
 
 Starting from an empty meter with ownership unchanged:
 
-> Cycle seconds = ceiling(target ÷ (2 + owned spades)) ÷ 18.
+> Cycle seconds = ceiling(target ÷ (2 + spawning-boost objectives)) ÷ 18.
 
-| Owned spades | Human / Elf / Demon cycle | Orc cycle |
+For demons, a heart counts exactly like one spade for this formula. For the other races, only spades count.
+
+| Spawning-boost objectives | Human / Elf / Demon cycle | Orc cycle |
 | ---: | ---: | ---: |
 | 0 | 41.67 seconds | 20.83 seconds |
 | 1 | 27.78 seconds | 13.89 seconds |
@@ -267,7 +271,7 @@ Starting from an empty meter with ownership unchanged:
 | 4 | 13.89 seconds | 6.94 seconds |
 | 6 | 10.44 seconds | 5.22 seconds |
 
-These are full-cycle timings under steady conditions, not necessarily the time remaining on a partially filled meter. Capturing or losing a spade changes the rate of the current cycle. It does not erase that cycle's existing progress. A spade's reinforcement benefit persists without a garrison as long as ownership remains yours.
+These are full-cycle timings under steady conditions, not necessarily the time remaining on a partially filled meter. Capturing or losing a spade changes the rate of the current cycle; capturing or losing a heart does the same for demons. It does not erase that cycle's existing progress. A spade's reinforcement benefit persists without a garrison as long as ownership remains yours.
 
 Difficulty does not shorten the meter or provide a hidden reinforcement-rate multiplier.
 
@@ -345,7 +349,7 @@ For ordinary two-punch orcs, a fully engaged group has this nominal damage distr
 | 3 | 2, 3, 3 | 8 |
 | 4 | 2, 3, 3, 3 | 11 |
 
-The last column is not DPS; misses and attack timing still apply. Being nearby, walking toward the victim, or merely belonging to the same squad is insufficient. An earlier qualifying orc must actually be fighting that target with valid contact. Inherited permanent punch on converted orcs changes their baseline, but the group addition remains one point.
+The last column is not DPS; misses and attack timing still apply. Being nearby, walking toward the victim, or merely belonging to the same squad is insufficient. An earlier qualifying orc must actually be fighting that target with valid contact. Inherited permanent punch on converted orcs changes their baseline, but the group addition remains one point. Converted orcs can both activate and receive this group bonus like regular orcs. Their final punch is capped at ten, so a converted warrior already at ten gains no extra damage beyond that cap.
 
 ### Conversion chance
 
@@ -366,14 +370,14 @@ Conversion is rolled once on death. It does not accumulate a meter across severa
 
 The defeated warrior becomes a new orc at the victim's cell. The recruit:
 
-- Inherits the victim's **maximum HP**, and starts fully healed to that maximum.
-- Inherits the victim's **permanent punch**, including earned punch bonuses.
+- Inherits the victim's **maximum HP, capped at 30**, and starts fully healed to that capped maximum.
+- Inherits the victim's **permanent punch, capped at ten**, including earned punch bonuses. Orc group damage applies afterward, but final punch remains capped at ten for converted orcs.
 - Starts with **one-cell reach**, regardless of the victim's former reach.
 - Does not retain the former race's progression, special speed scaling, focus orders, or selection.
 - Does not inherit temporary human territorial punch or orc group damage.
 - Does not use a regular capacity slot or consume the reinforcement meter.
 
-For example, a human with 26 maximum HP and ten permanent punch becomes a **26/26 HP, ten-punch orc** if converted. A formerly long-range elf becomes a one-cell melee orc even if it retains a very large maximum HP value.
+For example, a human with 26 maximum HP and ten permanent punch becomes a **26/26 HP, ten-punch orc** if converted. A victim with 60 maximum HP and 20 permanent punch instead becomes a **30/30 HP, ten-punch orc**. A formerly long-range elf becomes a one-cell melee orc; its inherited maximum HP is also limited to 30.
 
 Converted orcs can take normal orc orders, receive orc group damage, and contribute to later conversions. Their population is shown separately as `(+N)`. A converted survivor can keep the orc race alive even after every regular orc has fallen. The successful-conversion popup is `ORCS RISE!`.
 
@@ -460,7 +464,7 @@ Bonus punch means permanent punch above the starting five.
 
 The formula continues beyond the table. Expert is not simply the Easy/Normal speed table plus another bonus: the curve is different, including smaller early bonuses and no old +40% tier ceiling.
 
-Movement upgrades do not speed up the attack cycle. Demons remain one-cell attackers. They cannot heal from hearts, but can heal while seated on an owned base and through the combat rewards above. Enemy demons do not choose healing retreats.
+Movement upgrades do not speed up the attack cycle. Demons remain one-cell attackers. They cannot heal from hearts, but can heal while seated on an owned base and through the combat rewards above. Each owned heart instead accelerates their team's reinforcement meter exactly like a spade, on every difficulty and for player and enemy demons. A demon heart does not add capacity or become a spawn location; it boosts the shared timer while owned, even without a seated garrison. Enemy demons do not choose healing retreats.
 
 A demon popup such as `8 + 1 PUNCH` reports the old permanent punch followed by the gain: the warrior now has nine punch. An Expert killing blow can display a gain of two.
 
@@ -572,7 +576,7 @@ A display such as `Orcs 8 (+3)/14` means eight regular orcs, three converted orc
 
 ### Spawning box
 
-The bottom-left box reports the next reinforcement cycle, full capacity, or a blocked base. The progress bar belongs to the shared race-wide meter. Its countdown is an estimate based on current spade ownership; capture or loss of a spade can change it partway through the cycle.
+The bottom-left box reports the next reinforcement cycle, full capacity, or a blocked base. The progress bar belongs to the shared race-wide meter. Its countdown is an estimate based on current spawning-boost objectives; capture or loss of a spade, or a heart for demons, can change it partway through the cycle.
 
 ### Character-info box
 
@@ -591,6 +595,12 @@ Punch includes currently active human territorial or orc shared-target bonuses w
 Information refreshes while the warrior remains selected. Selecting several shows **`Number of units: <count>`**, rather than summed or averaged stats. Clearing selection retains the last displayed snapshot for five seconds and then hides it. Giving an order also clears selection, so it begins that same dismissal period. A new selection replaces the old snapshot immediately. Death removes a warrior from the live selection; a new match or returning to the menu clears the panel.
 
 On narrow layouts the panel can sit above spawning so the text remains readable. The panel is informational and does not change stats or issue orders.
+
+### Retreat indicators
+
+Enemy humans show **`Retreat!`** while their retreat mode is active. Enemy orcs show **`Flee!`** throughout their active flee window, and enemy elves show **`Fallback!`** while retreating. These labels persist with the state rather than fading like reward popups, and sit above those popups so a new reward does not hide the retreat indication. They clear when the mode ends or the warrior dies, and do not appear on the player's units.
+
+Enemy orcs receive **+30% movement speed (1.3×)** only while actively fleeing and before their flee window expires. The boost stops at the window boundary or when fleeing is cancelled. It applies to converted enemy orcs too. Ranged accuracy uses that boosted speed: the current 1.2 attacks/second is slower than a fleeing orc's 1.3× movement, giving a 30% ranged hit chance. These display and speed rules apply on every difficulty whenever the relevant retreat state is active; they do not introduce new retreat triggers into difficulties that lack that behaviour.
 
 ### Health bars, popups, and minimap
 
@@ -649,7 +659,7 @@ The rules create several connected pressures:
 - **Focus and participation:** concentrating damage removes a victim quickly, but melee access is limited. Orcs benefit from several distinct recent contributors; elves and demons benefit from qualifying assists. Reach growth lets veterans participate from additional cells.
 - **Commitment and distraction:** tile orders provide a bounded clear-capture-defend job. Focus orders pursue a chosen warrior. A defender can be drawn into the adjacent tile, but cannot be automatically dragged across the entire battlefield by that same guard assignment.
 - **Probability and positioning:** hit chance creates uncertainty, while occupied cells, valid contact, retreat paths, and available attack positions determine how many useful hit attempts happen at all.
-- **Race-specific territory value:** human groups exploit capture breakpoints; orcs turn hearts and spades into capacity; elves recover especially well on hearts; demons rely on bases and combat healing instead of heart regeneration.
+- **Race-specific territory value:** human groups exploit capture breakpoints; orcs turn hearts and spades into capacity; elves recover especially well on hearts; demons rely on bases and combat healing instead of heart regeneration, while using hearts as additional spawning accelerators.
 
 These are practical consequences of the current rules, rather than promises about a single optimal strategy. Random hits, a different map, three-way intervention, or a crowded base can change which choice pays off.
 

@@ -110,6 +110,15 @@ func get_recruit_tiles(team: int) -> int:
 	return count
 
 
+func get_spawn_boost_tiles(team: int) -> int:
+	var count: int = get_recruit_tiles(team)
+	if medieval and team == 3:
+		for area: Dictionary in areas:
+			if area.owner == team and area.kind == ClassicRules.AreaKind.HEAL:
+				count += 1
+	return count
+
+
 func get_recruit_threshold(team: int) -> int:
 	return 750 if medieval and team == 1 else ClassicRules.RECRUIT_THRESHOLD[team]
 
@@ -124,7 +133,7 @@ func get_conquered_base_count(team: int) -> int:
 
 
 func get_spawn_seconds(team: int) -> float:
-	return float(get_recruit_threshold(team)) / float(2 + get_recruit_tiles(team)) / 18.0
+	return float(get_recruit_threshold(team)) / float(2 + get_spawn_boost_tiles(team)) / 18.0
 
 
 func get_team_capacity(team: int) -> int:
@@ -273,7 +282,7 @@ func step() -> void:
 		_com_order(students[ticks % students.size()])
 	for color: int in 4:
 		if active[color]:
-			recruit_progress[color] += 2 + get_recruit_tiles(color)
+			recruit_progress[color] += 2 + get_spawn_boost_tiles(color)
 			var threshold: int = get_recruit_threshold(color)
 			if medieval:
 				recruit_progress[color] = mini(recruit_progress[color], threshold)
@@ -1155,13 +1164,20 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 		if ticks < student.home_punch_until:
 			damage += 1.0
 	if student.team == 1:
-		# Stable first attacker: each additional engaged orc adds ONE damage,
-		# rather than multiplying the full group bonus across every attacker.
-		for ally: ClassicStudent in students:
-			if ally.id < student.id and ally.team == 1 and ally.state == ClassicStudent.State.FIGHT and ally.target_id == target.id and _contact_target(ally, target):
-				damage += 1.0
-				break
+		damage += get_orc_group_bonus(student, target)
+		if student.is_converted:
+			damage = minf(damage, ClassicRules.CONVERTED_ORC_MAX_PUNCH)
 	return damage
+
+
+func get_orc_group_bonus(student: ClassicStudent, target: ClassicStudent) -> float:
+	if not medieval or student.team != 1:
+		return 0.0
+	# Converted orcs are ordinary orc teammates for shared-target damage.
+	for ally: ClassicStudent in students:
+		if ally.id < student.id and ally.team == 1 and ally.state == ClassicStudent.State.FIGHT and ally.target_id == target.id and _contact_target(ally, target):
+			return 1.0
+	return 0.0
 
 
 func get_spawn_bases(team: int) -> Array[Vector2i]:
@@ -1280,6 +1296,8 @@ func get_attack_range(student: ClassicStudent) -> int:
 
 
 func get_movement_multiplier(student: ClassicStudent) -> float:
+	if medieval and student.team == 1 and student.team != player_team and student.ai_retreating and ticks < student.ai_flee_until:
+		return 1.3
 	if medieval and student.team == 3:
 		if difficulty == Difficulty.EXPERT:
 			return 1.0 + 0.05 * (student.punch_bonus / 2)
@@ -1357,8 +1375,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 
 func _convert_to_orc(victim: ClassicStudent) -> void:
 	var former_team: int = victim.team
-	var inherited_health: float = victim.maximum_health
-	var inherited_punch: int = int(ClassicRules.PUNCH[victim.team]) + victim.punch_bonus
+	var inherited_health: float = minf(victim.maximum_health, ClassicRules.CONVERTED_ORC_MAX_HP)
+	var inherited_punch: int = mini(int(ClassicRules.PUNCH[victim.team]) + victim.punch_bonus, int(ClassicRules.CONVERTED_ORC_MAX_PUNCH))
 	var cell: Vector2i = victim.cell
 	victim.state = ClassicStudent.State.UNUSED
 	occupancy.erase(cell)
@@ -1373,3 +1391,16 @@ func _convert_to_orc(victim: ClassicStudent) -> void:
 	converted.punch_bonus = inherited_punch - int(ClassicRules.PUNCH[1])
 	_check_elimination(former_team)
 	_update_leader()
+
+
+func get_retreat_text(student: ClassicStudent) -> String:
+	if not medieval or not student.is_alive() or student.team == player_team or not student.ai_retreating:
+		return ""
+	match student.team:
+		0:
+			return "Retreat!"
+		1:
+			return "Flee!" if ticks < student.ai_flee_until else ""
+		2:
+			return "Fallback!"
+	return ""
