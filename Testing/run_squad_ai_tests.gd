@@ -504,15 +504,15 @@ func _base_defence_tests() -> void:
 				invader.state = ClassicStudent.State.STAND
 				invader.counter = 10000
 				sim.step()
-				if race == 2:
-					_check(unit.is_alive() and unit.ai_elf_recovering, "Low-HP elf base defenders can commit to safe healing retreat")
+				if race in [0, 2]:
+					_check(unit.is_alive() and (unit.ai_elf_recovering or sim.human_ai.is_recovering(unit)), "Low-HP human squads and elves may retreat from an invaded base")
 				else:
 					_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Other base defenders remain while invaded")
 			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
 			unit.health = 100
 			sim._apply_hit(outside, unit)
-			if race == 2:
-				_check(unit.ai_elf_recovering and unit.target_id == -1, "Outside attacks do not interrupt committed elf travel")
+			if race in [0, 2]:
+				_check((unit.ai_elf_recovering or sim.human_ai.is_recovering(unit)) and unit.target_id == -1, "Outside attacks do not interrupt committed healing travel")
 			else:
 				_check(unit.retaliation_until == 0 and unit.target_id == invader.id, "Outside attacks cannot lure a locked base defender away")
 			invader.state = ClassicStudent.State.UNUSED

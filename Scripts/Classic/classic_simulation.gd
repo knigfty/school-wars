@@ -326,7 +326,7 @@ func step() -> void:
 		for unit: ClassicStudent in students:
 			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
 				unit.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
-			if unit.ai_elf_recovering or proximity_ai.active(unit) or (human_ai.controls(unit) and human_ai.phase != "capture"):
+			if unit.ai_elf_recovering or proximity_ai.active(unit) or (human_ai.controls(unit) and not human_ai.is_recovering(unit) and human_ai.phase not in ["normal", "capture"]):
 				continue
 			if not _update_tile_order(unit) and not _update_base_defence(unit):
 				_update_retaliation(unit)

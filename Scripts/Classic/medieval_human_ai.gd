@@ -6,6 +6,8 @@ var phase: String = "normal"
 var target_race: int = -1
 var next_plan: int = 0
 var squads: Array[Array] = []
+var recoveries: Array[Dictionary] = []
+var captured_hearts: Dictionary = {}
 
 func army(sim) -> Array[ClassicStudent]:
 	var result: Array[ClassicStudent] = []
@@ -15,7 +17,7 @@ func army(sim) -> Array[ClassicStudent]:
 	return result
 
 func controls(unit: ClassicStudent) -> bool:
-	return started and unit.team == 0 and phase != "normal"
+	return started and unit.team == 0 and (phase != "normal" or is_recovering(unit))
 
 func distance(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
@@ -27,7 +29,7 @@ func base_distance(sim, unit: ClassicStudent) -> int:
 func can_engage(sim, unit: ClassicStudent, target: ClassicStudent) -> bool:
 	if not started or unit.team != 0 or unit.team == sim.player_team:
 		return true
-	if phase in ["rally", "retreat"]:
+	if is_recovering(unit) or phase in ["rally", "retreat"]:
 		return false
 	var enemies: int = 0
 	var allies: int = 0
@@ -36,10 +38,13 @@ func can_engage(sim, unit: ClassicStudent, target: ClassicStudent) -> bool:
 			continue
 		if other.team != 0 and distance(other.cell, target.cell) <= 3:
 			enemies += 1
-		elif other.team == 0 and distance(other.cell, unit.cell) <= 8:
+		elif other.team == 0 and not is_recovering(other) and distance(other.cell, unit.cell) <= 8:
 			allies += 1
 	if phase == "attack":
-		allies = army(sim).size()
+		allies = 0
+		for ally: ClassicStudent in army(sim):
+			if not is_recovering(ally):
+				allies += 1
 	return enemies <= allies
 
 func weakest_race(sim) -> int:
@@ -81,7 +86,10 @@ func _enter(sim, new_phase: String, humans: Array[ClassicStudent]) -> void:
 	phase = new_phase
 	next_plan = 0
 	for unit: ClassicStudent in humans:
-		_clear(sim, unit)
+		if not is_recovering(unit) or new_phase == "retreat":
+			_clear(sim, unit)
+	if new_phase == "retreat":
+		recoveries.clear()
 
 func _refresh(humans: Array[ClassicStudent]) -> void:
 	var assigned: Dictionary = {}
@@ -107,16 +115,6 @@ func _refresh(humans: Array[ClassicStudent]) -> void:
 			destination = []
 			squads.append(destination)
 		destination.append({"unit": unit, "life": unit.lifetime})
-
-	# Compact casualty-thinned squads back into complete groups of four.
-	var records: Array = []
-	for group: Array in squads:
-		records.append_array(group)
-	squads.clear()
-	for i: int in records.size():
-		if i % 4 == 0:
-			squads.append([])
-		squads.back().append(records[i])
 
 func _normal(sim, humans: Array[ClassicStudent]) -> void:
 	_refresh(humans)
@@ -159,20 +157,18 @@ func _normal(sim, humans: Array[ClassicStudent]) -> void:
 				best_count = populations[quadrant]
 				best_quadrant_distance = q_distance
 				best_tile_distance = tile_distance
-		# Keep a four-person squad together before beginning another capture march.
-		var rally: bool = false
-		for unit: ClassicStudent in members:
-			if distance(unit.cell, origin) > 8:
-				rally = true
-		if rally:
-			goal = Vector2i(origin.x / 4, origin.y / 4)
+		# Recruits follow the squad already in the field; do not pull veterans back.
+		if members.size() > 1:
+			var leader: ClassicStudent = members[0]
+			for unit: ClassicStudent in members:
+				if distance(unit.cell, leader.cell) > 8 and leader.designated_tile.x >= 0:
+					goal = leader.designated_tile
+					break
 		# Do not abandon a squadmate during local interception.
 		for unit: ClassicStudent in members:
 			if sim.proximity_ai.active(unit):
 				goal = sim.proximity_ai.engagements[unit.id].origin
 				break
-		if members.size() < 4 and humans.size() >= 4:
-			goal = sim.bases[0]
 		var fallback: ClassicStudent = null
 		if goal.x < 0:
 			var nearest: int = 100000
@@ -183,7 +179,7 @@ func _normal(sim, humans: Array[ClassicStudent]) -> void:
 						nearest = cost
 						fallback = enemy
 		for unit: ClassicStudent in members:
-			if sim.proximity_ai.active(unit) or unit.ai_spawn_wait:
+			if is_recovering(unit) or sim.proximity_ai.active(unit) or unit.ai_spawn_wait:
 				continue
 			if goal.x >= 0:
 				_move(sim, unit, goal)
@@ -202,7 +198,11 @@ func update(sim) -> void:
 		phase = "normal"
 		target_race = -1
 		squads.clear()
+		recoveries.clear()
 		return
+	_refresh(humans)
+	if phase != "retreat":
+		_update_group_recovery(sim)
 	if phase == "normal" and humans.size() >= 10:
 		_enter(sim, "rally", humans)
 	if phase == "normal":
@@ -226,7 +226,10 @@ func update(sim) -> void:
 	if phase in ["rally", "retreat"]:
 		var arrived: bool = true
 		for unit: ClassicStudent in humans:
-			_move(sim, unit, sim.bases[0], phase == "retreat")
+			if not is_recovering(unit):
+				_move(sim, unit, sim.bases[0], phase == "retreat")
+			else:
+				arrived = false
 			if (base_distance(sim, unit) > 15 if phase == "rally" else Vector2i(unit.cell.x / 4, unit.cell.y / 4) != sim.bases[0]):
 				arrived = false
 		if arrived:
@@ -241,7 +244,8 @@ func update(sim) -> void:
 			_enter(sim, "attack", humans)
 	if phase == "capture":
 		for unit: ClassicStudent in humans:
-			_move(sim, unit, sim.bases[target_race])
+			if not is_recovering(unit):
+				_move(sim, unit, sim.bases[target_race])
 	elif phase == "attack":
 		var victim: ClassicStudent = null
 		var best: int = 100000
@@ -256,6 +260,8 @@ func update(sim) -> void:
 					best = cost
 					victim = enemy
 		for unit: ClassicStudent in humans:
+			if is_recovering(unit):
+				continue
 			if victim == null:
 				_move(sim, unit, sim.bases[0])
 			elif unit.priority_target_id != victim.id or unit.target_id != victim.id:
@@ -263,3 +269,84 @@ func update(sim) -> void:
 				sim.designate_order(unit, Vector2i.ZERO, victim.id)
 				unit.priority_target_id = victim.id
 				sim.start_walk(unit, Vector2i.ZERO, victim.id)
+
+
+func is_recovering(unit: ClassicStudent) -> bool:
+	for recovery: Dictionary in recoveries:
+		for record: Dictionary in recovery.members:
+			if record.unit == unit and record.life == unit.lifetime and unit.is_alive():
+				return true
+	return false
+
+func _group_members(group: Array) -> Array[ClassicStudent]:
+	var result: Array[ClassicStudent] = []
+	for record: Dictionary in group:
+		if record.unit.is_alive() and record.unit.team == 0 and record.unit.lifetime == record.life:
+			result.append(record.unit)
+	return result
+
+func _empty_heart(sim, tile: Vector2i) -> bool:
+	if not sim.area_at.has(tile) or sim.areas[sim.area_at[tile]].kind != ClassicRules.AreaKind.HEAL:
+		return false
+	for enemy: ClassicStudent in sim.students:
+		if enemy.is_alive() and enemy.team != 0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == tile:
+			return false
+	return true
+
+func _healing_goal(sim, members: Array[ClassicStudent]) -> Vector2i:
+	var center := Vector2.ZERO
+	for unit: ClassicStudent in members:
+		center += Vector2(unit.cell)
+	center /= members.size()
+	var result: Vector2i = sim.bases[0]
+	var best_priority: int = 2
+	var best_distance: int = 100000
+	for area: Dictionary in sim.areas:
+		if not _empty_heart(sim, area.tile):
+			continue
+		var priority: int = 0 if area.owner == 0 or captured_hearts.has(area.tile) else 1
+		var cost: int = distance(Vector2i(center), area.tile * 4 + Vector2i(2,2))
+		if priority < best_priority or (priority == best_priority and cost < best_distance):
+			result = area.tile
+			best_priority = priority
+			best_distance = cost
+	return result
+
+func _update_group_recovery(sim) -> void:
+	for area: Dictionary in sim.areas:
+		if area.kind == ClassicRules.AreaKind.HEAL and area.owner == 0:
+			captured_hearts[area.tile] = true
+	for group: Array in squads:
+		var members: Array[ClassicStudent] = _group_members(group)
+		var current_hp: float = 0.0
+		var maximum_hp: float = 0.0
+		var recovering: bool = false
+		for unit: ClassicStudent in members:
+			current_hp += unit.health
+			maximum_hp += unit.maximum_health
+			recovering = recovering or is_recovering(unit)
+		if not members.is_empty() and not recovering and current_hp < maximum_hp * 0.5:
+			for unit: ClassicStudent in members:
+				_clear(sim, unit)
+			recoveries.append({"members": group, "goal": _healing_goal(sim, members)})
+	for index: int in range(recoveries.size() - 1, -1, -1):
+		var recovery: Dictionary = recoveries[index]
+		var members: Array[ClassicStudent] = _group_members(recovery.members)
+		if members.is_empty():
+			recoveries.remove_at(index)
+			continue
+		var healed: bool = true
+		var arrived: bool = true
+		for unit: ClassicStudent in members:
+			healed = healed and unit.health >= unit.maximum_health
+			arrived = arrived and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == recovery.goal and unit.state != ClassicStudent.State.WALK
+		if healed and arrived:
+			for unit: ClassicStudent in members:
+				unit.ai_retreating = false
+			recoveries.remove_at(index)
+			next_plan = 0
+			continue
+		if recovery.goal != sim.bases[0] and not _empty_heart(sim, recovery.goal):
+			recovery.goal = _healing_goal(sim, members)
+		for unit: ClassicStudent in members:
+			_move(sim, unit, recovery.goal, true)

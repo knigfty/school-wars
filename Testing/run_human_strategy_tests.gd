@@ -30,6 +30,8 @@ func _unit(sim: ClassicSimulation, id: int, race: int, cell: Vector2i, hp: float
 	unit.state = ClassicStudent.State.SIT
 	return unit
 func _run() -> void:
+	_test_partial_groups()
+	_test_group_healing()
 	_test_conquest_capture()
 	for mode: int in 3:
 		var sim := _sim(mode)
@@ -127,3 +129,62 @@ func _test_conquest_capture() -> void:
 				break
 		_check(not sim.active[2] and sim.get_count(2) == 0, "Conquest eliminates chosen race through real combat")
 		_check(sim.areas[sim.area_at[sim.bases[2]]].owner == 0, "Conquest seats survivors and captures eliminated race's base")
+
+func _test_partial_groups() -> void:
+	for mode: int in 3:
+		var sim := _sim(mode)
+		sim._add_area(Vector2i(5,5),ClassicRules.AreaKind.RECRUIT,-1)
+		for id: int in 5:
+			_unit(sim,id,0,Vector2i(id,0))
+		sim.human_ai.update(sim)
+		var leader: ClassicStudent = sim.students[4]
+		_check(sim.human_ai.squads.size()==2 and sim.human_ai.squads[1].size()==1,"Fifth recruit starts its own squad immediately")
+		_check(leader.designated_tile==Vector2i(5,5) and leader.state==ClassicStudent.State.WALK,"One-person squad moves out to capture instead of waiting at base")
+		for id: int in range(5,8):
+			_unit(sim,id,0,Vector2i(id,0))
+			sim.ticks+=18
+			sim.human_ai.update(sim)
+			_check(sim.human_ai.squads[1].size()==id-3,"Subsequent recruits fill the travelling second squad")
+			_check(sim.human_ai.squads[1][0].unit==leader,"Joining recruits preserve the existing squad leader")
+			_check(sim.students[id].designated_tile==leader.designated_tile,"Recruits follow the squad's current objective")
+
+func _test_group_healing() -> void:
+	for mode: int in 3:
+		var sim := _sim(mode)
+		for id: int in 4:
+			_unit(sim,id,0,Vector2i(4+id,4))
+		sim._add_area(Vector2i(2,2),ClassicRules.AreaKind.HEAL,-1)
+		sim._add_area(Vector2i(10,10),ClassicRules.AreaKind.HEAL,0)
+		for id: int in 4:
+			sim.students[id].health=10
+		sim.human_ai.update(sim)
+		_check(sim.human_ai.recoveries.is_empty(),"Exactly fifty percent combined HP does not trigger retreat")
+		sim.students[0].health=9
+		sim.human_ai.update(sim)
+		_check(sim.human_ai.recoveries.size()==1,"Below fifty percent combined HP triggers one group recovery")
+		for id: int in 4:
+			_check(sim.students[id].ai_retreating and sim.students[id].designated_tile==Vector2i(10,10),"Entire group prefers a captured heart over a nearer new heart")
+		# Previously owned hearts remain preferred when empty, even after losing them.
+		sim.areas[sim.area_at[Vector2i(10,10)]].owner=3
+		var members: Array[ClassicStudent]=sim.human_ai.army(sim)
+		_check(sim.human_ai._healing_goal(sim,members)==Vector2i(10,10),"Previously captured empty heart remains a preferred recapture destination")
+		var enemy: ClassicStudent=_unit(sim,20,1,Vector2i(40,40))
+		sim.human_ai.update(sim)
+		_check(sim.students[0].designated_tile==Vector2i(2,2),"Contested preferred heart reroutes all members to an empty heart")
+		_unit(sim,21,1,Vector2i(8,8))
+		sim.human_ai.update(sim)
+		_check(sim.students[0].designated_tile==sim.bases[0],"No empty heart sends group to base")
+		# Actual travel, capture, sitting and healing on an empty neutral heart.
+		sim=_sim(mode)
+		for id: int in 4:
+			_unit(sim,id,0,Vector2i(4+id,4))
+			sim.students[id].health=9
+		sim._add_area(Vector2i(2,2),ClassicRules.AreaKind.HEAL,-1)
+		for tick: int in 600:
+			sim.step()
+			if sim.areas[sim.area_at[Vector2i(2,2)]].owner==0 and sim.human_ai.recoveries.is_empty():
+				break
+		_check(sim.areas[sim.area_at[Vector2i(2,2)]].owner==0,"Retreating squad captures an empty neutral heart")
+		_check(sim.human_ai.recoveries.is_empty(),"Group resumes normal orders after full recovery")
+		for id: int in 4:
+			_check(sim.students[id].health==sim.students[id].maximum_health and not sim.students[id].ai_retreating,"All members heal fully before group retreat ends")
