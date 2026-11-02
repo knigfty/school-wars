@@ -74,6 +74,7 @@ jobs:
             run_ranged_response_tests.gd \
             run_spectator_tests.gd \
             run_spectator_stall_tests.gd \
+            run_elf_recovery_tests.gd \
             run_orc_flee_tests.gd; do
             "$godot" --headless --path . --script "res://Testing/$test_script"
           done

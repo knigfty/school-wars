@@ -124,8 +124,8 @@ func _run() -> void:
 		app._show_help()
 		var name: String = ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][difficulty]
 		_check(app.modal_body.text.begins_with(name), "Help reflects the active match difficulty")
-		_check(("45 seconds" in app.modal_body.text) == (difficulty == ClassicSimulation.Difficulty.EXPERT), "Expert healing cooldown appears only on Expert")
-		_check(("randomly fight back" in app.modal_body.text) == (difficulty == ClassicSimulation.Difficulty.NORMAL), "Normal retreat choices appear only on Normal")
+		_check(("45-second cooldown" in app.modal_body.text) == (difficulty == ClassicSimulation.Difficulty.EXPERT), "Expert healing cooldown appears only on Expert")
+		_check("Retreat cooldown is 30 seconds from arrival" in app.modal_body.text and "below 30% HP" in app.modal_body.text, "Shared elf recovery rules appear on every difficulty")
 		for other: int in 3:
 			if other != difficulty:
 				_check(not ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][other] in app.modal_body.text, "Other difficulty sections are excluded")

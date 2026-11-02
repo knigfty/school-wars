@@ -46,7 +46,7 @@ func _seed(roll_low: bool) -> int:
 
 func _run() -> void:
 	for mode: int in 3:
-		for race: int in [0, 2]:
+		for race: int in [0]:
 			for chase: bool in [false, true]:
 				var sim: ClassicSimulation = _fixture(race, mode)
 				sim.rng.seed = _seed(chase)

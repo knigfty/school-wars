@@ -86,7 +86,7 @@ func _run() -> void:
 	_check(elf.ai_retreating, "Elf continues healing until recovery threshold")
 	elf.health = elf.maximum_health * 0.8
 	sim.squad_ai.update(sim)
-	_check(not elf.ai_retreating, "Healthy elf rejoins")
+	_check(elf.ai_retreating and elf.ai_elf_recovering, "Elf remains committed at eighty percent HP before arrival")
 
 	sim = _fixture()
 	var orc: ClassicStudent = _unit(sim, 0, 1, Vector2i(8, 8))
@@ -194,7 +194,7 @@ func _retreat_timing_tests() -> void:
 			ally.punch_bonus = 100
 		sim.squad_ai.update(sim)
 		if supported:
-			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(5, 5), "Expert elf healing takes priority even with support")
+			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(12, 12), "Expert elf skips contested healing even with support")
 		else:
 			_check(elf.ai_retreating, "Expert elves heal before fighting when a point is nearby")
 	var choices: Dictionary = {}
@@ -207,7 +207,7 @@ func _retreat_timing_tests() -> void:
 		_unit(sim, 1, 0, Vector2i(21, 20))
 		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
 		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
-		sim.squad_ai.update(sim)
+		sim.elf_recovery.threat(sim, elf, sim.students[1])
 		choices[elf.ai_retreating] = true
 	_check(choices.size() == 2, "Normal elves randomly choose both fight and escape")
 	sim = _fixture(0)
@@ -368,48 +368,6 @@ func _player_tile_tests() -> void:
 
 
 func _expert_recovery_tests() -> void:
-	for race: int in [2]:
-		var sim: ClassicSimulation = _fixture(0)
-		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-		var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
-		unit.health = unit.maximum_health * (0.2 if race == 2 else 0.3)
-		# Tile begins at x=28: nearest healing cell is eight movement cells away.
-		sim._add_area(Vector2i(7, 5), ClassicRules.AreaKind.HEAL, race)
-		sim.squad_ai.update(sim)
-		_check(unit.ai_retreating and unit.ai_heal_tile == Vector2i(7, 5), "Expert recovery triggers at exact health threshold")
-		var ready_at: int = sim.ticks + (45 if race == 2 else 30) * 18
-		_check(unit.ai_heal_ready_at == ready_at, "Race-specific healing cooldown starts with retreat")
-		unit.health = unit.maximum_health * 0.9
-		sim.ticks += 1
-		sim.squad_ai.update(sim)
-		_check(unit.ai_retreating == (race == 2), "Elves wait for full HP; demons retain recovery threshold")
-		unit.health = unit.maximum_health
-		sim.ticks += 1
-		sim.squad_ai.update(sim)
-		_check(not unit.ai_retreating, "Full recovery returns to normal orders")
-		unit.health = 1
-		sim.ticks = ready_at - 1
-		sim.squad_ai.update(sim)
-		_check(not unit.ai_retreating, "Healing cooldown prevents early repeated retreat")
-		sim.ticks = ready_at
-		sim.squad_ai.update(sim)
-		_check(unit.ai_retreating, "Healing retreat becomes available at cooldown boundary")
-		# Losing the healing point ends commitment without a global retreat.
-		sim.areas[0].owner = 0
-		sim.ticks += 1
-		sim.squad_ai.update(sim)
-		_check(not unit.ai_retreating, "Lost healing point cancels recovery")
-		sim = _fixture(0)
-		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-		unit = _unit(sim, 0, race, Vector2i(20, 20))
-		unit.health = 1
-		sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.BASE, race)
-		sim.squad_ai.update(sim)
-		_check(not unit.ai_retreating and unit.ai_heal_ready_at == 0, "Healing beyond ten movement cells does not cause retreat or consume cooldown")
-		# Exactly ten cells is allowed.
-		unit.cell = Vector2i(22, 20)
-		sim.squad_ai.update(sim)
-		_check(unit.ai_retreating, "Healing point exactly ten cells away is eligible")
 
 	for distance: int in [10, 11]:
 		for race: int in [2, 3]:
@@ -517,6 +475,8 @@ func _base_defence_tests() -> void:
 			var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(20, 20))
 			unit.state = ClassicStudent.State.STAND
 			unit.counter = 2
+			if race == 2:
+				unit.ai_heal_ready_at = 10000
 			var invader: ClassicStudent = _unit(sim, 1, sim.player_team, Vector2i(21, 20))
 			invader.health = 1000
 			invader.maximum_health = 1000
@@ -532,17 +492,26 @@ func _base_defence_tests() -> void:
 			sim.step()
 			_check(unit.target_id == invader.id, "Every AI race targets base intruder immediately after spawn wait on every difficulty")
 			unit.health = 1
+			if race == 2:
+				unit.ai_heal_ready_at = 0
+				unit.ai_hold_ground_until = 0
 			for tick: int in 80:
 				# Successful hits shorten the intruder's standing counter; keep this
 				# fixture passive so it tests defender orders, not a one-HP duel.
 				invader.state = ClassicStudent.State.STAND
 				invader.counter = 10000
 				sim.step()
-				_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Base defenders cannot capture, flee or heal elsewhere while invaded")
+				if race == 2:
+					_check(unit.is_alive() and unit.ai_elf_recovering, "Low-HP elf base defenders can commit to safe healing retreat")
+				else:
+					_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Other base defenders remain while invaded")
 			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
 			unit.health = 100
 			sim._apply_hit(outside, unit)
-			_check(unit.retaliation_until == 0 and unit.target_id == invader.id, "Outside attacks cannot lure a locked base defender away")
+			if race == 2:
+				_check(unit.ai_elf_recovering and unit.target_id == -1, "Outside attacks do not interrupt committed elf travel")
+			else:
+				_check(unit.retaliation_until == 0 and unit.target_id == invader.id, "Outside attacks cannot lure a locked base defender away")
 			invader.state = ClassicStudent.State.UNUSED
 			sim.occupancy.erase(invader.cell)
 			sim._update_base_defence(unit)

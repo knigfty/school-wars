@@ -19,18 +19,8 @@ func update(sim) -> void:
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
 			_human_recover(sim, unit)
 			continue
-		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 2:
-			_try_recovery(sim, unit)
-			continue
 		if unit.team == 2:
-			if sim.ticks < unit.ai_hold_ground_until:
-				continue
-			if unit.health < unit.maximum_health * 0.2:
-				unit.ai_retreating = true
-			elif unit.health >= unit.maximum_health * 0.8:
-				unit.ai_retreating = false
-			if unit.ai_retreating:
-				_heal(sim, unit)
+			sim.elf_recovery.update(sim, unit)
 
 	if sim.ticks < next_plan:
 		return
@@ -88,7 +78,7 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
+		if not unit.ai_elf_recovering and not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
@@ -199,51 +189,8 @@ func _strength(sim, unit: ClassicStudent) -> float:
 
 
 func _heal(sim, unit: ClassicStudent) -> void:
-	var current_tile: Vector2i = Vector2i(unit.cell.x / 4, unit.cell.y / 4)
-	var threatened: bool = sim.ticks - unit.last_attacked_tick < 3 * ClassicRules.TICKS_PER_SECOND
-	if not (threatened and current_tile == unit.ai_heal_tile) and sim.ticks < unit.ai_heal_decide_at and unit.ai_heal_tile.x >= 0 and sim.area_at.has(unit.ai_heal_tile) and sim.areas[sim.area_at[unit.ai_heal_tile]].owner == unit.team:
-		_move(sim, unit, unit.ai_heal_tile)
-		return
-	var destination: Vector2i = Vector2i(-1, -1)
-	var best: float = INF
-	for area: Dictionary in sim.areas:
-		if area.owner != unit.team or area.kind == ClassicRules.AreaKind.RECRUIT:
-			continue
-		if threatened and area.tile == current_tile:
-			continue
-		var distance: float = unit.cell.distance_squared_to(area.tile * 4 + Vector2i(2, 2))
-		if sim.difficulty == sim.Difficulty.EXPERT and unit.team != 2:
-			distance += _danger_at(sim, unit.team, area.tile * 4 + Vector2i(2, 2)) * 10.0
-		if distance < best:
-			best = distance
-			destination = area.tile
-	if threatened:
-		var fight: bool = sim.rng.randf() < 0.5 if sim.difficulty == sim.Difficulty.NORMAL or unit.team == 2 else _danger_at(sim, unit.team, unit.cell) <= 0.0
-		if fight:
-			var target: ClassicStudent = null
-			var nearest: float = INF
-			for enemy: ClassicStudent in sim.students:
-				if enemy.is_alive() and enemy.team != unit.team and unit.cell.distance_to(enemy.cell) < nearest:
-					nearest = unit.cell.distance_to(enemy.cell)
-					target = enemy
-			if target != null:
-				unit.ai_retreating = false
-				unit.ai_hold_ground_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
-				unit.priority_target_id = target.id
-				unit.state = ClassicStudent.State.STAND
-				sim.designate_order(unit, Vector2i.ZERO, target.id)
-				sim.start_walk(unit, Vector2i.ZERO, target.id)
-				return
-	if destination.x < 0:
-		var threats: Array[ClassicStudent] = []
-		for other: ClassicStudent in sim.students:
-			if other.is_alive() and other.team != unit.team:
-				threats.append(other)
-		destination = _escape_tile(sim, unit, threats)
-	unit.ai_heal_tile = destination
-	unit.ai_heal_decide_at = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
-	_move(sim, unit, destination)
-
+	if unit.team == 2:
+		sim.elf_recovery.update(sim, unit)
 
 func _danger_at(sim, team: int, cell: Vector2i) -> float:
 	var danger: float = 0.0
@@ -444,32 +391,7 @@ func _nearby_healing_tile(sim, unit: ClassicStudent) -> Vector2i:
 
 
 func _try_recovery(sim, unit: ClassicStudent) -> void:
-	if unit.team != 2:
-		return
-	var threshold: float = 0.2
-	var recovered: float = 1.0
-	if unit.ai_retreating:
-		if unit.health >= unit.maximum_health * recovered:
-			unit.ai_retreating = false
-			unit.ai_heal_tile = Vector2i(-1, -1)
-			return
-		if not sim.area_at.has(unit.ai_heal_tile) or sim.areas[sim.area_at[unit.ai_heal_tile]].owner != unit.team:
-			unit.ai_heal_tile = _nearby_healing_tile(sim, unit)
-		if unit.ai_heal_tile.x < 0:
-			unit.ai_retreating = false
-			unit.target_id = -1
-			unit.priority_target_id = -1
-			unit.state = ClassicStudent.State.STAND
-			return
-		_move(sim, unit, unit.ai_heal_tile)
-	elif unit.health <= unit.maximum_health * threshold and sim.ticks >= unit.ai_heal_ready_at:
-		var destination: Vector2i = _nearby_healing_tile(sim, unit)
-		if destination.x >= 0:
-			unit.ai_retreating = true
-			unit.ai_heal_tile = destination
-			unit.ai_heal_ready_at = sim.ticks + 45 * ClassicRules.TICKS_PER_SECOND
-			_move(sim, unit, destination)
-
+	sim.elf_recovery.update(sim, unit)
 
 func _elf_spacing_cost(tile: Vector2i, ready: Array[ClassicStudent]) -> float:
 	var cost: float = 0.0

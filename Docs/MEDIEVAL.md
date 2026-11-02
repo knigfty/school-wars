@@ -115,12 +115,7 @@ Squads share capture destinations and focus targets. Separated members rally
 before advancing; recruits fill squads, and a group of five splits into 3/2.
 Single surviving warriors can still act until another recruit is available.
 Humans capture together and choose their next objective once ownership changes.
-Elves below 20% HP seek an owned heart or base and normally recover to 80% HP.
-All medieval elves, including player units, heal only while sitting on an owned
-heart/base after three seconds without being attacked. Active in-range attacks
-block healing even when a punch misses. When threatened, Normal elves randomly
-choose to fight back or seek another healing spot. Expert recovery priorities and cooldowns are described below. Decisions commit for three seconds to limit oscillation;
-arrival under attack triggers a new decision. Retreat does not grant immunity.
+AI elves below 30% HP seek the nearest uncontested owned heart/base without a distance limit and recover fully. Retreat movement is 20% slower; the thirty-second cooldown starts on arrival. All medieval elves, including player units, heal only while sitting on an owned heart/base after three seconds without being attacked. Active in-range attacks block healing even when a punch misses. Healing AI elves retaliate in place without healing during combat. Threatened tile defenders may choose fight or healing retreat if cooldown allows; fighting holds for three seconds before reconsideration. Retreat does not grant immunity.
 Orcs focus a shared victim; when locally outnumbered they can flee for at most
 ten seconds, once per unit every thirty seconds measured from flee start.
 Cooldown orcs keep fighting even when squadmates flee. They flee toward the nearest active enemy-owned base. Demons favour low-HP
@@ -141,11 +136,11 @@ Expert retains no opening wait and uses Normal recruitment rates. Enemy unit awa
 
 Humans fill squads to four and prioritize nearby unoccupied capture objectives. Orcs fill squads to six and focus one nearby enemy. Outnumbered orcs in Normal and Expert flee toward an enemy-owned base for up to ten seconds, retaining the thirty-second per-unit cooldown.
 
-Expert elves form four core members per group; ranged elves may join beyond that limit. They prioritize: (1) retreat to heal at or below 20% HP, (2) protect allies at or below 20% HP within ten movement cells by targeting their attackers, (3) capture enemy/neutral tiles, (4) fight nearby enemies as a group. Healing retreat requires an owned heart/base within ten movement cells and has a forty-five-second per-unit cooldown, measured from retreat start. Elves remain committed until 100% HP. Their existing three-second safe-healing rule remains. Group destinations retain their separation preference.
+Expert elves form four core members per group; ranged elves may join beyond that limit. They prioritize: (1) shared all-difficulty healing recovery below 30% HP, (2) protect allies at or below 20% HP within ten movement cells by targeting their attackers, (3) capture enemy/neutral tiles, (4) fight nearby enemies as a group. Recovery has no distance limit, uses uncontested owned hearts/bases, and starts its thirty-second cooldown on arrival. Elves remain committed until 100% HP. Group destinations retain their separation preference.
 
 Expert demons form groups of four and prioritize defending owned tiles within ten movement cells, then capture, then group attacks. Enemy demons never retreat to heal on any difficulty. Demons (player and enemy) cannot heal on hearts, but can heal while seated on owned bases. Each demon killing blow heals two HP; damaging assists never heal. Killers do not also receive assist healing. Healing is capped at maximum HP and existing punch rewards remain unchanged.
 
-Healing distance uses Manhattan movement-cell distance to the nearest cell on a healing tile (inclusive ten-cell limit), rather than capture-tile distance. These Expert changes do not alter Normal or Easy healing behaviour.
+Healing destination selection uses Manhattan movement-cell distance to the nearest cell on a healing tile. Elf recovery uses the same unlimited-distance rules on every difficulty.
 
 On all Medieval difficulties, humans gain +1 punch while fighting on an owned spade, heart or base. The temporary bonus remains for three seconds after leaving owned territory, then expires. It stacks with permanent punch upgrades and is reset on normal respawn or conversion.
 
@@ -174,3 +169,8 @@ All difficulties: elves gain +1 temporary punch only while on their own captured
 ### Interrupted return movement
 
 Returning guards retry their route after an interrupted walk leaves them standing or seated outside their assigned tile. Ranged units finish returning before reacquiring enemies on that tile. The adjacent-tile defence leash remains in force for ordinary nearby returns; units beginning farther away (such as ranged capture approaches) can route back into that area. Regression coverage advances eight simulation steps per frame across all difficulties and races and checks completed movement and occupancy.
+
+
+### Unified Elf retreat (all difficulties)
+
+AI elves begin recovery below 30% current/maximum HP, or may choose recovery with a 50% roll when defending a threatened tile. A fight choice holds for three seconds before reconsideration. Retreat requires the cooldown to be ready and a safe destination: the nearest owned heart/base containing no living enemies, measured to the nearest tile cell with no distance limit. A committed retreat remains active if its goal is lost or contested, searches for another safe destination, and moves at 80% normal speed. It does not cancel just because HP rises en route. The 30-second cooldown starts on arrival, not departure. At the healing spot, normal speed returns but recovery remains committed until full HP. Elves retaliate against attackers in reach without leaving their healing spot; fighting never heals, and seated healing resumes only after the existing three-second safe interval. Explicit player control remains unchanged.

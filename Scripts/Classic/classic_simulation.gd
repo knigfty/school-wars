@@ -30,6 +30,8 @@ const RANGED_RESPONSE = preload("res://Scripts/Classic/medieval_ranged_response.
 var ranged_response = RANGED_RESPONSE.new()
 const ORC_FLEE = preload("res://Scripts/Classic/medieval_orc_flee.gd")
 var orc_flee = ORC_FLEE.new()
+const ELF_RECOVERY = preload("res://Scripts/Classic/medieval_elf_recovery.gd")
+var elf_recovery = ELF_RECOVERY.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
@@ -219,6 +221,8 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.returning_to_tile = false
 	student.is_converted = false
 	student.ai_retreating = false
+	student.ai_elf_recovering = false
+	student.ai_elf_arrived = false
 	student.ai_flee_until = 0
 	student.ai_flee_ready_at = 0
 	student.ai_flee_quadrant = -1
@@ -264,10 +268,15 @@ func step() -> void:
 		for unit: ClassicStudent in students:
 			orc_flee.update(self, unit)
 		ranged_response.update(self)
+		if ai_enabled:
+			for unit: ClassicStudent in students:
+				elf_recovery.update(self, unit)
 	if medieval:
 		for unit: ClassicStudent in students:
 			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
 				unit.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
+			if unit.ai_elf_recovering:
+				continue
 			if not _update_tile_order(unit) and not _update_base_defence(unit):
 				_update_retaliation(unit)
 	if medieval:
@@ -384,6 +393,8 @@ func _holds_player_tile(student: ClassicStudent) -> bool:
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and student.ai_elf_recovering:
+		return not student.ai_retreating and _within_attack_range(student, target)
 	if medieval and student.team == 1 and student.ai_flee_phase == 1:
 		return false
 	if medieval and ranged_response.active(student):
@@ -522,6 +533,10 @@ func _update_tile_order(student: ClassicStudent) -> bool:
 					target = shared
 					break
 	if target != null and (current == home or student.tile_guard_target >= 0 or (get_attack_range(student) > 1 and _within_attack_range(student, target))):
+		if ai_enabled and current == home:
+			elf_recovery.threat(self, student, target)
+			if student.ai_elf_recovering:
+				return true
 		student.tile_clear_at = -1
 		student.tile_order_busy = true
 		student.tile_guard_target = target.id
@@ -629,6 +644,8 @@ func _can_attack_priority(student: ClassicStudent) -> bool:
 
 
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
+	if ai_enabled:
+		elf_recovery.threat(self, target, attacker)
 	if target.ai_retreating or not _may_engage(target, attacker):
 		return
 	if _can_attack_priority(target):
@@ -659,6 +676,10 @@ func _start_stand(student: ClassicStudent) -> void:
 
 
 func _start_sit(student: ClassicStudent) -> void:
+	if medieval and student.ai_elf_recovering:
+		student.state = ClassicStudent.State.SIT if not student.ai_retreating else ClassicStudent.State.WAIT
+		student.counter = 2
+		return
 	if medieval and student.ai_spawn_wait and not _valid_enemy(student, student.priority_target_id):
 		student.tile_guard_active = true
 	student.ai_spawn_wait = false
@@ -873,7 +894,11 @@ func _return_step(student: ClassicStudent) -> void:
 
 
 func _start_turn(student: ClassicStudent) -> void:
-	if medieval and student.returning_to_tile:
+	if medieval and student.ai_elf_recovering and student.ai_retreating and student.ai_heal_tile.x < 0:
+		student.state = ClassicStudent.State.WAIT
+		student.counter = 2
+		return
+	if medieval and (student.returning_to_tile or (student.ai_elf_recovering and student.ai_retreating)):
 		_return_step(student)
 		return
 	# Expert human movement orders need routes around packed friendly base cells,
@@ -1033,6 +1058,8 @@ func _fighting(student: ClassicStudent) -> void:
 
 
 func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
+	if ai_enabled:
+		elf_recovery.threat(self, target, student)
 	# Register the defending group before damage, so a lethal opening hit still
 	# counts toward its original strength and prompts surviving defenders.
 	if medieval and target.team != player_team and target.tile_guard_active and target.state != ClassicStudent.State.WALK and get_attack_range(student) > 1:
@@ -1060,6 +1087,10 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			_convert_to_orc(target)
 			student.show_event("ORCS RISE!")
 	else:
+		if target.ai_elf_recovering:
+			elf_recovery.update(self, target)
+			sound_requested.emit("punch", target.world_position())
+			return
 		_respond_to_hit(target, student)
 		if not target.ai_retreating:
 			_begin_retaliation(target, student)
@@ -1134,7 +1165,7 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
-	if ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
+	if student.ai_elf_recovering or ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
 		return
 	var healthy: bool = (medieval and student.team == 3) or is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF
@@ -1370,6 +1401,8 @@ func get_attack_range(student: ClassicStudent) -> int:
 
 
 func get_movement_multiplier(student: ClassicStudent) -> float:
+	if medieval and student.team == 2 and student.ai_retreating:
+		return 0.8
 	if medieval and student.team == 1 and student.team != player_team and student.ai_retreating and ticks < student.ai_flee_until:
 		return 1.3
 	if medieval and student.team == 3:

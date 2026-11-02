@@ -8,6 +8,9 @@ func active(unit: ClassicStudent) -> bool:
 	return unit.ranged_response_id >= 0 and groups.has(unit.ranged_response_id)
 
 func on_hit(sim, defender: ClassicStudent, attacker: ClassicStudent) -> void:
+	if defender.team == 2:
+		sim.elf_recovery.threat(sim, defender, attacker)
+		return
 	if active(defender) or defender.ai_retreating:
 		return
 	var members: Array = []
@@ -205,17 +208,4 @@ func update(sim) -> void:
 				groups.erase(id)
 
 func _elf_recover(sim, unit: ClassicStudent) -> void:
-	var expert: bool = sim.difficulty == sim.Difficulty.EXPERT
-	if unit.health > unit.maximum_health * 0.2 or (not expert and unit.health == unit.maximum_health * 0.2) or (expert and sim.ticks < unit.ai_heal_ready_at):
-		return
-	var goal: Vector2i = _healing_goal(sim, unit, 10 if expert else 100000)
-	if goal.x < 0:
-		return
-	var id: int = next_id
-	next_id += 1
-	var group: Dictionary = {"id": id, "team": 2, "members": [{"unit": unit, "life": unit.lifetime}], "initial": 1, "target": unit, "target_life": unit.lifetime, "mode": "retreat", "rolled": true, "goal": goal, "heal": true, "recover": 1.0 if expert else 0.8, "recovery": true}
-	groups[id] = group
-	unit.ranged_response_id = id
-	if expert:
-		unit.ai_heal_ready_at = sim.ticks + 45 * ClassicRules.TICKS_PER_SECOND
-	_retreat(sim, group, true, goal)
+	sim.elf_recovery.update(sim, unit)
