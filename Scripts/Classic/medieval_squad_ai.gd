@@ -13,6 +13,7 @@ func update(sim) -> void:
 	if sim.difficulty == sim.Difficulty.NORMAL and sim.ticks < sim.AI_START_DELAY_TICKS:
 		return
 	for unit: ClassicStudent in sim.students:
+		sim.orc_flee.update(sim, unit)
 		if sim.ranged_response.active(unit) or not unit.is_alive() or unit.team == sim.player_team or unit.tile_order_busy or unit.ai_base_defence_tile.x >= 0 or unit.retaliation_until > 0 or unit.returning_to_tile:
 			continue
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
@@ -30,12 +31,7 @@ func update(sim) -> void:
 				unit.ai_retreating = false
 			if unit.ai_retreating:
 				_heal(sim, unit)
-		elif unit.team == 1 and unit.ai_retreating and sim.ticks >= unit.ai_flee_until:
-			unit.ai_retreating = false
-			# Cancel the escape destination immediately, even between squad decisions.
-			unit.state = ClassicStudent.State.STAND
-			_move(sim, unit, Vector2i(unit.cell.x / 4, unit.cell.y / 4))
-			next_plan = mini(next_plan, sim.ticks)
+
 	if sim.ticks < next_plan:
 		return
 	next_plan = sim.ticks + (18 if sim.difficulty == sim.Difficulty.EXPERT else 36)
@@ -118,14 +114,10 @@ func _plan(sim, squad: Array) -> void:
 				enemies.append(other)
 	# All difficulties assess nearby enemies only.
 	if team == 1 and nearby_enemies > allies:
-		var escape: Vector2i = _enemy_base(sim, ready[0])
 		for i: int in range(ready.size() - 1, -1, -1):
 			var unit: ClassicStudent = ready[i]
 			if sim.ticks >= unit.ai_flee_ready_at:
-				unit.ai_retreating = true
-				unit.ai_flee_until = sim.ticks + 10 * ClassicRules.TICKS_PER_SECOND
-				unit.ai_flee_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
-				_move(sim, unit, escape)
+				sim.orc_flee.begin(sim, unit)
 				ready.remove_at(i)
 		if ready.is_empty():
 			return
@@ -401,14 +393,16 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 		if score < best:
 			best = score
 			objective = area.tile
-	if objective.x < 0 and target == null and team == 2:
-		for y: int in 16:
-			for x: int in 16:
-				var tile: Vector2i = Vector2i(x, y)
-				var score: float = center.distance_to(Vector2(tile * 4 + Vector2i(2, 2))) + _elf_spacing_cost(tile, ready)
-				if score < best:
-					best = score
-					objective = tile
+	if objective.x < 0 and target == null:
+		# No objectives and nothing locally visible: advance toward a surviving
+		# army instead of idling forever. Combat acquisition remains local.
+		for enemy: ClassicStudent in sim.students:
+			if enemy.is_alive() and enemy.team != team:
+				var distance: float = center.distance_to(Vector2(enemy.cell))
+				if distance < best:
+					best = distance
+					objective = Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
+
 	if objective.x >= 0:
 		if team == 2:
 			elf_orders.append(objective)

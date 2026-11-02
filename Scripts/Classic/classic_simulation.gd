@@ -28,6 +28,8 @@ const SQUAD_AI = preload("res://Scripts/Classic/medieval_squad_ai.gd")
 var squad_ai = SQUAD_AI.new()
 const RANGED_RESPONSE = preload("res://Scripts/Classic/medieval_ranged_response.gd")
 var ranged_response = RANGED_RESPONSE.new()
+const ORC_FLEE = preload("res://Scripts/Classic/medieval_orc_flee.gd")
+var orc_flee = ORC_FLEE.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
@@ -219,6 +221,9 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.ai_retreating = false
 	student.ai_flee_until = 0
 	student.ai_flee_ready_at = 0
+	student.ai_flee_quadrant = -1
+	student.ai_flee_phase = 0
+	student.ai_flee_goal = Vector2i(-1, -1)
 	student.last_attacked_tick = -1000000
 	student.ai_hold_ground_until = 0
 	student.ai_heal_tile = Vector2i(-1, -1)
@@ -256,6 +261,8 @@ func step() -> void:
 		return
 	ticks += 1
 	if medieval:
+		for unit: ClassicStudent in students:
+			orc_flee.update(self, unit)
 		ranged_response.update(self)
 	if medieval:
 		for unit: ClassicStudent in students:
@@ -377,8 +384,10 @@ func _holds_player_tile(student: ClassicStudent) -> bool:
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and student.team == 1 and student.ai_flee_phase == 1:
+		return false
 	if medieval and ranged_response.active(student):
-		return not student.ai_retreating and target.id == student.ranged_pursuit_id
+		return (student.team == 1 and student.ai_flee_phase == 2 and Vector2i(target.cell.x / 4, target.cell.y / 4) == student.designated_tile) or (not student.ai_retreating and target.id == student.ranged_pursuit_id)
 	if medieval and student.tile_guard_active and not student.returning_to_tile:
 		return _guard_can_target(student, target)
 	if medieval and student.ai_base_defence_tile.x >= 0:
@@ -553,7 +562,7 @@ func _update_tile_order(student: ClassicStudent) -> bool:
 
 
 func _update_base_defence(student: ClassicStudent) -> bool:
-	if not medieval or not student.is_alive() or student.team == player_team or ranged_response.active(student) or _valid_enemy(student, student.ranged_pursuit_id):
+	if not medieval or not student.is_alive() or student.team == player_team or ranged_response.active(student) or (student.team == 1 and student.ai_flee_phase > 0) or _valid_enemy(student, student.ranged_pursuit_id):
 		return false
 	var tile: Vector2i = student.ai_base_defence_tile
 	if tile.x < 0:
@@ -909,6 +918,10 @@ func _start_turn(student: ClassicStudent) -> void:
 		if (offset.x == 0 and direction.y != 0) or (offset.y == 0 and direction.x != 0):
 			preferred = index
 		choices.append(index)
+	if medieval and offset != Vector2i.ZERO and choices.is_empty() and student.target_id < 0 and (student.ai_retreating or ranged_response.active(student)):
+		# A retreat must be able to detour away from its goal around occupied cells.
+		_return_step(student)
+		return
 	if offset == Vector2i.ZERO or choices.is_empty():
 		if student.state == ClassicStudent.State.WAIT:
 			_start_stand(student)

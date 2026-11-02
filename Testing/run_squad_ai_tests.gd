@@ -96,7 +96,7 @@ func _run() -> void:
 	_unit(sim, 2, 0, Vector2i(9, 9))
 	sim.squad_ai.update(sim)
 	_check(orc.ai_retreating and orc.target_id == -1, "Outnumbered orc flees")
-	_check(orc.destination.distance_to(Vector2i.ZERO) > orc.cell.distance_to(Vector2i.ZERO), "Orc flees toward enemy base")
+	_check(orc.destination.distance_to(Vector2i.ZERO) > orc.cell.distance_to(Vector2i.ZERO), "Orc flees toward a quieter quadrant")
 
 	sim = _fixture()
 	var a: ClassicStudent = _unit(sim, 0, 1, Vector2i(20, 20))
@@ -221,7 +221,7 @@ func _retreat_timing_tests() -> void:
 	_check(orc.ai_retreating, "Orc can flee before ten seconds elapse")
 	sim.ticks = 580
 	sim.squad_ai.update(sim)
-	_check(not orc.ai_retreating and orc.priority_target_id >= 0, "Orc returns to combat at ten seconds despite outnumbering")
+	_check(not orc.ai_retreating and orc.ai_flee_phase == 0, "Orc ends its flee window at ten seconds while keeping the new tile assignment")
 	sim.ticks = 939
 	sim.squad_ai.next_plan = 0
 	sim.squad_ai.update(sim)

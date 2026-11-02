@@ -111,9 +111,11 @@ func _orcs(mode: int) -> void:
 	_check(is_equal_approx(sim.get_movement_multiplier(orc), 1.3), "Response flee keeps orc speed boost")
 	sim.ticks = orc.ai_flee_until
 	sim.ranged_response.update(sim)
-	_check(group.mode == "chase" and not orc.ai_retreating, "Orc resumes attack at flee-window end")
-	sim.ranged_response.update(sim)
-	_check(group.mode == "chase", "Cooldown forbids another low-HP flee")
+	_check(not sim.ranged_response.active(orc) and not orc.ai_retreating and orc.tile_guard_active, "Orc finishes fleeing with its new tile assignment")
+	orc.state = ClassicStudent.State.SIT
+	orc.designated_tile = Vector2i(orc.cell.x / 4, orc.cell.y / 4)
+	sim.ranged_response.on_hit(sim, orc, sim.students[10])
+	_check(not orc.ai_retreating, "Cooldown forbids another low-HP flee")
 	# New isolated defender faces two attackers exactly two tile steps away.
 	sim = _fixture(1, mode)
 	for id: int in [1, 2, 3]:

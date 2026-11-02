@@ -149,10 +149,9 @@ func _orc_decide(sim, group: Dictionary, unit: ClassicStudent) -> void:
 		elif sim._valid_enemy(other, other.target_id) and sim.students[other.target_id].team == unit.team and other.state in [ClassicStudent.State.FIGHT, ClassicStudent.State.WALK]:
 			attackers += 1
 	if attackers > allies or unit.health <= unit.maximum_health * 0.2:
-		unit.ai_flee_until = sim.ticks + 10 * ClassicRules.TICKS_PER_SECOND
-		unit.ai_flee_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
-		# Preserve the established orc escape direction toward an enemy base.
-		_retreat(sim, group, false, sim.squad_ai._enemy_base(sim, unit))
+		group.mode = "retreat"
+		group.heal = false
+		sim.orc_flee.begin(sim, unit)
 
 func update(sim) -> void:
 	# Snapshot IDs: elf recovery may create a new response while iterating.
@@ -181,16 +180,21 @@ func update(sim) -> void:
 					_elf_recover(sim, unit)
 		else:
 			if group.team == 1:
+				sim.orc_flee.update(sim, members[0])
 				if sim.ticks >= members[0].ai_flee_until:
-					if valid_target:
-						_chase(sim, group)
-					else:
-						_release(members[0])
-						groups.erase(id)
+					members[0].ranged_response_id = -1
+					members[0].ranged_pursuit_id = -1
+					members[0].ai_retreating = false
+					groups.erase(id)
 				continue
 			if group.heal and (not sim.area_at.has(group.goal) or sim.areas[sim.area_at[group.goal]].owner != group.team):
 				_retreat(sim, group, true)
 				continue
+			# A blocked route can leave a unit seated before reaching its goal.
+			# Keep the retreat order live; movement can then retry/detour.
+			for unit: ClassicStudent in members:
+				if Vector2i(unit.cell.x / 4, unit.cell.y / 4) != group.goal and unit.state in [ClassicStudent.State.SIT, ClassicStudent.State.STAND]:
+					sim.start_walk(unit, group.goal)
 			var done: bool = true
 			for unit: ClassicStudent in members:
 				if Vector2i(unit.cell.x / 4, unit.cell.y / 4) != group.goal or unit.state == ClassicStudent.State.WALK or (group.heal and unit.health < unit.maximum_health * group.recover):
