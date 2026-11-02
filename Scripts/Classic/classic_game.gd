@@ -399,6 +399,9 @@ func _show_help() -> void:
 
 
 func _show_pause() -> void:
+	if medieval:
+		_show_dialog("Battle Paused", "Your warriors await your command. Resume when you are ready to return to the battlefield.", true, false)
+		return
 	_show_dialog("Paused", "Take your time. The schoolyard will wait.", true, false)
 
 
@@ -412,6 +415,9 @@ func _resume() -> void:
 
 
 func _show_result(won: bool) -> void:
+	if medieval:
+		_show_dialog("Victory!" if won else "Defeat", "%s stand victorious. All rival armies have fallen, and the battlefield is yours." % board.team_names[_team] if won else "Your army has fallen, but the war is not over. Rally your warriors and march into battle once more.", false, true)
+		return
 	_show_dialog("You win !!" if won else "You lose...", "%s school eliminated all three opponents." % board.team_names[_team] if won else "Your last student has been defeated. Choose a school and try again.", false, true)
 
 
