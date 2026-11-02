@@ -60,6 +60,10 @@ func _run() -> void:
 					sim.human_ai.phase="rally"
 				_check(sim._contact_target(shooter,victim),"Long-range test shot has valid contact")
 				sim._apply_hit(shooter,victim)
+				if context=="retreat" and race in [0,1,2]:
+					_check(not sim.retaliation_ai.active(victim) and victim.ai_retreating and victim.priority_target_id==-1,"Escaping Humans, Orcs and Elves ignore ranged retaliation and keep retreating")
+					_check(sim.retaliation_ai.active(sim.students[1]),"Non-retreating nearby allies can still cover the escaping unit")
+					continue
 				for id:int in 3:
 					_check(sim.retaliation_ai.active(sim.students[id]) and sim.students[id].priority_target_id==10,"Victim and nearby allies always respond regardless of race, difficulty or state")
 				_check(not sim.retaliation_ai.active(sim.students[3]),"Distant allies are not pulled into the response")
@@ -88,6 +92,21 @@ func _run() -> void:
 			sim._initialize_student(sim.students[0],race,Vector2i(20,20))
 			sim.retaliation_ai.update(sim)
 			_check(not sim.retaliation_ai.active(sim.students[0]),"A replacement unit never inherits retaliation")
+	for mode:int in 3:
+		for race:int in [0,1,2]:
+			var escape:=_sim(mode,race)
+			var ally:ClassicStudent=escape.students[1]
+			ally.ai_retreating=true
+			ally.designated_tile=Vector2i(2,2)
+			escape.retaliation_ai.on_attack(escape,escape.students[10],escape.students[0])
+			_check(not escape.retaliation_ai.active(ally) and ally.designated_tile==Vector2i(2,2) and ally.ai_retreating,"A retreating ally is never recruited into a nearby ranged response")
+			# Melee attackers retain ordinary retaliation, even during retreat.
+			escape=_sim(mode,race)
+			escape.students[0].ai_retreating=true
+			var melee:ClassicStudent=escape.students[11]
+			escape._initialize_student(melee,3,Vector2i(21,20))
+			escape.retaliation_ai.on_attack(escape,melee,escape.students[0])
+			_check(escape.retaliation_ai.active(escape.students[0]),"Retreat exception applies to ranged fire; melee still triggers retaliation")
 	# A real missed attack still wakes defenders, independently of damage credit.
 	var missed: bool=false
 	for seed_value:int in 32:
@@ -110,7 +129,7 @@ func _run() -> void:
 	paused.retaliation_ai.on_attack(paused,paused.students[10],paused.students[0])
 	paused.ticks=154
 	paused.retaliation_ai.update(paused)
-	_check(paused.students[0].ai_elf_retreat_started_at==154,"Retaliation pauses the Elf travel deadline instead of consuming retreat time")
+	_check(not paused.retaliation_ai.active(paused.students[0]) and paused.students[0].ai_elf_retreat_started_at==100,"Ranged fire leaves escaping Elf retreat timer running normally")
 	var ongoing:=_sim(0,0)
 	ongoing.retaliation_ai.on_attack(ongoing,ongoing.students[10],ongoing.students[0])
 	ongoing.ticks=150
@@ -126,7 +145,7 @@ func _run() -> void:
 	orc_pause.retaliation_ai.on_attack(orc_pause,orc_pause.students[10],orc_pause.students[0])
 	orc_pause.ticks=154
 	orc_pause.retaliation_ai.update(orc_pause)
-	_check(orc_pause.students[0].ai_flee_until==334 and orc_pause.students[0].ai_retreating,"Orc flee resumes with its unspent itinerary time")
+	_check(not orc_pause.retaliation_ai.active(orc_pause.students[0]) and orc_pause.students[0].ai_flee_until==280 and orc_pause.students[0].ai_retreating,"Ranged fire does not pause or redirect the Orc flee itinerary")
 	# A lethal opening hit still calls nearby allies to retaliate.
 	var sim:=_sim(2,0)
 	sim.students[0].health=1

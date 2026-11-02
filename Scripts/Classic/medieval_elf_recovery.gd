@@ -48,7 +48,7 @@ func begin(sim, unit: ClassicStudent) -> bool:
 	return true
 
 func threat(sim, unit: ClassicStudent, attacker: ClassicStudent) -> void:
-	if sim.retaliation_ai.active(unit) or not eligible(sim, unit) or unit.ai_elf_recovering or not unit.tile_guard_active or sim.ticks < unit.ai_hold_ground_until:
+	if sim.retaliation_ai.active(unit) or not eligible(sim, unit) or unit.ai_retreating or unit.ai_elf_recovering or not unit.tile_guard_active or sim.ticks < unit.ai_hold_ground_until:
 		return
 	if sim.rng.randf() < 0.5 and begin(sim, unit):
 		return

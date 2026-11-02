@@ -20,8 +20,12 @@ func on_attack(sim, attacker: ClassicStudent, victim: ClassicStudent) -> void:
 			existing.last = sim.ticks
 	if victim.team == sim.player_team:
 		return
+	var ranged: bool = sim.get_attack_range(attacker) > 1
 	for ally: ClassicStudent in sim.students:
 		if not ally.is_alive() or ally.team != victim.team:
+			continue
+		# Escaping Humans, Orcs and Elves keep their safety destination under ranged fire.
+		if ranged and ally.team in [0,1,2] and ally.ai_retreating:
 			continue
 		if ally != victim and absi(ally.cell.x-victim.cell.x)+absi(ally.cell.y-victim.cell.y)>ALLY_RADIUS:
 			continue
