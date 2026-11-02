@@ -44,13 +44,16 @@ func update(sim) -> void:
 		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 1:
 			engagements.erase(unit.id)
 			continue
+		if sim.human_ai.controls(unit):
+			engagements.erase(unit.id)
+			continue
 		if unit.ai_elf_recovering or (unit.team == 2 and unit.ai_retreating):
 			engagements.erase(unit.id)
 			continue
 		if active(unit):
 			var record: Dictionary = engagements[unit.id]
 			var target: ClassicStudent = sim.students[record.target]
-			if not target.is_alive() or target.lifetime != record.target_life or target.team == unit.team or not may_engage(sim, unit, target):
+			if not target.is_alive() or target.lifetime != record.target_life or target.team == unit.team or not may_engage(sim, unit, target) or not sim.human_ai.can_engage(sim, unit, target):
 				_release(sim, unit, record)
 				continue
 		else:
@@ -60,7 +63,7 @@ func update(sim) -> void:
 			var radius: int = sim.get_attack_range(unit) if unit.team == 2 else (maxi(3, sim.get_attack_range(unit)) if unit.team == 0 else 3)
 			var best: int = radius + 1
 			for enemy: ClassicStudent in sim.students:
-				if not enemy.is_alive() or enemy.team == unit.team:
+				if not enemy.is_alive() or enemy.team == unit.team or not sim.human_ai.can_engage(sim, unit, enemy):
 					continue
 				var distance: int = absi(unit.cell.x - enemy.cell.x) + absi(unit.cell.y - enemy.cell.y)
 				if distance < best:

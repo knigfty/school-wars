@@ -564,11 +564,7 @@ func _human_idle_base_tests() -> void:
 		for unit: ClassicStudent in sim.students:
 			if unit.is_alive():
 				_check(sim.occupancy.get(unit.cell, -1) == unit.id, "Human scouting preserves occupancy")
-	var escaped: int = 0
-	for unit: ClassicStudent in sim.students:
-		if unit.is_alive() and unit.team == 0 and Vector2i(unit.cell.x / 4, unit.cell.y / 4) != sim.bases[0]:
-			escaped += 1
-	_check(escaped >= 8, "Most full-capacity humans escape a crowded base")
+	_check(sim.human_ai.started and sim.human_ai.weakest_race(sim) == -1, "Full-capacity conquest handles a world without living enemy targets")
 
 	# A friendly blockade requires the first step to lead away from the objective.
 	sim = _fixture(3)

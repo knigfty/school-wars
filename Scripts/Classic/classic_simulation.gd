@@ -34,6 +34,8 @@ const ELF_RECOVERY = preload("res://Scripts/Classic/medieval_elf_recovery.gd")
 var elf_recovery = ELF_RECOVERY.new()
 const PROXIMITY_AI = preload("res://Scripts/Classic/medieval_proximity_ai.gd")
 var proximity_ai = PROXIMITY_AI.new()
+const HUMAN_AI = preload("res://Scripts/Classic/medieval_human_ai.gd")
+var human_ai = HUMAN_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
@@ -42,6 +44,7 @@ const AI_START_DELAY_TICKS: int = 400
 
 func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	proximity_ai = PROXIMITY_AI.new()
+	human_ai = HUMAN_AI.new()
 	squad_ai = SQUAD_AI.new()
 	ranged_response = RANGED_RESPONSE.new()
 	spectating = spectator
@@ -315,6 +318,7 @@ func step() -> void:
 			orc_flee.update(self, unit)
 		ranged_response.update(self)
 		if ai_enabled:
+			human_ai.update(self)
 			for unit: ClassicStudent in students:
 				elf_recovery.update(self, unit)
 			proximity_ai.update(self)
@@ -322,7 +326,7 @@ func step() -> void:
 		for unit: ClassicStudent in students:
 			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
 				unit.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
-			if unit.ai_elf_recovering or proximity_ai.active(unit):
+			if unit.ai_elf_recovering or proximity_ai.active(unit) or (human_ai.controls(unit) and human_ai.phase != "capture"):
 				continue
 			if not _update_tile_order(unit) and not _update_base_defence(unit):
 				_update_retaliation(unit)
@@ -390,6 +394,11 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 
 
 func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
+	if _valid_enemy(student, target_id) and not human_ai.can_engage(self, student, students[target_id]):
+		student.target_id = -1
+		student.priority_target_id = -1
+		_start_stand(student)
+		return
 	student.target_id = target_id if _valid_enemy(student, target_id) else -1
 	if medieval and student.tile_guard_active and not student.returning_to_tile and student.target_id < 0 and get_attack_range(student) > 1:
 		var ranged_target: ClassicStudent = null
@@ -440,6 +449,10 @@ func _holds_player_tile(student: ClassicStudent) -> bool:
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and not human_ai.can_engage(self, student, target):
+		return false
+	if medieval and human_ai.controls(student) and human_ai.phase != "capture":
+		return human_ai.phase == "attack" and target.team == human_ai.target_race
 	if medieval and proximity_ai.active(student):
 		return proximity_ai.may_engage(self, student, target)
 	if medieval and student.ai_elf_recovering:
@@ -947,7 +960,7 @@ func _start_turn(student: ClassicStudent) -> void:
 		student.state = ClassicStudent.State.WAIT
 		student.counter = 2
 		return
-	if medieval and (student.returning_to_tile or (student.ai_elf_recovering and student.ai_retreating)):
+	if medieval and (student.returning_to_tile or (human_ai.started and student.team == 0 and student.target_id < 0) or (student.ai_elf_recovering and student.ai_retreating)):
 		_return_step(student)
 		return
 	# Expert human movement orders need routes around packed friendly base cells,
@@ -1218,6 +1231,8 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
+	if human_ai.started and student.team == 0:
+		return
 	if proximity_ai.active(student) or student.ai_elf_recovering or ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
 		return
 	var healthy: bool = (medieval and student.team == 3) or is_equal_approx(student.health, student.maximum_health)

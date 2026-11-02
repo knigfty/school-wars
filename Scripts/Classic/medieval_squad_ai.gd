@@ -14,6 +14,8 @@ func update(sim) -> void:
 		return
 	for unit: ClassicStudent in sim.students:
 		sim.orc_flee.update(sim, unit)
+		if sim.human_ai.started and unit.team == 0:
+			continue
 		if sim.proximity_ai.active(unit) or sim.ranged_response.active(unit) or not unit.is_alive() or unit.team == sim.player_team or unit.tile_order_busy or unit.ai_base_defence_tile.x >= 0 or unit.retaliation_until > 0 or unit.returning_to_tile:
 			continue
 		if sim.difficulty == sim.Difficulty.EXPERT and unit.team == 0 and unit.ai_retreating:
@@ -85,6 +87,8 @@ func _plan(sim, squad: Array) -> void:
 		return
 	center /= ready.size()
 	var team: int = ready[0].team
+	if team == 0 and sim.human_ai.started:
+		return
 	var expert: bool = sim.difficulty == sim.Difficulty.EXPERT
 	var radius: float = 16.0
 	var enemies: Array[ClassicStudent] = []

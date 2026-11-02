@@ -148,7 +148,7 @@ On all Medieval difficulties, player and enemy units execute assigned tile order
 
 The in-game question-mark help shows shared Medieval rules plus only the active match difficulty's AI and bonuses. `Scripts/Classic/medieval_help.gd` owns the text and per-selection menu hover tooltips. Changing the selector updates its tooltip; in-match help reads the simulation difficulty. Classic help remains unchanged.
 
-Expert enemy humans choose capture missions within five capture tiles (Manhattan distance), preferring no enemy occupants. Once chosen, they fight for the objective until captured. Casualty checks use a lifetime-tracked snapshot of the initial mission group, so slot reuse and later reinforcements cannot mask losses. Losing at least half triggers one seeded 50% retreat roll when the survivors' forty-five-second healing cooldown permits it. Retreaters choose their nearest owned heart/base without a range limit and recover to full HP. Player humans, Easy and Normal do not use these mission rules.
+Human AI on every difficulty now uses the shared full-map capture and conquest controller described below; the older Expert-only five-tile scout and mission casualty rules are superseded.
 
 Expert enemy elves gain +2 maximum HP per kill or damaging assist; player elves and other difficulties receive +1. Expert demons gain +2 punch per kill and a 50% chance of +1 per damaging assist, for both player and enemy teams. Reward popups display the actual +1 or +2 increment; the same assist timing and one-credit-per-death rules apply.
 
@@ -193,3 +193,10 @@ A demon pursuing a distant enemy now attacks adjacent hostile blockers, includin
 ### Symmetric spectator maps
 
 Spectator-only generation samples four to seven neutral objectives in one quadrant and repeats every position and kind at 0°, 90°, 180°, and 270° around the map centre. Each corner base therefore has identical distances to the same objective types. Totals remain randomized in complete groups of four: sixteen to twenty-eight neutral tiles plus four bases. Non-adjacency remains enforced across the quadrant seams and beside bases. The same match seed reproduces the layout and randomized race-to-corner assignment. Player-controlled generation remains unchanged. `Testing/run_symmetric_map_tests.gd` checks symmetry, objective-distance profiles, spacing, ownership, variation, replay determinism, and player-map golden snapshots.
+
+
+### Shared Human campaign (all difficulties)
+
+Human strategic AI now uses one full-map controller on Easy, Normal, and Expert. Groups fill to four (spare recruits wait at base; the initial sub-four army can operate). Normal capture picks the quadrant with the fewest living enemies, breaking ties by nearest quadrant and then nearest objective. Larger hostile groups are avoided: enemies within three movement cells of the target are compared with nearby Human support within eight cells, or the full army during conquest.
+
+At ten living Humans, all rally at the original base. Once every living Human is within fifteen movement cells of its nearest tile cell, the wave attacks the enemy race minimizing living count multiplied by combined current HP. Elimination leads to capture of that race's original base. Falling to three survivors or fewer before elimination triggers committed return to the Human base and a reset to normal on arrival. Capturing the conquered base also completes and resets the campaign. The shared controller supersedes the older Expert-only five-tile scout/casualty mission strategy, while preserving player commands and Easy/Normal's ordinary opening capture delay. Conquest takes precedence over local Human interception. `Testing/run_human_strategy_tests.gd` covers the transitions and actual combat-to-base-capture flow.

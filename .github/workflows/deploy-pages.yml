@@ -74,6 +74,7 @@ jobs:
             run_ranged_response_tests.gd \
             run_spectator_tests.gd \
             run_spectator_stall_tests.gd \
+            run_human_strategy_tests.gd \
             run_symmetric_map_tests.gd \
             run_proximity_ai_tests.gd \
             run_elf_recovery_tests.gd \
