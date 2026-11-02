@@ -41,6 +41,8 @@ func _release(sim, unit: ClassicStudent, record: Dictionary) -> void:
 
 func update(sim) -> void:
 	for unit: ClassicStudent in sim.students:
+		if sim.retaliation_ai.active(unit):
+			continue
 		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 1:
 			engagements.erase(unit.id)
 			continue

@@ -71,6 +71,8 @@ func _move(sim, unit: ClassicStudent, goal: Vector2i, capture: bool) -> void:
 		unit.state = ClassicStudent.State.SIT
 
 func update(sim, unit: ClassicStudent) -> void:
+	if sim.retaliation_ai.active(unit):
+		return
 	if not unit.is_alive() or unit.team != 1:
 		return
 	if unit.ai_flee_cooldown_pending and unit.state == ClassicStudent.State.SIT and (unit.ai_flee_phase == 0 or (unit.ai_flee_phase == 2 and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == unit.ai_flee_goal)):

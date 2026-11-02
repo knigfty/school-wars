@@ -36,6 +36,8 @@ const PROXIMITY_AI = preload("res://Scripts/Classic/medieval_proximity_ai.gd")
 var proximity_ai = PROXIMITY_AI.new()
 const HUMAN_AI = preload("res://Scripts/Classic/medieval_human_ai.gd")
 var human_ai = HUMAN_AI.new()
+const RETALIATION_AI = preload("res://Scripts/Classic/medieval_retaliation.gd")
+var retaliation_ai = RETALIATION_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
@@ -45,6 +47,7 @@ const AI_START_DELAY_TICKS: int = 400
 func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	proximity_ai = PROXIMITY_AI.new()
 	human_ai = HUMAN_AI.new()
+	retaliation_ai = RETALIATION_AI.new()
 	squad_ai = SQUAD_AI.new()
 	ranged_response = RANGED_RESPONSE.new()
 	spectating = spectator
@@ -314,6 +317,7 @@ func step() -> void:
 		return
 	ticks += 1
 	if medieval:
+		retaliation_ai.update(self)
 		for unit: ClassicStudent in students:
 			orc_flee.update(self, unit)
 		ranged_response.update(self)
@@ -326,7 +330,7 @@ func step() -> void:
 		for unit: ClassicStudent in students:
 			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
 				unit.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
-			if unit.ai_elf_recovering or proximity_ai.active(unit) or (human_ai.controls(unit) and not human_ai.is_recovering(unit) and human_ai.phase not in ["normal", "capture"]):
+			if retaliation_ai.active(unit) or unit.ai_elf_recovering or proximity_ai.active(unit) or (human_ai.controls(unit) and not human_ai.is_recovering(unit) and human_ai.phase not in ["normal", "capture"]):
 				continue
 			if not _update_tile_order(unit) and not _update_base_defence(unit):
 				_update_retaliation(unit)
@@ -394,7 +398,7 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 
 
 func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
-	if _valid_enemy(student, target_id) and not human_ai.can_engage(self, student, students[target_id]):
+	if not retaliation_ai.active(student) and _valid_enemy(student, target_id) and not human_ai.can_engage(self, student, students[target_id]):
 		student.target_id = -1
 		student.priority_target_id = -1
 		_start_stand(student)
@@ -449,6 +453,8 @@ func _holds_player_tile(student: ClassicStudent) -> bool:
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and retaliation_ai.active(student):
+		return target.id == retaliation_ai.target_id(student)
 	if medieval and not human_ai.can_engage(self, student, target):
 		return false
 	if medieval and human_ai.controls(student) and human_ai.phase != "capture":
@@ -546,6 +552,8 @@ func _prefer_tile_target(student: ClassicStudent, candidate: ClassicStudent, pre
 
 
 func _update_tile_order(student: ClassicStudent) -> bool:
+	if retaliation_ai.active(student):
+		return false
 	if not medieval or not student.is_alive() or not student.tile_guard_active:
 		return false
 	var home: Vector2i = student.designated_tile
@@ -640,6 +648,8 @@ func _update_tile_order(student: ClassicStudent) -> bool:
 
 
 func _update_base_defence(student: ClassicStudent) -> bool:
+	if retaliation_ai.active(student):
+		return false
 	if not medieval or not student.is_alive() or student.team == player_team or ranged_response.active(student) or (student.team == 1 and student.ai_flee_phase > 0) or _valid_enemy(student, student.ranged_pursuit_id):
 		return false
 	var tile: Vector2i = student.ai_base_defence_tile
@@ -738,6 +748,9 @@ func _start_stand(student: ClassicStudent) -> void:
 
 
 func _start_sit(student: ClassicStudent) -> void:
+	if retaliation_ai.active(student):
+		start_walk(student, Vector2i.ZERO, retaliation_ai.target_id(student))
+		return
 	if medieval and student.ai_elf_recovering:
 		student.state = ClassicStudent.State.SIT if not student.ai_retreating else ClassicStudent.State.WAIT
 		student.counter = 2
@@ -1107,6 +1120,8 @@ func _fighting(student: ClassicStudent) -> void:
 			student.pattern = 19
 			student.counter = 10
 			student.fight_phase = 3
+			if _contact_target(student, target):
+				retaliation_ai.on_attack(self, student, target)
 			if not _contact_target(student, target) or rng.randf() < 1.0 - get_hit_chance(student, target):
 				return
 			_apply_hit(student, target)
@@ -1120,6 +1135,7 @@ func _fighting(student: ClassicStudent) -> void:
 
 
 func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
+	retaliation_ai.on_attack(self, student, target)
 	if ai_enabled:
 		elf_recovery.threat(self, target, student)
 	# Register the defending group before damage, so a lethal opening hit still
@@ -1153,6 +1169,9 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			_convert_to_orc(target)
 			student.show_event("ORCS RISE!")
 	else:
+		if retaliation_ai.active(target):
+			sound_requested.emit("punch", target.world_position())
+			return
 		if target.ai_elf_recovering:
 			elf_recovery.update(self, target)
 			sound_requested.emit("punch", target.world_position())
@@ -1233,7 +1252,7 @@ func uses_squad_ai() -> bool:
 func _com_order(student: ClassicStudent) -> void:
 	if human_ai.started and student.team == 0:
 		return
-	if proximity_ai.active(student) or student.ai_elf_recovering or ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
+	if retaliation_ai.active(student) or proximity_ai.active(student) or student.ai_elf_recovering or ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
 		return
 	var healthy: bool = (medieval and student.team == 3) or is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF

@@ -29,7 +29,7 @@ func nearest(sim, unit: ClassicStudent) -> Vector2i:
 	return result
 
 func begin(sim, unit: ClassicStudent) -> bool:
-	if not eligible(sim, unit) or unit.ai_elf_recovering or sim.ticks < unit.ai_heal_ready_at:
+	if sim.retaliation_ai.active(unit) or not eligible(sim, unit) or unit.ai_elf_recovering or sim.ticks < unit.ai_heal_ready_at:
 		return false
 	var goal: Vector2i = nearest(sim, unit)
 	if goal.x < 0:
@@ -48,7 +48,7 @@ func begin(sim, unit: ClassicStudent) -> bool:
 	return true
 
 func threat(sim, unit: ClassicStudent, attacker: ClassicStudent) -> void:
-	if not eligible(sim, unit) or unit.ai_elf_recovering or not unit.tile_guard_active or sim.ticks < unit.ai_hold_ground_until:
+	if sim.retaliation_ai.active(unit) or not eligible(sim, unit) or unit.ai_elf_recovering or not unit.tile_guard_active or sim.ticks < unit.ai_hold_ground_until:
 		return
 	if sim.rng.randf() < 0.5 and begin(sim, unit):
 		return
@@ -56,7 +56,7 @@ func threat(sim, unit: ClassicStudent, attacker: ClassicStudent) -> void:
 	unit.tile_guard_target = attacker.id
 
 func update(sim, unit: ClassicStudent) -> void:
-	if not eligible(sim, unit):
+	if sim.retaliation_ai.active(unit) or not eligible(sim, unit):
 		return
 	if not unit.ai_elf_recovering:
 		if unit.health < unit.maximum_health * 0.3 and sim.ticks >= unit.ai_hold_ground_until:

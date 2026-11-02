@@ -63,6 +63,8 @@ func weakest_race(sim) -> int:
 	return result
 
 func _clear(sim, unit: ClassicStudent) -> void:
+	if sim.retaliation_ai.active(unit):
+		return
 	sim.proximity_ai.engagements.erase(unit.id)
 	sim.ranged_response._prepare(unit)
 	unit.ranged_response_id = -1
@@ -74,6 +76,8 @@ func _clear(sim, unit: ClassicStudent) -> void:
 		unit.state = ClassicStudent.State.STAND
 
 func _move(sim, unit: ClassicStudent, goal: Vector2i, retreat: bool = false) -> void:
+	if sim.retaliation_ai.active(unit):
+		return
 	if unit.target_id >= 0 or unit.designated_tile != goal or not unit.tile_guard_active:
 		_clear(sim, unit)
 		sim.designate_order(unit, goal)
@@ -179,7 +183,7 @@ func _normal(sim, humans: Array[ClassicStudent]) -> void:
 						nearest = cost
 						fallback = enemy
 		for unit: ClassicStudent in members:
-			if is_recovering(unit) or sim.proximity_ai.active(unit) or unit.ai_spawn_wait:
+			if sim.retaliation_ai.active(unit) or is_recovering(unit) or sim.proximity_ai.active(unit) or unit.ai_spawn_wait:
 				continue
 			if goal.x >= 0:
 				_move(sim, unit, goal)
@@ -260,7 +264,7 @@ func update(sim) -> void:
 					best = cost
 					victim = enemy
 		for unit: ClassicStudent in humans:
-			if is_recovering(unit):
+			if is_recovering(unit) or sim.retaliation_ai.active(unit):
 				continue
 			if victim == null:
 				_move(sim, unit, sim.bases[0])

@@ -512,10 +512,7 @@ func _base_defence_tests() -> void:
 			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
 			unit.health = 100
 			sim._apply_hit(outside, unit)
-			if race in [0, 2]:
-				_check((unit.ai_elf_recovering or sim.human_ai.is_recovering(unit)) and unit.target_id == -1, "Outside attacks do not interrupt committed healing travel")
-			else:
-				_check(unit.retaliation_until == 0 and unit.target_id == invader.id, "Outside attacks cannot lure a locked base defender away")
+			_check(sim.retaliation_ai.active(unit) and unit.priority_target_id == outside.id, "Every race interrupts base defence or healing travel to retaliate against a new attacker")
 			invader.state = ClassicStudent.State.UNUSED
 			sim.occupancy.erase(invader.cell)
 			sim._update_base_defence(unit)

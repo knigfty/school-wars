@@ -8,6 +8,8 @@ func active(unit: ClassicStudent) -> bool:
 	return unit.ranged_response_id >= 0 and groups.has(unit.ranged_response_id)
 
 func on_hit(sim, defender: ClassicStudent, attacker: ClassicStudent) -> void:
+	if sim.retaliation_ai.active(defender):
+		return
 	if defender.team == 0:
 		return # Humans intercept locally; ranged hits must not create unlimited chases.
 	if defender.team == 2:
@@ -163,6 +165,11 @@ func update(sim) -> void:
 	for id: int in groups.keys():
 		var group: Dictionary = groups[id]
 		var members: Array[ClassicStudent] = _members(group)
+		var responding: bool = false
+		for unit: ClassicStudent in members:
+			responding = responding or sim.retaliation_ai.active(unit)
+		if responding:
+			continue
 		if members.is_empty():
 			groups.erase(id)
 			continue
