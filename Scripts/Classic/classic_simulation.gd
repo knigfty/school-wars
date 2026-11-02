@@ -335,7 +335,7 @@ func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
 
 func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
 	student.target_id = target_id if _valid_enemy(student, target_id) else -1
-	if medieval and student.tile_guard_active and student.target_id < 0 and get_attack_range(student) > 1:
+	if medieval and student.tile_guard_active and not student.returning_to_tile and student.target_id < 0 and get_attack_range(student) > 1:
 		var ranged_target: ClassicStudent = null
 		for enemy: ClassicStudent in students:
 			if enemy.is_alive() and enemy.team != student.team and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == student.designated_tile and _within_attack_range(student, enemy) and _prefer_tile_target(student, enemy, ranged_target):
@@ -422,10 +422,11 @@ func _update_retaliation(student: ClassicStudent) -> void:
 			if student.target_id != enemy.id or student.state != ClassicStudent.State.FIGHT:
 				student.target_id = enemy.id
 				_start_fight(student, enemy)
-		elif student.state == ClassicStudent.State.FIGHT or student.target_id >= 0:
+		elif student.state not in [ClassicStudent.State.WALK, ClassicStudent.State.WAIT]:
+			# A cleared target or interrupted walk can leave a return standing idle.
+			# Resume routing without reacquiring a ranged target on the home tile.
 			student.target_id = -1
-			student.state = ClassicStudent.State.STAND
-			start_walk(student, student.designated_tile)
+			_return_step(student)
 		return
 	if student.retaliation_until > 0 and ticks >= student.retaliation_until:
 		_return_to_designated(student)
@@ -837,6 +838,9 @@ func _reserve_step(student: ClassicStudent, direction: int) -> void:
 
 
 func _return_step(student: ClassicStudent) -> void:
+	var origin_tile := Vector2i(student.cell.x / 4, student.cell.y / 4)
+	# Melee defence stays leashed; ranged capture approaches may start farther away.
+	var leash: bool = student.tile_guard_active and student.returning_to_tile and absi(origin_tile.x - student.designated_tile.x) + absi(origin_tile.y - student.designated_tile.y) <= 1
 	var queue: Array[Vector2i] = [student.cell]
 	var parent: Dictionary = {student.cell: student.cell}
 	var cursor: int = 0
@@ -859,7 +863,7 @@ func _return_step(student: ClassicStudent) -> void:
 		for direction: Vector2i in ClassicRules.DIRECTIONS:
 			var next: Vector2i = cell + direction
 			var next_tile: Vector2i = Vector2i(next.x / 4, next.y / 4)
-			if student.tile_guard_active and student.returning_to_tile and absi(next_tile.x - student.designated_tile.x) + absi(next_tile.y - student.designated_tile.y) > 1:
+			if leash and absi(next_tile.x - student.designated_tile.x) + absi(next_tile.y - student.designated_tile.y) > 1:
 				continue
 			if ClassicRules.in_grid(next) and not occupancy.has(next) and not parent.has(next):
 				parent[next] = cell

@@ -25,6 +25,7 @@ func _unit(sim: ClassicSimulation, id: int, race: int, cell: Vector2i) -> Classi
 	unit.state = ClassicStudent.State.SIT
 	return unit
 func _run() -> void:
+	_test_interrupted_returns()
 	for mode: int in 3:
 		var sim: ClassicSimulation = _fixture(mode)
 		var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
@@ -69,3 +70,34 @@ func _run() -> void:
 	_check(sim.finished and sim.get_winner_team() == 3, "Spectator endgame reaches and defeats the distant final survivor")
 	print("Spectator stall tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
+
+func _test_interrupted_returns() -> void:
+	for mode: int in 3:
+		for race: int in [0, 1, 2, 3]:
+			var sim: ClassicSimulation = _fixture(mode)
+			var unit: ClassicStudent = _unit(sim, 0, race, Vector2i(46, 37))
+			unit.maximum_health = 31
+			sim.designate_order(unit, Vector2i(10, 9))
+			unit.returning_to_tile = true
+			unit.state = ClassicStudent.State.STAND
+			unit.counter = 0
+			# This is the observed stalled state: a return outside the one-tile leash.
+			for frame: int in 80:
+				for substep: int in 8:
+					sim.step()
+			_check(not unit.returning_to_tile and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(10, 9), "Interrupted distant return resumes at 8x on every difficulty and race")
+			_check(unit.state != ClassicStudent.State.WALK and sim.occupancy.get(unit.cell, -1) == unit.id, "Returned unit finishes its walk and retains combat occupancy")
+		# Returning ranged elves must route home instead of repeatedly reacquiring a target.
+		var sim: ClassicSimulation = _fixture(mode)
+		var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(46, 37))
+		elf.maximum_health = 37
+		var enemy: ClassicStudent = _unit(sim, 1, 3, Vector2i(43, 37))
+		enemy.health = 10000
+		enemy.maximum_health = 10000
+		enemy.counter = 10000
+		sim.designate_order(elf, Vector2i(10, 9))
+		sim._return_to_designated(elf)
+		_check(elf.state == ClassicStudent.State.WALK and elf.target_id == -1, "Ranged return reserves a movement step instead of reacquiring the old target")
+		for tick: int in 100:
+			sim.step()
+		_check(not elf.returning_to_tile, "Ranged return completes even with an enemy on its destination tile")

@@ -170,3 +170,7 @@ Current all-difficulty scaling: elf reach is `1 + floor((maximum_health - 25) / 
 `Testing/run_tile_defence_tests.gd` covers the shared tile lifecycle on every difficulty for player and enemy units, including target focus, the one-second standing boundary, seated capture, border detection and forced return.
 
 All difficulties: elves gain +1 temporary punch only while on their own captured tile. Demon assist punch is rolled independently per qualifying living assistant with a 50% chance; failed rolls display no reward popup. Killing-blow punch rewards remain guaranteed.
+
+### Interrupted return movement
+
+Returning guards retry their route after an interrupted walk leaves them standing or seated outside their assigned tile. Ranged units finish returning before reacquiring enemies on that tile. The adjacent-tile defence leash remains in force for ordinary nearby returns; units beginning farther away (such as ranged capture approaches) can route back into that area. Regression coverage advances eight simulation steps per frame across all difficulties and races and checks completed movement and occupancy.

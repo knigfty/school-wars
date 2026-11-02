@@ -733,3 +733,5 @@ The original School Wars mode remains a separate playable ruleset. The medieval 
 | Character-info panel | Available | Not added to the original mode |
 
 Both modes share the four-corner battlefield concept, automatic reinforcements, cell occupancy, the basic attack-cycle rhythm, camera controls, and elimination as the match objective. When comparing advice or old screenshots, first check which mode the player was using.
+
+Return movement recovery: an interrupted return resumes routing from a stationary state instead of remaining excluded from the planner indefinitely. Ranged units do not reacquire destination-tile enemies until their return completes. Returns starting outside the adjacent-tile defence area can route inward; ordinary guard returns retain their existing leash. This uses simulation ticks at every playback speed.
