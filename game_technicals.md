@@ -444,21 +444,21 @@ The reward does not instantly heal. A wounded veteran's maximum can rise while i
 
 ### Reach from bonus HP
 
-Every complete three HP above the original 25 maximum grants one extra cell of reach:
+Every complete two HP above the original 25 maximum grants one extra cell of reach:
 
-> Reach = 1 + floor((maximum HP − 25) ÷ 3).
+> Reach = 1 + floor((maximum HP − 25) ÷ 2).
 
 | Maximum HP | Bonus HP | Reach |
 | ---: | ---: | ---: |
-| 25–27 | 0–2 | 1 cell |
-| 28–30 | 3–5 | 2 cells |
-| 31–33 | 6–8 | 3 cells |
-| 34–36 | 9–11 | 4 cells |
-| 40–42 | 15–17 | 6 cells |
+| 25–26 | 0–1 | 1 cell |
+| 27–28 | 2–3 | 2 cells |
+| 29–30 | 4–5 | 3 cells |
+| 31–32 | 6–7 | 4 cells |
+| 35–36 | 10–11 | 6 cells |
 
-There is no fixed reach-tier cap. The field's finite size still limits the useful distance. Bonus HP does not increase punch, movement speed, or attack speed.
+There is no fixed reach-tier cap. The field's finite size still limits the useful distance. Bonus HP does not increase punch, movement speed, or attack speed. Standing on an owned captured tile grants elves +1 punch; leaving removes it immediately.
 
-Because assists count, several elves can all grow from the same victim. A basic player elf needs three qualifying deaths to unlock its first extra cell. An Expert enemy elf needs two, reaching 29 maximum HP.
+Because assists count, several elves can all grow from the same victim. A basic player elf needs two qualifying deaths to unlock its first extra cell. An Expert enemy elf needs one, reaching 27 maximum HP.
 
 ### Healing identity
 
@@ -474,8 +474,8 @@ Demons begin with the strongest punch and convert combat participation into more
 
 | Event | Easy / Normal punch reward | Expert punch reward | Healing |
 | --- | ---: | ---: | ---: |
-| Demon lands the killing blow | +1 | +2 | Restore 3 current HP |
-| Demon provided a qualifying damaging assist | +1 | +1 | Restore 1 current HP |
+| Demon lands the killing blow | +1 | +2 | Restore 2 current HP |
+| Demon provided a qualifying damaging assist | 50% chance of +1 | 50% chance of +1 | None |
 
 Expert's demon rewards apply to **both the player's demons and enemy demons**. A killer receives its killing reward once; it does not additionally collect assist punch or assist healing for the same death. Healing cannot exceed maximum HP.
 
@@ -685,7 +685,7 @@ If the victim had 1 HP remaining, one tiny successful contribution still qualifi
 
 ### A demon's Expert progress
 
-An Expert demon begins at five punch. One killing blow grants +2 punch and restores up to three current HP, taking it to seven punch and **+5% movement**. A qualifying assist afterward adds one punch and up to one HP, taking it to eight punch. It still has +5% movement because only complete pairs of bonus punch count. Another assist brings it to nine punch and +10% movement.
+An Expert demon begins at five punch. One killing blow grants +2 punch and restores up to two current HP, taking it to seven punch and **+5% movement**. A qualifying assist afterward has a 50% chance to add one punch and never heals; a successful roll takes it to eight punch. It still has +5% movement because only complete pairs of bonus punch count. Another successful assist roll brings it to nine punch and +10% movement.
 
 Its swing-attempt rate remains 1.2 per second throughout.
 

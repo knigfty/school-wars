@@ -97,11 +97,14 @@ func _test_assists() -> void:
 		sim.ticks = 10 + elapsed
 		victim.state = ClassicStudent.State.STAND
 		victim.health = 1
-		_hit(sim, killer, victim)
+		var roll_state: int = sim.rng.state
+		var awarded: bool = sim.rng.randf() < 0.5 and elapsed <= 54
+		sim.rng.state = roll_state
+		sim._reward_defeat(killer, victim)
 		_check(elf.maximum_health == (26 if elapsed <= 54 else 25), "Elf assist window includes exactly three seconds")
-		_check(demon.punch_bonus == (1 if elapsed <= 54 else 0), "Demon assist window includes exactly three seconds")
+		_check(demon.punch_bonus == (1 if awarded else 0), "Demon assist window includes exactly three seconds")
 		_check(elf.event_text == ("25 + 1 HP" if elapsed <= 54 else ""), "Elf event only appears for awarded HP")
-		_check(demon.event_text == ("5 + 1 PUNCH" if elapsed <= 54 else ""), "Demon event only appears for awarded punch")
+		_check(demon.event_text == ("5 + 1 PUNCH" if awarded else ""), "Demon event only appears for awarded punch")
 		_check(elf.health == 5 and elf.level == 0 and demon.level == 0, "Assists grant stats without healing or counting as kills")
 		_check(victim.damage_contributors.is_empty(), "Victim damage ledger cleared after death")
 
@@ -147,7 +150,7 @@ func _test_range() -> void:
 	var victim: ClassicStudent = _unit(sim, 1, 1, Vector2i(22, 20))
 	for hp: int in [25, 27, 28, 31, 32, 35, 36, 45]:
 		elf.maximum_health = hp
-		var expected: int = 1 + maxi(0, hp - 25) / 3
+		var expected: int = 1 + maxi(0, hp - 25) / 2
 		_check(sim.get_attack_range(elf) == expected, "Elf range tier at %d HP" % hp)
 	elf.maximum_health = 28
 	victim.health = 100
@@ -161,11 +164,11 @@ func _test_range() -> void:
 	_check(sim._contact_target(elf, victim), "Next range tier hits at three cells")
 	victim.cell = Vector2i(22, 21)
 	_check(sim._contact_target(elf, victim), "Range uses grid Manhattan distance")
-	elf.maximum_health = 27
+	elf.maximum_health = 26
 	victim.cell = Vector2i(21, 20)
 	victim.health = 1
 	_hit(sim, elf, victim)
-	_check(elf.maximum_health == 28 and sim.get_attack_range(elf) == 2, "HP reward immediately unlocks range")
+	_check(elf.maximum_health == 27 and sim.get_attack_range(elf) == 2, "HP reward immediately unlocks range")
 
 	var human: ClassicStudent = _unit(sim, 3, 0, Vector2i(30, 30))
 	human.level = 3
@@ -416,12 +419,17 @@ func _test_expert_enemy_rewards() -> void:
 				var victim: ClassicStudent = _unit(sim, 2, 1, Vector2i(21, 20))
 				for unit: ClassicStudent in [killer, assist]:
 					victim.damage_contributors[unit.id] = {"tick": sim.ticks, "lifetime": unit.lifetime, "team": race}
+				var roll_state: int = sim.rng.state
+				var awarded: bool = sim.rng.randf() < 0.5
+				sim.rng.state = roll_state
 				sim._reward_defeat(killer, victim)
 				var reward: int = 2 if mode == ClassicSimulation.Difficulty.EXPERT and not player_controlled else 1
 				for unit: ClassicStudent in [killer, assist]:
 					var expected: int = reward if race == 2 else (2 if mode == ClassicSimulation.Difficulty.EXPERT and unit == killer else 1)
+					if race == 3 and unit == assist and not awarded:
+						expected = 0
 					_check((unit.maximum_health - ClassicRules.HEALTH[race] if race == 2 else unit.punch_bonus) == expected, "Elf enemy rewards and Expert demon kill/assist rewards are scoped correctly")
-					_check((" + %d " % expected) in unit.event_text, "Reward popup displays actual increment")
+					_check((unit.event_text == "" if expected == 0 else (" + %d " % expected) in unit.event_text), "Reward popup displays actual increment")
 
 
 func _test_demon_healing() -> void:
@@ -449,8 +457,8 @@ func _test_demon_healing() -> void:
 		victim.damage_contributors[assist.id] = {"tick": 46, "lifetime": assist.lifetime, "team": 3}
 		victim.damage_contributors[expired.id] = {"tick": 45, "lifetime": expired.lifetime, "team": 3}
 		sim._reward_defeat(demon, victim)
-		_check(demon.health == 5, "Demon killer heals three HP without extra assist healing")
-		_check(assist.health == 3 and expired.health == 2, "Demon assist healing includes exactly three seconds and excludes older hits")
+		_check(demon.health == 4, "Demon killer heals two HP without extra assist healing")
+		_check(assist.health == 2 and expired.health == 2, "Demon assists never heal")
 		demon.health = demon.maximum_health - 1
 		assist.health = assist.maximum_health
 		victim.damage_contributors[assist.id] = {"tick": 100, "lifetime": assist.lifetime, "team": 3}
@@ -503,5 +511,5 @@ func _test_scaling_and_inheritance() -> void:
 		var elf: ClassicStudent = _unit(sim, 2, 2, Vector2i(30, 30))
 		for bonus: int in [0, 1, 2, 3, 5, 6, 8, 9, 30, 300]:
 			elf.maximum_health = 25 + bonus
-			_check(sim.get_attack_range(elf) == 1 + bonus / 3, "Elf reach scales per three bonus HP without a tier cap")
+			_check(sim.get_attack_range(elf) == 1 + bonus / 2, "Elf reach scales per two bonus HP without a tier cap")
 		_check(sim._attack_positions(elf, Vector2i(30, 30)).size() <= 4096, "Large reach remains bounded by actual map cells")

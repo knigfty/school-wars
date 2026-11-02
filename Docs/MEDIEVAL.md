@@ -47,7 +47,7 @@ The game passes its medieval flag through ClassicBoard into ClassicSimulation be
 - Orc capacity increases by one per two owned spades or hearts combined, rounded down. Losing either lowers capacity without removing existing units. Converted orcs are counted separately as (+N) in the top bar and never consume regular recruitment capacity.
 - Against one target, the first engaged orc (stable unit-ID order) deals base damage, and each additional engaged orc deals +1 on successful punches. Two deal 5 combined; three deal 8. Support requires a living orc fighting that same enemy in melee contact; misses retain the existing combat rules.
 - Elves gain +1 maximum HP per killing blow or recent damaging assist, without instantly healing. Humans have the kill milestones below.
-- Demons gain +1 permanent punch damage per killing blow or recent damaging assist, stacking for that unit's lifetime. Respawning resets all progression.
+- Demons gain +1 permanent punch damage per killing blow, with a 50% chance of +1 for a recent damaging assist, stacking for that unit's lifetime. Respawning resets all progression.
 - Elves heal 0.2 HP per seated tick on owned hearts (3.6 HP/sec). Their base healing and all other races' healing remain 0.1 per tick.
 
 The recruitment HUD uses the variant's actual threshold; medieval help describes these rules. Run Godot headless with --script res://Testing/run_medieval_tests.gd for balance and variant-wiring regression checks.
@@ -80,13 +80,13 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 | Human | Kills 3/6/9/... | +2 attack reach each time |
 | Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
-| Elf | Every 3 bonus maximum HP above the starting 25 | +1 cell reach per complete 3 bonus HP, with no tier cap |
-| Demon | Kill or damage in the last 3 seconds before death | +1 punch per enemy death |
+| Elf | Every 2 bonus maximum HP above the starting 25 | +1 cell reach per complete 2 bonus HP, with no tier cap |
+| Demon | Killing blow / qualifying damage assist in the last 3 seconds | Guaranteed kill punch (+2 Expert, +1 otherwise); 50% chance of +1 assist punch |
 | Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
 
-Human upgrades repeat a three-kill cycle indefinitely. Elf range scales per three bonus HP; demon speed follows the selected difficulty's rules. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
+Human upgrades repeat a three-kill cycle indefinitely. Elf range scales per two bonus HP; demon speed follows the selected difficulty's rules. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
 
-Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves and demons each receive one reward at death; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
+Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves receive one reward at death; qualifying demon assistants roll independently for a 50% chance of one punch reward; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
 
 Range is Manhattan distance in movement grid cells, not the larger capture tiles. Ranged pursuit, focus-position pathfinding, priority attacks and retaliation use the same per-unit reach. Melee defenders close the gap against ranged attackers. The existing rule that moving targets cannot be punched remains. Demon movement accumulates fractional progress across consecutive walk steps so +30% and +40% remain distinct at 18 Hz, with rendering using that same progress.
 
@@ -143,7 +143,7 @@ Humans fill squads to four and prioritize nearby unoccupied capture objectives. 
 
 Expert elves form four core members per group; ranged elves may join beyond that limit. They prioritize: (1) retreat to heal at or below 20% HP, (2) protect allies at or below 20% HP within ten movement cells by targeting their attackers, (3) capture enemy/neutral tiles, (4) fight nearby enemies as a group. Healing retreat requires an owned heart/base within ten movement cells and has a forty-five-second per-unit cooldown, measured from retreat start. Elves remain committed until 100% HP. Their existing three-second safe-healing rule remains. Group destinations retain their separation preference.
 
-Expert demons form groups of four and prioritize defending owned tiles within ten movement cells, then capture, then group attacks. Enemy demons never retreat to heal on any difficulty. Demons (player and enemy) cannot heal on hearts, but can heal while seated on owned bases. Each demon killing blow heals three HP; a damaging assist within the last three seconds heals one HP. Killers do not also receive assist healing. Healing is capped at maximum HP and existing punch rewards remain unchanged.
+Expert demons form groups of four and prioritize defending owned tiles within ten movement cells, then capture, then group attacks. Enemy demons never retreat to heal on any difficulty. Demons (player and enemy) cannot heal on hearts, but can heal while seated on owned bases. Each demon killing blow heals two HP; damaging assists never heal. Killers do not also receive assist healing. Healing is capped at maximum HP and existing punch rewards remain unchanged.
 
 Healing distance uses Manhattan movement-cell distance to the nearest cell on a healing tile (inclusive ten-cell limit), rather than capture-tile distance. These Expert changes do not alter Normal or Easy healing behaviour.
 
@@ -155,16 +155,18 @@ The in-game question-mark help shows shared Medieval rules plus only the active 
 
 Expert enemy humans choose capture missions within five capture tiles (Manhattan distance), preferring no enemy occupants. Once chosen, they fight for the objective until captured. Casualty checks use a lifetime-tracked snapshot of the initial mission group, so slot reuse and later reinforcements cannot mask losses. Losing at least half triggers one seeded 50% retreat roll when the survivors' forty-five-second healing cooldown permits it. Retreaters choose their nearest owned heart/base without a range limit and recover to full HP. Player humans, Easy and Normal do not use these mission rules.
 
-Expert enemy elves gain +2 maximum HP per kill or damaging assist; player elves and other difficulties receive +1. Expert demons gain +2 punch per kill and +1 per damaging assist, for both player and enemy teams. Reward popups display the actual +1 or +2 increment; the same assist timing and one-credit-per-death rules apply.
+Expert enemy elves gain +2 maximum HP per kill or damaging assist; player elves and other difficulties receive +1. Expert demons gain +2 punch per kill and a 50% chance of +1 per damaging assist, for both player and enemy teams. Reward popups display the actual +1 or +2 increment; the same assist timing and one-credit-per-death rules apply.
 
 Across all Medieval difficulties, enemy AI units in an owned base containing living opponents are locked to local base defence. New recruits finish their brief spawn-standing animation, then attack without waiting for strategic opening delays. Capture, healing, flee, retaliation pursuit outside the base, and squad orders are suppressed until the tile is clear. This applies to original and captured owned bases; player-controlled units keep their existing command rules. Losing base ownership also releases the lock.
 
 All Medieval difficulties require uncontested capture: any living opposing unit on the tile pauses capture for all teams regardless of its movement/combat state. Only sitting units add progress; fighting and moving units never do. Friendly groups still capture together. Partial progress is preserved while contested and resumes when seated capturers remain alone with their allies. Corpses do not contest tiles.
 
-Expert demon adjustment: both player and enemy demons gain +2 permanent punch on a killing blow and +1 on a valid damaging assist within three seconds. Their movement multiplier is `1 + 0.05 * floor(bonus_punch / 2)`: total punch 5/6 gives base speed, 7/8 gives +5%, 9/10 gives +10%, 11/12 gives +15%, continuing without a tier cap. Easy/Normal retain +1 punch per takedown and their existing 8/12/18 total-punch speed tiers. Combat healing and Expert enemy elf rewards are unchanged.
+Expert demon adjustment: both player and enemy demons gain +2 permanent punch on a killing blow and a 50% chance of +1 on a valid damaging assist within three seconds. Their movement multiplier is `1 + 0.05 * floor(bonus_punch / 2)`: total punch 5/6 gives base speed, 7/8 gives +5%, 9/10 gives +10%, 11/12 gives +15%, continuing without a tier cap. Easy/Normal retain +1 punch per kill and a 50% chance of +1 per qualifying assist and their existing 8/12/18 total-punch speed tiers. Combat healing and Expert enemy elf rewards are unchanged.
 
 Expert human missions with no capturable objective inside their five-tile observation range issue local scouting orders instead of idling. Scouting destinations stay inside that range, remember visited locations and spread groups apart; newly observed capture targets still become committed missions. Expert enemy-human tile movement uses obstacle-aware routes, including backward detours around friendly base congestion. Base defence, retaliation returns and existing player orders keep their priority.
 
-Current all-difficulty scaling: elf reach is `1 + floor((maximum_health - 25) / 3)` (minimum one); human reach is `1 + 2 * floor(kills / 3)`. Human cycles continue indefinitely. Converted orcs preserve only maximum HP and permanent punch; for example a twenty-max-HP, ten-punch victim becomes a full-health twenty-HP, ten-punch orc with reach one. Attack-position searches are bounded to the map even with very large reach.
+Current all-difficulty scaling: elf reach is `1 + floor((maximum_health - 25) / 2)` (minimum one); human reach is `1 + 2 * floor(kills / 3)`. Human cycles continue indefinitely. Converted orcs preserve only maximum HP and permanent punch; for example a twenty-max-HP, ten-punch victim becomes a full-health twenty-HP, ten-punch orc with reach one. Attack-position searches are bounded to the map even with very large reach.
 
 `Testing/run_tile_defence_tests.gd` covers the shared tile lifecycle on every difficulty for player and enemy units, including target focus, the one-second standing boundary, seated capture, border detection and forced return.
+
+All difficulties: elves gain +1 temporary punch only while on their own captured tile. Demon assist punch is rolled independently per qualifying living assistant with a 50% chance; failed rolls display no reward popup. Killing-blow punch rewards remain guaranteed.

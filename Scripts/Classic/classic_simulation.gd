@@ -1231,6 +1231,8 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 			student.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
 		if ticks < student.home_punch_until:
 			damage += 1.0
+	if student.team == 2 and _on_owned_tile(student):
+		damage += 1.0
 	if student.team == 1:
 		damage += get_orc_group_bonus(student, target)
 		if student.is_converted:
@@ -1359,7 +1361,7 @@ func get_attack_range(student: ClassicStudent) -> int:
 	if student.team == 0:
 		return 1 + 2 * (student.level / 3)
 	if student.team == 2:
-		return 1 + maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2])) / 3
+		return 1 + maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2])) / 2
 	return 1
 
 
@@ -1421,7 +1423,7 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			2:
 				killer.show_event("+2 RANGE")
 	if killer.team == 3 and killer.is_alive():
-		killer.health = minf(killer.maximum_health, killer.health + 3.0)
+		killer.health = minf(killer.maximum_health, killer.health + 2.0)
 	# Damage records include the killing blow, so each contributor is rewarded once.
 	for id: int in victim.damage_contributors:
 		var record: Dictionary = victim.damage_contributors[id]
@@ -1433,8 +1435,8 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 			contributor.show_event("%d + %d HP" % [int(contributor.maximum_health), reward])
 			contributor.maximum_health += reward
 		elif contributor.team == 3:
-			if contributor.id != killer.id:
-				contributor.health = minf(contributor.maximum_health, contributor.health + 1.0)
+			if contributor.id != killer.id and rng.randf() >= 0.5:
+				continue
 			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.id == killer.id else 1
 			contributor.show_event("%d + %d PUNCH" % [int(ClassicRules.PUNCH[contributor.team] + contributor.punch_bonus), reward])
 			contributor.punch_bonus += reward

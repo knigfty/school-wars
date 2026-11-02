@@ -28,7 +28,7 @@ func _unit(sim: ClassicSimulation, id: int, race: int, cell: Vector2i, reach: in
 	unit.ai_spawn_wait = false
 	unit.state = ClassicStudent.State.SIT
 	if race == 2:
-		unit.maximum_health = 25 + 3 * (reach - 1)
+		unit.maximum_health = 25 + 2 * (reach - 1)
 	elif race == 0:
 		unit.level = 3 * ((reach - 1) / 2)
 	return unit

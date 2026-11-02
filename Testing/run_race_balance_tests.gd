@@ -35,6 +35,7 @@ func _run() -> void:
 			_conversion(mode, player)
 			_retreats(mode, player)
 		_spawning(mode)
+		_elf_and_demon_balance(mode)
 	print("Race balance tests: %d failure(s)" % failures)
 	quit(1 if failures else 0)
 
@@ -109,3 +110,33 @@ func _spawning(mode: int) -> void:
 		sim.areas[1].owner = race
 		sim.medieval = false
 		_check(sim.get_spawn_boost_tiles(race) == 1, "Original mode hearts never boost spawning")
+
+func _elf_and_demon_balance(mode: int) -> void:
+	for player: int in [-1, 2, 3]:
+		var sim: ClassicSimulation = _fixture(mode, player)
+		var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
+		var demon: ClassicStudent = _unit(sim, 1, 3, Vector2i(21, 20))
+		sim.areas.append({"tile": Vector2i(5, 5), "owner": 2})
+		sim.area_at[Vector2i(5, 5)] = 0
+		_check(sim.get_punch_damage(elf, demon) == 4, "Owned tile grants elf one punch even while standing")
+		elf.cell = Vector2i(24, 20)
+		_check(sim.get_punch_damage(elf, demon) == 3, "Elf bonus ends immediately outside owned tile")
+		elf.cell = Vector2i(20, 20)
+		sim.areas[0].owner = 3
+		_check(sim.get_punch_damage(elf, demon) == 3, "Enemy tile grants no elf bonus")
+		sim.medieval = false
+		sim.areas[0].owner = 2
+		_check(sim.get_punch_damage(elf, demon) == 3, "Classic ignores elf tile bonus")
+		sim.medieval = true
+		var awards: int = 0
+		for trial: int in 1000:
+			var victim: ClassicStudent = _unit(sim, 2, 1, Vector2i(22, 20))
+			demon.punch_bonus = 0
+			demon.health = 2
+			demon.event_text = ""
+			victim.damage_contributors[demon.id] = {"tick": sim.ticks, "lifetime": demon.lifetime, "team": 3}
+			sim._reward_defeat(elf, victim)
+			awards += demon.punch_bonus
+			_check(demon.health == 2, "Demon assist never heals")
+			_check((demon.event_text != "") == (demon.punch_bonus == 1), "Only successful assist rolls show punch reward")
+		_check(awards > 430 and awards < 570, "Demon assist reward succeeds about half the time across difficulties and teams")
