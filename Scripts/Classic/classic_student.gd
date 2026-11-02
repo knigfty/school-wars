@@ -26,6 +26,7 @@ var tile_order_busy: bool = false
 var tile_clear_at: int = -1
 var tile_guard_target: int = -1
 var ranged_pursuit_id: int = -1
+var ranged_response_id: int = -1
 var guard_retaliation_id: int = -1
 var designated_tile: Vector2i = Vector2i(-1, -1)
 var retaliation_until: int = 0

@@ -25,6 +25,8 @@ enum Difficulty { EASY, NORMAL, EXPERT }
 var difficulty: int = Difficulty.EASY
 const SQUAD_AI = preload("res://Scripts/Classic/medieval_squad_ai.gd")
 var squad_ai = SQUAD_AI.new()
+const RANGED_RESPONSE = preload("res://Scripts/Classic/medieval_ranged_response.gd")
+var ranged_response = RANGED_RESPONSE.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
 const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
@@ -33,6 +35,7 @@ const AI_START_DELAY_TICKS: int = 400
 
 func setup(team: int, map_seed: int) -> void:
 	squad_ai = SQUAD_AI.new()
+	ranged_response = RANGED_RESPONSE.new()
 	player_team = clampi(team, 0, 3)
 	rng.seed = map_seed
 	students.clear()
@@ -198,6 +201,7 @@ func spawn_student(team: int, base_tile: Vector2i = Vector2i(-1, -1)) -> Classic
 
 func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> void:
 	student.ai_base_defence_tile = Vector2i(-1, -1)
+	student.ranged_response_id = -1
 	student.ai_spawn_wait = true
 	student.tile_guard_active = medieval
 	student.tile_order_busy = false
@@ -249,6 +253,8 @@ func step() -> void:
 	if finished:
 		return
 	ticks += 1
+	if medieval:
+		ranged_response.update(self)
 	if medieval:
 		for unit: ClassicStudent in students:
 			if unit.is_alive() and unit.team == 0 and unit.home_punch_until >= 0 and _on_owned_tile(unit):
@@ -344,6 +350,7 @@ func start_walk(student: ClassicStudent, tile: Vector2i, target_id: int = -1) ->
 
 
 func designate_order(student: ClassicStudent, tile: Vector2i, target_id: int = -1) -> void:
+	student.ranged_response_id = -1
 	if not medieval:
 		return
 	var next_tile: Vector2i = Vector2i(students[target_id].cell.x / 4, students[target_id].cell.y / 4) if _valid_enemy(student, target_id) else tile
@@ -368,6 +375,8 @@ func _holds_player_tile(student: ClassicStudent) -> bool:
 
 
 func _may_engage(student: ClassicStudent, target: ClassicStudent) -> bool:
+	if medieval and ranged_response.active(student):
+		return not student.ai_retreating and target.id == student.ranged_pursuit_id
 	if medieval and student.tile_guard_active and not student.returning_to_tile:
 		return _guard_can_target(student, target)
 	if medieval and student.ai_base_defence_tile.x >= 0:
@@ -542,7 +551,7 @@ func _update_tile_order(student: ClassicStudent) -> bool:
 
 
 func _update_base_defence(student: ClassicStudent) -> bool:
-	if not medieval or not student.is_alive() or student.team == player_team or _valid_enemy(student, student.ranged_pursuit_id):
+	if not medieval or not student.is_alive() or student.team == player_team or ranged_response.active(student) or _valid_enemy(student, student.ranged_pursuit_id):
 		return false
 	var tile: Vector2i = student.ai_base_defence_tile
 	if tile.x < 0:
@@ -1005,6 +1014,10 @@ func _fighting(student: ClassicStudent) -> void:
 
 
 func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
+	# Register the defending group before damage, so a lethal opening hit still
+	# counts toward its original strength and prompts surviving defenders.
+	if medieval and target.team != player_team and target.tile_guard_active and target.state != ClassicStudent.State.WALK and get_attack_range(student) > 1:
+		ranged_response.on_hit(self, target, student)
 	# A ranged hit must not restart or interrupt a reserved movement step.
 	if target.state != ClassicStudent.State.WALK:
 		target.pattern = 20
@@ -1102,7 +1115,7 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
-	if student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
+	if ranged_response.active(student) or student.team == player_team or student.state != ClassicStudent.State.SIT or student.idle_ticks < AI_START_DELAY_TICKS or student.tile_order_busy or student.ai_base_defence_tile.x >= 0 or student.retaliation_until > 0 or student.returning_to_tile:
 		return
 	var healthy: bool = (medieval and student.team == 3) or is_equal_approx(student.health, student.maximum_health)
 	var best: float = INF
@@ -1449,6 +1462,9 @@ func get_retreat_text(student: ClassicStudent) -> String:
 func _respond_to_hit(defender: ClassicStudent, attacker: ClassicStudent) -> void:
 	if not medieval or not defender.tile_guard_active or defender.state == ClassicStudent.State.WALK or defender.ai_retreating:
 		return
+	if defender.team != player_team and get_attack_range(attacker) > 1:
+		ranged_response.on_hit(self, defender, attacker)
+		return
 	defender.guard_retaliation_id = attacker.id
 	# Player defenders return fire under their existing guard restrictions.
 	if defender.team == player_team:
@@ -1459,17 +1475,3 @@ func _respond_to_hit(defender: ClassicStudent, attacker: ClassicStudent) -> void
 		if defender.tile_guard_active:
 			defender.tile_guard_target = attacker.id
 		return
-	if get_attack_range(attacker) <= 1:
-		return
-	# Enemy defenders may abandon the tile to counter a ranged attacker. Existing
-	# recovery/flee decisions still run in the squad planner and can supersede this.
-	defender.tile_guard_active = false
-	defender.tile_guard_target = -1
-	defender.tile_order_busy = false
-	defender.ai_base_defence_tile = Vector2i(-1, -1)
-	defender.returning_to_tile = false
-	defender.retaliation_until = 0
-	defender.retaliation_target_id = -1
-	defender.priority_target_id = attacker.id
-	defender.target_id = attacker.id
-	defender.ranged_pursuit_id = attacker.id

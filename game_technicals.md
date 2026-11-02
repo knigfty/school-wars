@@ -220,7 +220,26 @@ Ordinary ground does not become owned territory. A ground order can hold and cle
 
 Idle or seated defenders respond to incoming damage under these guard restrictions. Even melee defenders holding ordinary ground can return a hit from a directly reachable adjacent enemy while staying in place. A player ranged defender that can reach its attacker returns fire and holds its tile. Player melee defenders can retaliate within their ordinary permitted defence area; an attacker beyond their reach and leash cannot be countered by extending those limits.
 
-Enemy defenders have a further choice: if a ranged attacker hits them from beyond their own reach, they can abandon their tile assignment and focus that attacker. This counter-pursuit has **no tile-distance leash**, including across the old adjacent-tile boundary. A new strategic order or retreat can replace the pursuit, and an existing retreat is not cancelled simply because a ranged hit lands. Enemies able to reach the shooter can return fire instead. These rules apply across Easy, Normal, and Expert and to both player and enemy increased-range units; the enemy pursuit exception specifically belongs to enemy AI.
+Enemy defenders and idle tile occupants make a racial response decision when a successful ranged hit lands, **even when their own reach could hit the shooter**. These decisions apply on **Easy, Normal, and Expert**. A miss does not trigger a decision. A lethal opening hit still records the original group and prompts its survivors.
+
+| Enemy race | Initial response | Later response |
+| --- | --- | --- |
+| Humans | One shared 50% pursuit / 50% retreat roll for the tile's defenders | Pursuers remain committed until the attacker dies or they do; low HP does not trigger retreat |
+| Orcs | Each orc individually pursues | Can flee if outnumbered by nearby attacking enemies or at 20% HP or less, only when its flee cooldown is ready |
+| Elves | One shared 50% pursuit / 50% relocation roll for the tile's defenders | Pursuers retain individual low-HP healing recovery |
+| Demons | The tile's defenders pursue together | At least half of the original group lost: one shared 50% flee / 50% continue-fighting roll |
+
+A response group is formed from the same race's living defenders or idle occupants of the threatened tile at the start of that response. Moving defenders assigned to that tile can participate; unrelated units travelling through it on another order do not. Later recruits do not change the original strength or casualty threshold. Repeated hits on a committed group do not reroll its choice. Converted orcs use the same individual response rules as regular orcs.
+
+Counter-pursuit has **no tile-distance leash**. Normal strategic planners do not replace a response group's commitment with unrelated capture orders or human casualty-retreat rolls. The response ends when its pursued attacker dies; surviving units then hold their current tile and become available again. An explicit replacement order can also release a unit. Existing active retreat states are not cancelled by a new hit.
+
+Human retreat groups share a destination, preferring an owned heart or base and recovering fully there. If no healing destination is available, they relocate away from the attacker. Elf opening retreat groups relocate to another tile together; that opening choice does not require low HP or spend the separate healing-retreat cooldown. Demon flee survivors also share a relocation destination. Relocation ends once the surviving group reaches its destination. A lost healing destination is replaced rather than leaving the group waiting forever for healing on hostile ground.
+
+Orcs scan **two large tiles in four-direction tile distance** around their current tile, including the boundary. They count nearby allied orcs against nearby enemies actively fighting or pursuing orcs. Nearby enemies not attacking orcs do not inflate that count. More attackers than allies triggers fleeing; an equal count does not. Low HP independently permits fleeing at **20% current HP or less**. The existing **ten-second flee window**, **thirty-second cooldown from flee start**, and **+30% movement** apply. During cooldown they must continue attacking even if wounded or outnumbered. At flee-window expiry they resume their pursuit if the attacker still lives. Each orc makes this decision separately, and the scan is refreshed as the fight moves.
+
+A pursuing elf below 20% HP can seek owned healing territory independently of its companions. Normal/Easy recovery uses 80% HP as its return threshold. Expert uses 20% HP or less to start, requires a healing tile within ten movement cells, observes the 45-second recovery-start cooldown, and recovers to 100%. No eligible healing point means the elf keeps pursuing without spending that cooldown. This individual survival exception does not reroll the group's original choice.
+
+Demon casualties are measured against the response's **original recorded members**, counting deaths and conversions as losses. Losing two of four, three of five, or one of two reaches the half-loss threshold. The casualty roll is made once per response; choosing to fight does not create a new 50% chance on every later hit or death. The survivors flee or continue pursuing together. This is a ranged-response exception to demons' usual refusal to retreat for healing; it does not grant heart healing or create an ordinary low-HP demon retreat.
 
 An explicit new order can change the assignment. Enemy planners can likewise issue fresh orders to available units; the leash restricts an existing automatic defence, rather than forbidding future strategic movement.
 
@@ -230,7 +249,7 @@ An original home base cannot be captured while its original race remains active.
 
 Once conquered, a base can be taken again while its new owner is still alive. Its protection does not reset around each new owner. Every enemy base you currently own adds **six regular-unit capacity** and becomes another reinforcement location. Losing it removes that capacity bonus and spawn location immediately.
 
-Enemy warriors inside an invaded owned base normally prioritise intruders after their short initial standing animation. A deliberate counter-pursuit response to ranged damage can release that base assignment. This local defence can happen during Easy or Normal's opening strategic delay. The opening delay is not immunity from counterattacks.
+Enemy warriors inside an invaded owned base normally prioritise intruders after their short initial standing animation. A racial ranged-fire response can release that base assignment for shared pursuit or retreat. This local defence can happen during Easy or Normal's opening strategic delay. The opening delay is not immunity from counterattacks.
 
 ## 7. Healing and recovery
 
@@ -496,7 +515,7 @@ The final elimination check happens as warriors finish disappearing, or immediat
 
 Difficulty primarily changes how enemy armies organise and choose orders. Local combat, manual commands, capture contention, and the shared tile-defence leash still apply across difficulties.
 
-The player's warriors carry out their orders and the shared automatic defence rules. They do not receive the enemy strategic squad planner. Choosing Expert therefore does not make your own army autonomously select all the same missions as Expert enemies.
+The player's warriors carry out their orders and the shared automatic defence rules. The new racial ranged-fire response choices are enemy-only. They do not receive the enemy strategic squad planner. Choosing Expert therefore does not make your own army autonomously select all the same missions as Expert enemies.
 
 | Feature | Easy | Normal | Expert |
 | --- | --- | --- | --- |
@@ -511,7 +530,7 @@ The player's warriors carry out their orders and the shared automatic defence ru
 
 ### Local jobs take priority
 
-A warrior busy clearing or capturing its assigned objective, responding to a base invasion, returning from a defence, or carrying out another protected local response is not freely reassigned by every strategic planning pass. A held friendly tile can later be given a new mission. Consequently, a listed strategic priority is a choice among **available** units, not a guarantee that every wounded or nearby unit instantly abandons its current battle.
+A warrior busy clearing or capturing its assigned objective, responding to a base invasion, returning from a defence, or carrying out another protected local response is not freely reassigned by every strategic planning pass. The racial ranged-fire responses described earlier can deliberately replace a defensive tile/base job and then keep their own commitment against ordinary strategic reassignment. A held friendly tile can later be given a new mission. Consequently, a listed strategic priority is a choice among **available** units, not a guarantee that every wounded or nearby unit instantly abandons its current battle.
 
 ### Easy: individual objective choices
 
@@ -521,7 +540,7 @@ Healthy warriors look for capturable objectives. Wounded non-demons instead look
 
 Easy also tracks a rough leader: active population plus owned spades, with the orc value halved. A race qualifies as a leader when its value exceeds 40% of the combined total; if several qualify, the current selection follows the game's race-check order. Other Easy enemies tend to concentrate choices against that leader. This is a targeting preference, not a formal alliance: they can still fight one another locally, and eligible abandoned bases have an exception to the objective filter.
 
-Easy has no strategic squad coordination or Normal/Expert orc flee cooldown. Shared tile-clearing focus and border defence still work, so “individual AI” does not mean four enemies assigned to one tile will ignore a shared intruder.
+Easy has no ordinary strategic squad coordination. The racial ranged-fire response groups and orc flee cooldown described above still apply. Shared tile-clearing focus and border defence still work, so “individual AI” does not mean four enemies assigned to one tile will ignore a shared intruder.
 
 ### Normal: coordinated small groups
 
