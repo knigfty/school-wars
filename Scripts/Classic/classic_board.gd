@@ -26,6 +26,9 @@ var simulation: ClassicSimulation
 var selected: Array[int] = []
 var camera_center: Vector2 = Vector2(0, 384)
 var view_zoom: float = 1.5
+const GAME_SPEEDS: Array[int] = [1, 2, 4, 8]
+var game_speed: int = 1
+var spectating: bool = false
 var paused: bool = false
 var muted: bool = false
 var _accumulator: float = 0.0
@@ -51,11 +54,13 @@ func _ready() -> void:
 		_audio.append(player)
 
 
-func start(team: int, map_seed: int, difficulty: int = ClassicSimulation.Difficulty.EASY) -> void:
+func start(team: int, map_seed: int, difficulty: int = ClassicSimulation.Difficulty.EASY, spectator: bool = false) -> void:
+	spectating = spectator
+	game_speed = 1
 	simulation = ClassicSimulation.new()
 	simulation.medieval = medieval
 	simulation.difficulty = clampi(difficulty, ClassicSimulation.Difficulty.EASY, ClassicSimulation.Difficulty.EXPERT)
-	simulation.setup(team, map_seed)
+	simulation.setup(team, map_seed, spectating)
 	simulation.sound_requested.connect(_on_sound)
 	simulation.team_eliminated.connect(_on_eliminated)
 	simulation.match_finished.connect(func(won: bool) -> void: match_finished.emit(won))
@@ -63,8 +68,8 @@ func start(team: int, map_seed: int, difficulty: int = ClassicSimulation.Difficu
 	_marker_target = -1
 	_marker_life = 0.0
 	_accumulator = 0.0
-	view_zoom = 1.5
-	camera_center = ClassicRules.cell_to_world(Vector2(simulation.bases[team] * 4)) + Vector2(0, 18)
+	view_zoom = 0.5 if spectating else 1.5
+	camera_center = Vector2(0, 384) if spectating else ClassicRules.cell_to_world(Vector2(simulation.bases[team] * 4)) + Vector2(0, 18)
 	_clamp_camera()
 	paused = false
 	visible = true
@@ -76,7 +81,7 @@ func _process(delta: float) -> void:
 		return
 	if not paused:
 		# Drop wall-clock backlog after tab suspension; never fast-forward a match.
-		_accumulator += minf(delta, 0.2)
+		_accumulator += minf(delta, 0.2) * game_speed
 		while _accumulator >= 1.0 / 18.0:
 			_accumulator -= 1.0 / 18.0
 			simulation.step()
@@ -128,6 +133,8 @@ func _exit_tree() -> void:
 
 
 func select_all() -> void:
+	if spectating:
+		return
 	selected.clear()
 	for student: ClassicStudent in simulation.students:
 		if student.is_alive() and student.team == simulation.player_team:
@@ -146,6 +153,9 @@ func _gui_input(event: InputEvent) -> void:
 			_selecting = false
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if spectating:
+				accept_event()
+				return
 			if not event.pressed and _panning:
 				_panning = false
 			elif event.pressed:
@@ -181,6 +191,8 @@ func _notification(what: int) -> void:
 
 
 func _finish_selection(point: Vector2) -> void:
+	if spectating:
+		return
 	if _start.distance_to(point) >= 6.0:
 		var rect: Rect2 = Rect2(_start, point - _start).abs().grow(10.0)
 		selected.clear()
@@ -198,6 +210,8 @@ func _finish_selection(point: Vector2) -> void:
 
 
 func _issue_order(point: Vector2) -> void:
+	if spectating:
+		return
 	var cell: Vector2i = ClassicRules.world_to_cell(screen_to_world(point))
 	if not ClassicRules.in_grid(cell):
 		return
@@ -340,3 +354,7 @@ func _on_sound(cue: String, world: Vector2) -> void:
 func _on_eliminated(team: int) -> void:
 	announcement.emit("%s is annihilated." % team_names[team])
 	_on_sound("message", camera_center)
+
+
+func cycle_game_speed() -> void:
+	game_speed = GAME_SPEEDS[(GAME_SPEEDS.find(game_speed) + 1) % GAME_SPEEDS.size()]

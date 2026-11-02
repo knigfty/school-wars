@@ -35,6 +35,20 @@ Each race starts with **three warriors**, **12 regular-unit capacity**, and one 
 
 The battlefield contains **16 × 16 large tiles**. Each large tile contains **4 × 4 movement cells**, making the entire field **64 × 64 movement cells**. Warriors occupy individual movement cells; territory ownership belongs to the large tiles.
 
+### Spectator mode and fast-forward
+
+The **Spectator mode** button sits immediately to the right of the difficulty selector. Clicking it launches a fresh match at the chosen difficulty with **all four races controlled by AI** and no player-owned race. The observer cannot select or command troops; right-drag, Space-drag, wheel zoom, and the minimap still control the camera. The view starts centred and zoomed out to show the battlefield.
+
+The observer's match continues through the first and second race eliminations and ends when one race remains. Its result names the victorious army, rather than announcing a player victory or defeat. **Play again** starts another spectator match at the selected difficulty. Choosing a race from the menu returns to an ordinary player match. In Expert spectator matches, all elves count as enemy AI for the +2 maximum-HP participation reward; there is no player elf faction receiving the smaller reward.
+
+The top-right **fast-forward icon and multiplier** control battle speed in both spectator and ordinary Medieval matches:
+
+> **1x → 2x → 4x → 8x → 1x** with successive clicks.
+
+Every new match and replay begins at **1x**. The multiplier accelerates the whole battle clock: walking, attacks, capture, healing, reinforcements, opening delays, and AI cooldowns all advance together. For example, ten battle seconds take approximately five real seconds at 2x or 1.25 real seconds at 8x when the device can keep up. It does not change unit stats, relative movement bonuses, hit-chance formulas, or how many rules steps make one attack. Camera and menu interaction stay at normal speed, and pause freezes the battle at every multiplier. On slower devices, high-speed playback can be limited by available processing time.
+
+The spectator HUD shows all four populations without highlighting a player faction. Its spawning box identifies spectator mode instead of showing one race's recruitment meter. Unit information remains tied to player selections in ordinary play.
+
 ### Special tiles
 
 | Tile | Main benefit | Important restriction |
@@ -68,9 +82,9 @@ Enemy squad awareness generally uses a **straight-line radius of 16 movement cel
 
 ### The battle clock
 
-The battle advances in **18 rules steps per second**, approximately **0.0556 seconds per step**. Combat, capture, spawning, movement, and racial cooldowns use that battle clock. The visuals can animate more frequently, but a higher display frame rate does not grant faster attacks or reinforcements.
+At **1x**, the battle advances in **18 rules steps per second**, approximately **0.0556 seconds per step**. Combat, capture, spawning, movement, and racial cooldowns use that battle clock. The visuals can animate more frequently, but a higher display frame rate does not grant faster attacks or reinforcements.
 
-Pausing freezes the battle. Opening help, a pause dialog, or the quit dialog pauses it too. Losing application focus also brings up the pause dialog. Long frame interruptions are limited so returning to a suspended tab does not suddenly simulate an entire absence at once. Under severe performance problems, real-world timings can therefore stretch; the battle rules still advance in their usual order.
+The fast-forward control multiplies that battle clock by two, four, or eight as described above. Pausing freezes the battle. Opening help, a pause dialog, or the quit dialog pauses it too. Losing application focus also brings up the pause dialog. Long frame interruptions are limited so returning to a suspended tab does not suddenly simulate an entire absence at once. Under severe performance problems, real-world timings can therefore stretch; the battle rules still advance in their usual order.
 
 The character-info box's five-second dismissal is an interface timer. It can expire while a pause dialog is open even though battle cooldowns are frozen.
 

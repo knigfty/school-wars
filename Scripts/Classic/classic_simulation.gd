@@ -16,6 +16,7 @@ var active: Array[bool] = [true, true, true, true]
 var recruit_progress: Array[int] = [0, 0, 0, 0]
 var last_spawn_base: Array[Vector2i] = []
 var player_team: int = 0
+var spectating: bool = false
 var ticks: int = 0
 var leader: int = -1
 var finished: bool = false
@@ -33,10 +34,11 @@ const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
 const AI_START_DELAY_TICKS: int = 400
 
 
-func setup(team: int, map_seed: int) -> void:
+func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	squad_ai = SQUAD_AI.new()
 	ranged_response = RANGED_RESPONSE.new()
-	player_team = clampi(team, 0, 3)
+	spectating = spectator
+	player_team = -1 if spectating else clampi(team, 0, 3)
 	rng.seed = map_seed
 	students.clear()
 	areas.clear()
@@ -309,7 +311,7 @@ func step() -> void:
 
 
 func command(ids: Array[int], tile: Vector2i, target_id: int = -1) -> void:
-	if finished or not ClassicRules.in_grid(tile * 4):
+	if spectating or finished or not ClassicRules.in_grid(tile * 4):
 		return
 	for id: int in ids:
 		if id < 0 or id >= students.size():
@@ -1089,9 +1091,9 @@ func _check_elimination(team: int) -> void:
 		active[team] = false
 		team_eliminated.emit(team)
 		var survivors: int = active.count(true)
-		if not active[player_team] or survivors == 1:
+		if survivors == 1 or (player_team >= 0 and not active[player_team]):
 			finished = true
-			match_finished.emit(active[player_team])
+			match_finished.emit(player_team < 0 or active[player_team])
 	_update_leader()
 
 
@@ -1475,3 +1477,7 @@ func _respond_to_hit(defender: ClassicStudent, attacker: ClassicStudent) -> void
 		if defender.tile_guard_active:
 			defender.tile_guard_target = attacker.id
 		return
+
+
+func get_winner_team() -> int:
+	return active.find(true) if active.count(true) == 1 else -1

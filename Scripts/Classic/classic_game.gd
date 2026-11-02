@@ -13,6 +13,9 @@ var extras_button: Button
 var menu_title: Label
 var menu_subtitle: Label
 var difficulty_selector: OptionButton
+var spectator_button: Button
+var speed_button: Button
+var _spectating: bool = false
 var _pop_time: float = 0.0
 var _reduce_motion: bool = false
 var board: ClassicBoard
@@ -127,6 +130,10 @@ func _build_menu() -> void:
 		difficulty_selector.item_selected.connect(_update_difficulty_tooltip)
 		_update_difficulty_tooltip(difficulty_selector.selected)
 		menu.add_child(difficulty_selector)
+		spectator_button = _button("Spectator mode", _start_spectator)
+		spectator_button.name = "SpectatorMode"
+		spectator_button.tooltip_text = "Watch all four AI armies at the selected difficulty."
+		menu.add_child(spectator_button)
 	extras_button = _button("School Wars" if medieval else "Extras", _navigate_variant)
 	extras_button.name = "ExtrasButton"
 	menu.add_child(extras_button)
@@ -190,6 +197,12 @@ func _build_hud() -> void:
 	buttons.name = "Actions"
 	buttons.add_theme_constant_override("separation", 6)
 	hud.add_child(buttons)
+	if medieval:
+		speed_button = _button("1x", _cycle_game_speed)
+		speed_button.name = "GameSpeed"
+		speed_button.icon = preload("res://Assets/UI/fast_forward.svg")
+		speed_button.tooltip_text = "Game speed: 1x. Click to cycle 2x, 4x, 8x, 1x."
+		buttons.add_child(speed_button)
 	buttons.add_child(_button("?", _show_help))
 	buttons.add_child(_button("Pause", _show_pause))
 	var sound: Button = _button("Sound: on", func() -> void:
@@ -281,7 +294,7 @@ func _build_modal() -> void:
 	box.add_child(modal_scroll)
 	resume_button = _button("Resume", _resume)
 	box.add_child(resume_button)
-	replay_button = _button("Play again", func() -> void: _start_match(_team))
+	replay_button = _button("Play again", func() -> void: _start_match(0 if _spectating else _team, _spectating))
 	box.add_child(replay_button)
 	quit_button = _button("Return to school selection", _show_menu)
 	box.add_child(quit_button)
@@ -302,7 +315,11 @@ func _layout() -> void:
 		menu_subtitle.position = Vector2(20, size.y * 0.25 + 85)
 		menu_subtitle.size = Vector2(size.x - 40, 30)
 		difficulty_selector.size = Vector2(minf(190, size.x - 40), 38)
-		difficulty_selector.position = Vector2((size.x - difficulty_selector.size.x) * 0.5, size.y * 0.52 - 19)
+		var option_width: float = maxf(190, spectator_button.get_combined_minimum_size().x)
+		var row_left: float = (size.x - difficulty_selector.size.x - option_width - 12) * 0.5
+		difficulty_selector.position = Vector2(row_left, size.y * 0.52 - 19)
+		spectator_button.position = Vector2(row_left + difficulty_selector.size.x + 12, difficulty_selector.position.y)
+		spectator_button.size = Vector2(option_width, 38)
 	var width: float = minf(size.x - 64, 820)
 	var card_width: float = (width - 36) / 4
 	var card_height: float = size.y * 0.28
@@ -325,10 +342,12 @@ func _layout() -> void:
 	if hud == null:
 		return
 	hud.get_node("TopBar").size = Vector2(size.x, 52)
+	var actions: HBoxContainer = hud.get_node("Actions")
+	var actions_width: float = maxf(318, actions.get_combined_minimum_size().x)
+	actions.position = Vector2(size.x - actions_width - 12, 7)
+	actions.size = Vector2(actions_width, 38)
 	status.position = Vector2(176, 15)
-	status.size = Vector2(maxf(270, size.x - 540), 30)
-	hud.get_node("Actions").position = Vector2(size.x - 330, 7)
-	hud.get_node("Actions").size = Vector2(318, 38)
+	status.size = Vector2(maxf(0, actions.position.x - status.position.x - 12), 30)
 	hint_panel.position = Vector2(size.x - minf(size.x - 28, 520) - 14, size.y - 46)
 	hint_panel.size = Vector2(minf(size.x - 28, 520), 32)
 	recruit_panel.position = Vector2(14, size.y - 62)
@@ -353,16 +372,21 @@ func _update_difficulty_tooltip(selected: int) -> void:
 	difficulty_selector.tooltip_text = MEDIEVAL_HELP.tooltip(selected)
 
 
-func _start_match(team: int) -> void:
+func _start_match(team: int, spectator: bool = false) -> void:
 	if medieval:
 		_update_difficulty_tooltip(difficulty_selector.selected)
-	_team = team
+	_spectating = spectator
+	_team = -1 if _spectating else team
 	if character_info != null:
 		character_info.reset()
-	recruit_bar.add_theme_stylebox_override("fill", _panel(ClassicRules.COLORS[_team].lightened(0.3)))
+	recruit_bar.add_theme_stylebox_override("fill", _panel((Color("aaaaaa") if _spectating else ClassicRules.COLORS[_team].lightened(0.3))))
 	_seed = int(Time.get_unix_time_from_system() * 1000000.0) ^ Time.get_ticks_usec()
 	board.muted = _muted
-	board.start(team, _seed, difficulty_selector.selected if medieval else ClassicSimulation.Difficulty.EASY)
+	board.start(team, _seed, difficulty_selector.selected if medieval else ClassicSimulation.Difficulty.EASY, _spectating)
+	if speed_button != null:
+		speed_button.text = "1x"
+		speed_button.tooltip_text = "Game speed: 1x. Click to cycle 2x, 4x, 8x, 1x."
+	recruit_bar.visible = not _spectating
 	menu.hide()
 	modal.hide()
 	hud.show()
@@ -415,7 +439,7 @@ func _show_help() -> void:
 
 func _show_pause() -> void:
 	if medieval:
-		_show_dialog("Battle Paused", "Your warriors await your command. Resume when you are ready to return to the battlefield.", true, false)
+		_show_dialog("Battle Paused", "The four armies await. Resume to watch the battle unfold." if _spectating else "Your warriors await your command. Resume when you are ready to return to the battlefield.", true, false)
 		return
 	_show_dialog("Paused", "Take your time. The schoolyard will wait.", true, false)
 
@@ -430,6 +454,10 @@ func _resume() -> void:
 
 
 func _show_result(won: bool) -> void:
+	if _spectating:
+		var winner: int = board.simulation.get_winner_team()
+		_show_dialog("Battle Concluded", "%s stand victorious. All rival armies have fallen." % board.team_names[winner] if winner >= 0 else "The battle has ended.", false, true)
+		return
 	if medieval:
 		_show_dialog("Victory!" if won else "Defeat", "%s stand victorious. All rival armies have fallen, and the battlefield is yours." % board.team_names[_team] if won else "Your army has fallen, but the war is not over. Rally your warriors and march into battle once more.", false, true)
 		return
@@ -448,6 +476,9 @@ func _update_selection() -> void:
 
 
 func _update_recruitment() -> void:
+	if _spectating:
+		recruit_label.text = "Spectator mode · four AI armies"
+		return
 	var sim: ClassicSimulation = board.simulation
 	if sim == null:
 		return
@@ -547,3 +578,14 @@ func _panel(color: Color) -> StyleBoxFlat:
 
 func _full_rect(control: Control) -> void:
 	control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+
+func _start_spectator() -> void:
+	_start_match(0, true)
+
+
+func _cycle_game_speed() -> void:
+	board.cycle_game_speed()
+	speed_button.text = "%dx" % board.game_speed
+	speed_button.tooltip_text = "Game speed: %dx. Click to cycle 1x, 2x, 4x, 8x." % board.game_speed
+	_layout()
