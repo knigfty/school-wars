@@ -69,16 +69,19 @@ func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	for i: int in 4:
 		bases[order[i]] = corners[i]
 		_add_area(corners[i], ClassicRules.AreaKind.BASE, order[i])
-	# Exactly 26 placement attempts, not a fixed number of neutral tiles.
-	for attempt: int in 26:
-		var tile: Vector2i = Vector2i(rng.randi_range(0, 15), rng.randi_range(0, 15))
-		var clear: bool = not area_at.has(tile)
-		for direction: Vector2i in ClassicRules.DIRECTIONS:
-			if area_at.has(tile + direction):
-				clear = false
-		if clear:
-			var kind: int = ClassicRules.AreaKind.HEAL if rng.randf() * 3.0 >= 2.0 else ClassicRules.AreaKind.RECRUIT
-			_add_area(tile, kind, -1)
+	if spectating:
+		_generate_symmetric_neutral_areas()
+	else:
+		# Exactly 26 placement attempts, not a fixed number of neutral tiles.
+		for attempt: int in 26:
+			var tile: Vector2i = Vector2i(rng.randi_range(0, 15), rng.randi_range(0, 15))
+			var clear: bool = not area_at.has(tile)
+			for direction: Vector2i in ClassicRules.DIRECTIONS:
+				if area_at.has(tile + direction):
+					clear = false
+			if clear:
+				var kind: int = ClassicRules.AreaKind.HEAL if rng.randf() * 3.0 >= 2.0 else ClassicRules.AreaKind.RECRUIT
+				_add_area(tile, kind, -1)
 	for i: int in 48:
 		var student: ClassicStudent = ClassicStudent.new()
 		student.id = i
@@ -86,6 +89,43 @@ func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	for color: int in 4:
 		for i: int in 3:
 			spawn_student(color)
+
+
+func _mirrored_tiles(tile: Vector2i) -> Array[Vector2i]:
+	var edge: int = ClassicRules.BOARD_SIZE - 1
+	return [tile, Vector2i(edge - tile.x, tile.y), Vector2i(tile.x, edge - tile.y), Vector2i(edge - tile.x, edge - tile.y)]
+
+
+func _generate_symmetric_neutral_areas() -> void:
+	# Seed one quadrant and reflect whole groups: kinds and base distances match.
+	var candidates: Array[Vector2i] = []
+	for y: int in ClassicRules.BOARD_SIZE / 2:
+		for x: int in ClassicRules.BOARD_SIZE / 2:
+			candidates.append(Vector2i(x, y))
+	# Use the match RNG rather than Array.shuffle's global random state.
+	for i: int in range(candidates.size() - 1, 0, -1):
+		var other: int = rng.randi_range(0, i)
+		var saved: Vector2i = candidates[i]
+		candidates[i] = candidates[other]
+		candidates[other] = saved
+	var remaining: int = rng.randi_range(4, 7)
+	for tile: Vector2i in candidates:
+		var group: Array[Vector2i] = _mirrored_tiles(tile)
+		var clear: bool = true
+		for mirrored: Vector2i in group:
+			if area_at.has(mirrored):
+				clear = false
+			for direction: Vector2i in ClassicRules.DIRECTIONS:
+				if area_at.has(mirrored + direction) or group.has(mirrored + direction):
+					clear = false
+		if not clear:
+			continue
+		var kind: int = ClassicRules.AreaKind.HEAL if rng.randf() * 3.0 >= 2.0 else ClassicRules.AreaKind.RECRUIT
+		for mirrored: Vector2i in group:
+			_add_area(mirrored, kind, -1)
+		remaining -= 1
+		if remaining == 0:
+			break
 
 
 func _add_area(tile: Vector2i, kind: int, owner: int) -> void:

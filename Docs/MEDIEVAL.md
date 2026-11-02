@@ -188,3 +188,8 @@ Orc flee cooldown is ten seconds, starting only after reaching a tile and sittin
 Elf retreat travel is limited to fifteen battle seconds from departure. Changing or losing a destination does not reset this deadline. Arrival at the exact deadline enters healing; already seated recovery can continue to full HP without a travel timeout. An unsuccessful retreat releases the fallback state, restores normal movement, and uses the existing three-second fight hold before another retreat attempt; it does not spend the arrival-only cooldown. A new travel phase after losing an occupied healing spot receives its own fifteen-second deadline.
 
 A demon pursuing a distant enemy now attacks adjacent hostile blockers, including retreating elves in waiting states, instead of idling beside them. Its original target and lifetime remain recorded, and pursuit resumes after the blocker is removed.
+
+
+### Symmetric spectator maps
+
+Spectator-only generation samples four to seven neutral objectives in one quadrant and mirrors every position and kind across both axes. Each corner base therefore has identical distances to the same objective types. Totals remain randomized in complete groups of four: sixteen to twenty-eight neutral tiles plus four bases. Non-adjacency remains enforced across the quadrant seams and beside bases. The same match seed reproduces the layout and randomized race-to-corner assignment. Player-controlled generation remains unchanged. `Testing/run_symmetric_map_tests.gd` checks symmetry, objective-distance profiles, spacing, ownership, variation, replay determinism, and player-map golden snapshots.

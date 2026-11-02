@@ -58,7 +58,9 @@ The spectator HUD shows all four populations without highlighting a player facti
 | Base | Produces reinforcements and heals seated friendly warriors | An original home base is protected from capture until its original race is eliminated |
 | Ordinary ground | Space for movement, formations, and fighting | Has no capture reward or ownership benefit |
 
-The map makes **26 attempts** to place neutral special tiles. An attempt is rejected if the chosen tile is already occupied by a special tile or has a special tile immediately beside it in one of the four tile directions. Consequently, there can be fewer than 26 neutral objectives. Accepted neutral objectives have approximately a **two-thirds chance of being a spade** and a **one-third chance of being a heart**. The layout and mix vary between matches.
+In player-controlled matches, the map makes **26 attempts** to place neutral special tiles. An attempt is rejected if the chosen tile is already occupied by a special tile or has a special tile immediately beside it in one of the four tile directions. Consequently, there can be fewer than 26 neutral objectives. Accepted neutral objectives have approximately a **two-thirds chance of being a spade** and a **one-third chance of being a heart**. The layout and mix vary between matches.
+
+Spectator maps instead generate **4–7 neutral objectives in one quadrant**, then mirror each position and tile kind across both map axes. Each quadrant has the same spade/heart layout relative to its corner base. This produces **16–28 neutral objectives, plus four bases (20–32 total tiles)**, in complete groups of four. The count, locations, and kind mix vary by match seed; replaying the same seed reproduces them. The existing non-adjacency rule applies across quadrant seams and around bases. Race-to-corner assignment remains randomized. Player-controlled layouts retain their original generator.
 
 ### Winning and elimination
 
