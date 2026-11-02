@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 	return unit
 
 func _run() -> void:
+	_coincident_group_tests()
 	_human_idle_base_tests()
 	_demon_no_healing_retreat_tests()
 	_base_defence_tests()
@@ -332,7 +333,7 @@ func _expert_strategy_tests() -> void:
 	sim.squad_ai.update(sim)
 	_check(demon.priority_target_id == -1, "Distant invasion does not grant Expert demon global awareness")
 
-	# Separate objectives prevent nearby elf groups from piling onto one tile.
+	# Coincident elf groups may choose the same nearest objective.
 	sim = _fixture(0)
 	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 	for id: int in 8:
@@ -340,7 +341,7 @@ func _expert_strategy_tests() -> void:
 	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
 	sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
 	sim.squad_ai.update(sim)
-	_check(sim.students[0].destination.distance_to(sim.students[4].destination) >= 12, "Expert elf groups choose separated destinations")
+	_check(sim.students[0].designated_tile == Vector2i(8,8) and sim.students[4].designated_tile == Vector2i(8,8), "Expert elf groups may converge on the same nearest objective")
 
 
 func _player_tile_tests() -> void:
@@ -582,3 +583,39 @@ func _human_idle_base_tests() -> void:
 		elif mover.state == ClassicStudent.State.WAIT:
 			sim._start_turn(mover)
 	_check(Vector2i(mover.cell.x / 4, mover.cell.y / 4) == Vector2i(8, 5), "Human detour reaches the ordered tile")
+
+
+func _coincident_group_tests() -> void:
+	for mode: int in 3:
+		for race: int in 4:
+			var sim: ClassicSimulation = _fixture((race + 1) % 4)
+			sim.difficulty = mode
+			var starts: Array[Vector2i] = []
+			for id: int in 8:
+				var unit: ClassicStudent = _unit(sim, id, race, Vector2i(20 + id % 4, 20 + id / 4))
+				unit.ai_spawn_wait = false
+				unit.idle_ticks = 400
+				starts.append(unit.cell)
+			sim._add_area(Vector2i(8,8), ClassicRules.AreaKind.RECRUIT,-1)
+			sim._add_area(Vector2i(12,12), ClassicRules.AreaKind.RECRUIT,-1)
+			if race == 0:
+				sim.human_ai.update(sim)
+			elif mode == ClassicSimulation.Difficulty.EASY:
+				for id: int in 8:
+					sim._com_order(sim.students[id])
+			else:
+				sim.squad_ai.update(sim)
+			for id: int in 8:
+				_check(sim.students[id].designated_tile == Vector2i(8,8), "Eight coincident allies can share one capture destination on every race and difficulty")
+			for tick: int in 180:
+				sim.step()
+				var cells: Dictionary = {}
+				for id: int in 8:
+					var unit: ClassicStudent = sim.students[id]
+					_check(not cells.has(unit.cell) and sim.occupancy.get(unit.cell,-1)==id, "Large coincident formations retain unique valid occupied cells")
+					cells[unit.cell] = true
+			var moving: int = 0
+			for id: int in 8:
+				if sim.students[id].cell != starts[id]:
+					moving += 1
+			_check(moving == 8, "Every member of coincident race %d mode %d advances (%d/8)" % [race, mode, moving])

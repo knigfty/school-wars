@@ -599,7 +599,7 @@ Enemy orcs form groups of up to **six**. They keep the shared-target preference 
 
 Six group members do not create six adjacent melee slots. Only warriors actually landing recent damage increase conversion probability; the ordinary four-slot melee geometry still matters.
 
-### Expert Elves: recovery, protection, spacing
+### Expert Elves: recovery, protection, shared destinations
 
 Enemy elves form groups of up to **four core warriors**. Elves whose reach has grown beyond one cell can join a full group as ranged support, so the total headcount can exceed four.
 
@@ -607,7 +607,7 @@ Among available units, their strategic ordering is recovery, protection of badly
 
 AI elves on every difficulty begin recovery **below 30% HP** and choose the nearest owned heart/base with no living enemies. There is no distance limit. Retreat travel runs at **70% movement speed** and remains committed until reaching a safe healing tile, rerouting if the goal is lost or contested. The **30-second cooldown starts on arrival**. Recovery continues until **100% HP**. At the healing spot, elves retaliate in place against attackers in reach; fighting and incoming attacks block healing. A threatened tile defender may choose fight or retreat with equal probability, subject to cooldown and a safe goal. Choosing fight holds that choice for three seconds before reconsideration. Player commands remain unchanged.
 
-Groups penalise capture destinations close to other elf groups or already chosen elf destinations. This spreads pressure and reduces unnecessary clustering; it does not create permanent lanes or guaranteed spacing.
+Groups do not penalise capture destinations near other squads or destinations already selected by another squad. Multiple groups may independently choose the same objective and travel together.
 
 Enemy elves also receive the Expert +2 maximum-HP participation reward described earlier. Player elves do not.
 
@@ -750,3 +750,5 @@ A demon pursuing a distant enemy now attacks adjacent hostile blockers, includin
 Human squads no longer wait for four recruits before moving out. Each partial squad captures normally; new recruits join and follow that squad until it has four members. Existing groups and their leaders remain stable rather than being repacked after casualties.
 
 A group begins shared healing retreat when its summed current HP is strictly below half its summed maximum HP. Every living member receives one shared destination. The priority is an uncontested owned or historically Human-captured heart; otherwise the nearest empty heart (capturing it first if necessary); otherwise the Human base. An enemy entering the selected heart causes the whole squad to reroute. Recovery remains committed until all surviving members have reached the healing destination and regained full HP. New recruits joining that group follow its healing order. Healing squads do not initiate proximity combat and do not count as available combat support. The existing conquest rally/target rules remain; conquest casualty retreat to base takes precedence when only three attackers survive.
+
+All AI races on every difficulty allow coincidental large formations: friendly squads can share destinations and travel side by side without strategic repulsion or separation penalties. Squad membership, racial behavior, retreat commitments and distinct occupied movement cells remain in force; groups are not forced to split apart merely for being close.

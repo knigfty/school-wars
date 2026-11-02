@@ -339,8 +339,6 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 					break
 			if occupied:
 				continue
-		if team == 2:
-			score += _elf_spacing_cost(area.tile, ready)
 		if score < best:
 			best = score
 			objective = area.tile
@@ -397,15 +395,9 @@ func _nearby_healing_tile(sim, unit: ClassicStudent) -> Vector2i:
 func _try_recovery(sim, unit: ClassicStudent) -> void:
 	sim.elf_recovery.update(sim, unit)
 
-func _elf_spacing_cost(tile: Vector2i, ready: Array[ClassicStudent]) -> float:
-	var cost: float = 0.0
-	var cell: Vector2 = Vector2(tile * 4 + Vector2i(2, 2))
-	for squad: Array in squads:
-		if squad[0].team == 2 and not squad.has(ready[0]):
-			cost += maxf(0.0, 12.0 - cell.distance_to(Vector2(squad[0].cell))) * 20.0
-	for destination: Vector2i in elf_orders:
-		cost += maxf(0.0, 12.0 - cell.distance_to(Vector2(destination * 4 + Vector2i(2, 2)))) * 100.0
-	return cost
+func _elf_spacing_cost(_tile: Vector2i, _ready: Array[ClassicStudent]) -> float:
+	# Kept for compatibility; other squads never add a separation penalty.
+	return 0.0
 
 
 func _mission_alive(mission: Dictionary) -> Array[ClassicStudent]:
@@ -550,9 +542,6 @@ func _scout_humans(sim, mission: Dictionary, ready: Array[ClassicStudent], cente
 				for visited: Vector2i in mission.visited:
 					unseen = mini(unseen, _cell_distance(tile, visited))
 				var score: float = unseen * 10.0 + distance
-				for other: Dictionary in human_missions:
-					if other != mission and other.scout.x >= 0:
-						score -= maxf(0.0, 3.0 - _cell_distance(tile, other.scout)) * 20.0
 				for enemy: ClassicStudent in sim.students:
 					if enemy.is_alive() and enemy.team != 0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == tile:
 						score -= 100.0
