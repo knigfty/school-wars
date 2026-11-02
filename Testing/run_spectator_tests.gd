@@ -122,7 +122,7 @@ func _test_shell() -> void:
 	game._layout()
 	var actions: Control = game.hud.get_node("Actions")
 	_check(game.status.get_content_width() <= game.status.size.x, "Starting population text fits beside speed control")
-	_check(game.status.get_rect().end.x <= actions.position.x, "Toolbar does not overlap population label")
+	_check(game.status.position.x + game.status.size.x * game.status.scale.x <= actions.position.x, "Toolbar does not overlap population label")
 	_check(actions.get_rect().end.x <= game.size.x, "Toolbar fits screen")
 	game._show_result(true)
 	_check(game.modal_title.text == "Battle Concluded", "Spectators receive neutral match result")

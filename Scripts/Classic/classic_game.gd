@@ -186,12 +186,16 @@ func _build_hud() -> void:
 	hud.add_child(bar)
 	var title: Label = _label("MEDIEVAL WARS" if medieval else "SCHOOL WARS", 17)
 	title.position = Vector2(18, 12)
+	if medieval:
+		title.scale = Vector2(0.8, 0.8)
 	bar.add_child(title)
 	status = RichTextLabel.new()
 	status.bbcode_enabled = true
 	status.scroll_active = false
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	status.add_theme_font_size_override("normal_font_size", 14)
+	if medieval:
+		status.scale = Vector2(0.8, 0.8)
 	bar.add_child(status)
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.name = "Actions"
@@ -347,7 +351,7 @@ func _layout() -> void:
 	actions.position = Vector2(size.x - actions_width - 12, 7)
 	actions.size = Vector2(actions_width, 38)
 	status.position = Vector2(176, 15)
-	status.size = Vector2(maxf(0, actions.position.x - status.position.x - 12), 30)
+	status.size = Vector2(maxf(0, actions.position.x - status.position.x - 12) / status.scale.x, 30 / status.scale.y)
 	hint_panel.position = Vector2(size.x - minf(size.x - 28, 520) - 14, size.y - 46)
 	hint_panel.size = Vector2(minf(size.x - 28, 520), 32)
 	recruit_panel.position = Vector2(14, size.y - 62)
