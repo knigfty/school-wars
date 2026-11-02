@@ -387,7 +387,7 @@ Orcs begin with low individual durability and punch but compensate through faste
 
 ### Shared-target punch
 
-When several orcs are actively engaged on the same victim, the first eligible attacker supplies the baseline and each additional qualifying attacker receives **+1 punch for its own hits**. The extra point is not multiplied by the total number of orcs.
+When several orcs are actively engaged on the same victim, each attacker gains **+1 punch per earlier eligible attacker**, using stable unit-ID order. Their group bonuses are +0, +1, +2, +3.
 
 For ordinary two-punch orcs, a fully engaged group has this nominal damage distribution:
 
@@ -395,10 +395,10 @@ For ordinary two-punch orcs, a fully engaged group has this nominal damage distr
 | ---: | --- | ---: |
 | 1 | 2 | 2 |
 | 2 | 2, 3 | 5 |
-| 3 | 2, 3, 3 | 8 |
-| 4 | 2, 3, 3, 3 | 11 |
+| 3 | 2, 3, 4 | 9 |
+| 4 | 2, 3, 4, 5 | 14 |
 
-The last column is not DPS; misses and attack timing still apply. Being nearby, walking toward the victim, or merely belonging to the same squad is insufficient. An earlier qualifying orc must actually be fighting that target with valid contact. Inherited permanent punch on converted orcs changes their baseline, but the group addition remains one point. Converted orcs can both activate and receive this group bonus like regular orcs. Their final punch is capped at ten, so a converted warrior already at ten gains no extra damage beyond that cap.
+The last column is not DPS; misses and attack timing still apply. Being nearby, walking toward the victim, or merely belonging to the same squad is insufficient. An earlier qualifying orc must actually be fighting that target with valid contact. Inherited permanent punch on converted orcs changes their baseline, and the group addition follows its position among the engaged attackers. Converted orcs can both activate and receive this group bonus like regular orcs. Their final punch is capped at ten, so a converted warrior already at ten gains no extra damage beyond that cap.
 
 ### Conversion chance
 
@@ -423,7 +423,7 @@ The defeated warrior becomes a new orc at the victim's cell. The recruit:
 - Inherits the victim's **permanent punch, capped at ten**, including earned punch bonuses. Orc group damage applies afterward, but final punch remains capped at ten for converted orcs.
 - Starts with **one-cell reach**, regardless of the victim's former reach.
 - Does not retain the former race's progression, special speed scaling, focus orders, or selection.
-- Does not inherit temporary human territorial punch or orc group damage.
+- Does not inherit temporary human territorial punch or snapshot the victim's temporary group bonus. As an orc, it receives and contributes to current orc group damage normally.
 - Does not use a regular capacity slot or consume the reinforcement meter.
 
 For example, a human with 26 maximum HP and ten permanent punch becomes a **26/26 HP, ten-punch orc** if converted. A victim with 60 maximum HP and 20 permanent punch instead becomes a **30/30 HP, ten-punch orc**. A formerly long-range elf becomes a one-cell melee orc; its inherited maximum HP is also limited to 30.
@@ -444,19 +444,23 @@ The reward does not instantly heal. A wounded veteran's maximum can rise while i
 
 ### Reach from bonus HP
 
-Every complete two HP above the original 25 maximum grants one extra cell of reach:
+Elf reach uses progressively larger HP steps above the original 25 maximum:
 
-> Reach = 1 + floor((maximum HP − 25) ÷ 2).
+- First two extra cells: +1 reach per 2 bonus HP, reaching 3 cells at 29 maximum HP.
+- Next two extra cells: +1 reach per 3 additional HP, reaching 5 cells at 35 maximum HP.
+- Thereafter: +1 reach per 4 additional HP forever.
 
-| Maximum HP | Bonus HP | Reach |
-| ---: | ---: | ---: |
-| 25–26 | 0–1 | 1 cell |
-| 27–28 | 2–3 | 2 cells |
-| 29–30 | 4–5 | 3 cells |
-| 31–32 | 6–7 | 4 cells |
-| 35–36 | 10–11 | 6 cells |
+| Maximum HP | Reach |
+| ---: | ---: |
+| 25–26 | 1 cell |
+| 27–28 | 2 cells |
+| 29–31 | 3 cells |
+| 32–34 | 4 cells |
+| 35–38 | 5 cells |
+| 39–42 | 6 cells |
+| 43–46 | 7 cells |
 
-There is no fixed reach-tier cap. The field's finite size still limits the useful distance. Bonus HP does not increase punch, movement speed, or attack speed. Standing on an owned captured tile grants elves +1 punch; leaving removes it immediately.
+There is no fixed reach-tier cap. The field's finite size still limits useful distance. Owned tiles no longer grant elves a punch bonus. Bonus HP does not increase punch, movement speed, or attack speed.
 
 Because assists count, several elves can all grow from the same victim. A basic player elf needs two qualifying deaths to unlock its first extra cell. An Expert enemy elf needs one, reaching 27 maximum HP.
 

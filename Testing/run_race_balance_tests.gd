@@ -34,6 +34,7 @@ func _run() -> void:
 		for player: int in [0, 1, 3]:
 			_conversion(mode, player)
 			_retreats(mode, player)
+		_stacked_orc_damage(mode)
 		_spawning(mode)
 		_elf_and_demon_balance(mode)
 	print("Race balance tests: %d failure(s)" % failures)
@@ -118,7 +119,7 @@ func _elf_and_demon_balance(mode: int) -> void:
 		var demon: ClassicStudent = _unit(sim, 1, 3, Vector2i(21, 20))
 		sim.areas.append({"tile": Vector2i(5, 5), "owner": 2})
 		sim.area_at[Vector2i(5, 5)] = 0
-		_check(sim.get_punch_damage(elf, demon) == 4, "Owned tile grants elf one punch even while standing")
+		_check(sim.get_punch_damage(elf, demon) == 3, "Owned tiles no longer grant elf punch")
 		elf.cell = Vector2i(24, 20)
 		_check(sim.get_punch_damage(elf, demon) == 3, "Elf bonus ends immediately outside owned tile")
 		elf.cell = Vector2i(20, 20)
@@ -140,3 +141,26 @@ func _elf_and_demon_balance(mode: int) -> void:
 			_check(demon.health == 2, "Demon assist never heals")
 			_check((demon.event_text != "") == (demon.punch_bonus == 1), "Only successful assist rolls show punch reward")
 		_check(awards > 430 and awards < 570, "Demon assist reward succeeds about half the time across difficulties and teams")
+
+func _stacked_orc_damage(mode: int) -> void:
+	for converted_slot: int in [-1, 0, 1, 2, 3]:
+		var sim: ClassicSimulation = _fixture(mode, 0)
+		var target: ClassicStudent = _unit(sim, 10, 0, Vector2i(20, 20))
+		for count: int in 4:
+			var orc: ClassicStudent = _unit(sim, count, 1, target.cell - ClassicRules.DIRECTIONS[count])
+			orc.state = ClassicStudent.State.FIGHT
+			orc.target_id = target.id
+			orc.direction = count
+			orc.is_converted = count == converted_slot
+			var total: float = 0.0
+			for id: int in range(count + 1):
+				_check(sim.get_punch_damage(sim.students[id], target) == 2 + id, "Engaged Orc punch is 2/3/4/5, including converted Orcs")
+				total += sim.get_punch_damage(sim.students[id], target)
+			_check(total == [2, 5, 9, 14][count], "One connected swing per Orc sums to 2/5/9/14")
+		# A moving/non-contact ally cannot contribute to the stack.
+		sim.students[0].state = ClassicStudent.State.WALK
+		_check(sim.get_orc_group_bonus(sim.students[3], target) == 2, "Moving orcs do not inflate group damage")
+		sim.students[1].cell = Vector2i(1, 1)
+		_check(sim.get_orc_group_bonus(sim.students[3], target) == 1, "Out-of-contact orcs do not inflate group damage")
+		sim.students[2].target_id = -1
+		_check(sim.get_orc_group_bonus(sim.students[3], target) == 0, "Different targets do not inflate group damage")

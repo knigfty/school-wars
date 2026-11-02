@@ -80,17 +80,17 @@ The recruitment HUD checks space at the next base in the rotation and displays t
 | Human | Kills 3/6/9/... | +2 attack reach each time |
 | Orc | Each killing blow | 25/50/75/100% conversion for 1/2/3/4+ distinct orcs landing hits in the previous three seconds |
 | Elf | Kill or damage in the last 3 seconds before death | +1 maximum HP per enemy death |
-| Elf | Every 2 bonus maximum HP above the starting 25 | +1 cell reach per complete 2 bonus HP, with no tier cap |
+| Elf | Bonus maximum HP above the starting 25 | +1 reach per 2 HP until 3 cells, per 3 additional HP until 5 cells, then per 4 additional HP forever |
 | Demon | Killing blow / qualifying damage assist in the last 3 seconds | Guaranteed kill punch (+2 Expert, +1 otherwise); 50% chance of +1 assist punch |
 | Demon | 8 / 12 / 18 permanent punch damage | +20% / +30% / +40% movement speed |
 
-Human upgrades repeat a three-kill cycle indefinitely. Elf range scales per two bonus HP; demon speed follows the selected difficulty's rules. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
+Human upgrades repeat a three-kill cycle indefinitely. Elf range uses 2/3/4-HP steps at the 3/5-cell boundaries; demon speed follows the selected difficulty's rules. Max-HP bonuses do not instantly heal. All bonuses belong to individual units and reset on new spawns or conversions.
 
 Successful damage records the simulation tick and attacker's lifetime on the victim. Qualifying living elves receive one reward at death; qualifying demon assistants roll independently for a 50% chance of one punch reward; repeated hits refresh the timestamp, and the killing blow does not give duplicate assist credit. The three-second window is inclusive (54 simulation ticks). Misses grant no credit. Lifetime checks prevent a respawned unit from inheriting the previous occupant's assists. Assists do not count toward kill totals or human milestones.
 
 Range is Manhattan distance in movement grid cells, not the larger capture tiles. Ranged pursuit, focus-position pathfinding, priority attacks and retaliation use the same per-unit reach. Melee defenders close the gap against ranged attackers. The existing rule that moving targets cannot be punched remains. Demon movement accumulates fractional progress across consecutive walk steps so +30% and +40% remain distinct at 18 Hz, with rendering using that same progress.
 
-Orc conversion creates a new orc with the victim's maximum HP and permanent punch, at full inherited HP, with one-cell reach and a new unit ID. Temporary territorial/group bonuses, other race traits, selection and targeting orders are not inherited. The death cell is transferred immediately without an overlapping corpse. Conversions do not consume regular recruitment capacity. Regular recruitment respects its own count and cap; converted survivors still prevent elimination. Conversion status resets on an ordinary respawn. Converting a team's last unit triggers elimination and unlocks its bases.
+Orc conversion creates a new orc with the victim's maximum HP and permanent punch, at full inherited HP, with one-cell reach and a new unit ID. Temporary human territorial punch and a snapshot of the victim's group bonus are not inherited. The converted unit participates in current orc group damage normally. Other race traits, selection and targeting orders are not inherited. The death cell is transferred immediately without an overlapping corpse. Conversions do not consume regular recruitment capacity. Regular recruitment respects its own count and cap; converted survivors still prevent elimination. Conversion status resets on an ordinary respawn. Converting a team's last unit triggers elimination and unlocks its bases.
 
 Testing/run_medieval_progression_tests.gd covers exact milestone boundaries, assist expiration and duplicate prevention, dead/reused contributors, real ranged damage and pursuit, sustained movement speed, deterministic conversion rolls and death-cell occupancy, elimination and fresh-spawn resets. Classic rules remain unchanged.
 
@@ -160,11 +160,11 @@ Expert demon adjustment: both player and enemy demons gain +2 permanent punch on
 
 Expert human missions with no capturable objective inside their five-tile observation range issue local scouting orders instead of idling. Scouting destinations stay inside that range, remember visited locations and spread groups apart; newly observed capture targets still become committed missions. Expert enemy-human tile movement uses obstacle-aware routes, including backward detours around friendly base congestion. Base defence, retaliation returns and existing player orders keep their priority.
 
-Current all-difficulty scaling: elf reach is `1 + floor((maximum_health - 25) / 2)` (minimum one); human reach is `1 + 2 * floor(kills / 3)`. Human cycles continue indefinitely. Converted orcs preserve only maximum HP and permanent punch; for example a twenty-max-HP, ten-punch victim becomes a full-health twenty-HP, ten-punch orc with reach one. Attack-position searches are bounded to the map even with very large reach.
+Current all-difficulty scaling: elf reach costs 2 bonus HP per cell up to reach 3, then 3 additional HP per cell up to reach 5, then 4 additional HP per cell forever; human reach is `1 + 2 * floor(kills / 3)`. Human cycles continue indefinitely. Converted orcs preserve only maximum HP and permanent punch; for example a twenty-max-HP, ten-punch victim becomes a full-health twenty-HP, ten-punch orc with reach one. Attack-position searches are bounded to the map even with very large reach.
 
 `Testing/run_tile_defence_tests.gd` covers the shared tile lifecycle on every difficulty for player and enemy units, including target focus, the one-second standing boundary, seated capture, border detection and forced return.
 
-All difficulties: elves gain +1 temporary punch only while on their own captured tile. Demon assist punch is rolled independently per qualifying living assistant with a 50% chance; failed rolls display no reward popup. Killing-blow punch rewards remain guaranteed.
+All difficulties: elves gain no territorial punch bonus. Demon assist punch is rolled independently per qualifying living assistant with a 50% chance; failed rolls display no reward popup. Killing-blow punch rewards remain guaranteed.
 
 ### Interrupted return movement
 
@@ -174,3 +174,5 @@ Returning guards retry their route after an interrupted walk leaves them standin
 ### Unified Elf retreat (all difficulties)
 
 AI elves begin recovery below 30% current/maximum HP, or may choose recovery with a 50% roll when defending a threatened tile. A fight choice holds for three seconds before reconsideration. Retreat requires the cooldown to be ready and a safe destination: the nearest owned heart/base containing no living enemies, measured to the nearest tile cell with no distance limit. A committed retreat remains active if its goal is lost or contested, searches for another safe destination, and moves at 80% normal speed. It does not cancel just because HP rises en route. The 30-second cooldown starts on arrival, not departure. At the healing spot, normal speed returns but recovery remains committed until full HP. Elves retaliate against attackers in reach without leaving their healing spot; fighting never heals, and seated healing resumes only after the existing three-second safe interval. Explicit player control remains unchanged.
+
+Orc group damage counts earlier engaged, in-contact teammates on the same victim in stable unit-ID order. Four regular attackers deal 2/3/4/5 punch (14 total if each connects once). Converted orcs both contribute and receive these bonuses, on top of inherited permanent punch, subject to their final punch cap of 10.

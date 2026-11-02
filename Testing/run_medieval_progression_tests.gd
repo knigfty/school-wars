@@ -148,10 +148,10 @@ func _test_range() -> void:
 	var sim: ClassicSimulation = _sim()
 	var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
 	var victim: ClassicStudent = _unit(sim, 1, 1, Vector2i(22, 20))
-	for hp: int in [25, 27, 28, 31, 32, 35, 36, 45]:
+	var tiers: Dictionary = {25: 1, 26: 1, 27: 2, 28: 2, 29: 3, 31: 3, 32: 4, 34: 4, 35: 5, 38: 5, 39: 6, 43: 7, 75: 15, 325: 77}
+	for hp: int in tiers:
 		elf.maximum_health = hp
-		var expected: int = 1 + maxi(0, hp - 25) / 2
-		_check(sim.get_attack_range(elf) == expected, "Elf range tier at %d HP" % hp)
+		_check(sim.get_attack_range(elf) == tiers[hp], "Elf range tier at %d HP" % hp)
 	elf.maximum_health = 28
 	victim.health = 100
 	_hit(sim, elf, victim)
@@ -509,7 +509,8 @@ func _test_scaling_and_inheritance() -> void:
 		_check(converted.health == 20 and converted.maximum_health == 20 and sim.get_punch_damage(converted, enemy) == 10, "Converted human preserves twenty HP and ten permanent punch")
 		_check(sim.get_attack_range(converted) == 1 and converted.level == 0 and converted.home_punch_until == -1, "Conversion strips reach and temporary territorial bonus")
 		var elf: ClassicStudent = _unit(sim, 2, 2, Vector2i(30, 30))
-		for bonus: int in [0, 1, 2, 3, 5, 6, 8, 9, 30, 300]:
+		var tiers: Dictionary = {0: 1, 1: 1, 2: 2, 3: 2, 4: 3, 6: 3, 7: 4, 9: 4, 10: 5, 13: 5, 14: 6, 18: 7, 30: 10, 300: 77}
+		for bonus: int in tiers:
 			elf.maximum_health = 25 + bonus
-			_check(sim.get_attack_range(elf) == 1 + bonus / 2, "Elf reach scales per two bonus HP without a tier cap")
+			_check(sim.get_attack_range(elf) == tiers[bonus], "Elf tiered reach scales indefinitely on every difficulty")
 		_check(sim._attack_positions(elf, Vector2i(30, 30)).size() <= 4096, "Large reach remains bounded by actual map cells")

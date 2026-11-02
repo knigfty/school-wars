@@ -75,7 +75,7 @@ func _run() -> void:
 			orc.state = ClassicStudent.State.FIGHT
 			orc.target_id = target.id
 			total += sim.get_punch_damage(orc, target)
-			_check(total == (2 * (count + 1) + (count if variant else 0)), "Orc group damage matches N*damage + N-1")
+			_check(total == (2 * (count + 1) + (count * (count + 1) / 2 if variant else 0)), "Orc group damage stacks across engaged attackers")
 		sim.students[3].state = ClassicStudent.State.DEAD
 		_check(sim.get_punch_damage(sim.students[4], target) == 2, "Dead orcs do not support")
 		sim.students[4].target_id = sim.students[9].id
@@ -129,7 +129,7 @@ func _run() -> void:
 		for other: int in 3:
 			if other != difficulty:
 				_check(not ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][other] in app.modal_body.text, "Other difficulty sections are excluded")
-		_check("1 second" in app.modal_body.text and "Every 2 bonus HP" in app.modal_body.text, "Shared rules appear for every difficulty")
+		_check("1 second" in app.modal_body.text and "2/3/4 bonus HP" in app.modal_body.text, "Shared rules appear for every difficulty")
 		# Changing a menu control cannot change help for the running match.
 		var other: int = (difficulty + 1) % 3
 		app.difficulty_selector.select(other)

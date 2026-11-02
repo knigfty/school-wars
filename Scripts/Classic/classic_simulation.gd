@@ -1266,8 +1266,6 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 			student.home_punch_until = ticks + 3 * ClassicRules.TICKS_PER_SECOND
 		if ticks < student.home_punch_until:
 			damage += 1.0
-	if student.team == 2 and _on_owned_tile(student):
-		damage += 1.0
 	if student.team == 1:
 		damage += get_orc_group_bonus(student, target)
 		if student.is_converted:
@@ -1278,11 +1276,12 @@ func get_punch_damage(student: ClassicStudent, target: ClassicStudent) -> float:
 func get_orc_group_bonus(student: ClassicStudent, target: ClassicStudent) -> float:
 	if not medieval or student.team != 1:
 		return 0.0
-	# Converted orcs are ordinary orc teammates for shared-target damage.
+	# Stable ID order gives engaged attackers +0, +1, +2, +3; conversions participate.
+	var bonus: float = 0.0
 	for ally: ClassicStudent in students:
 		if ally.id < student.id and ally.team == 1 and ally.state == ClassicStudent.State.FIGHT and ally.target_id == target.id and _contact_target(ally, target):
-			return 1.0
-	return 0.0
+			bonus += 1.0
+	return bonus
 
 
 func get_spawn_bases(team: int) -> Array[Vector2i]:
@@ -1396,7 +1395,12 @@ func get_attack_range(student: ClassicStudent) -> int:
 	if student.team == 0:
 		return 1 + 2 * (student.level / 3)
 	if student.team == 2:
-		return 1 + maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2])) / 2
+		var bonus_hp: int = maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2]))
+		if bonus_hp < 4:
+			return 1 + bonus_hp / 2
+		if bonus_hp < 10:
+			return 3 + (bonus_hp - 4) / 3
+		return 5 + (bonus_hp - 10) / 4
 	return 1
 
 
