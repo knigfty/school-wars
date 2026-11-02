@@ -3,6 +3,8 @@ extends RefCounted
 
 ## Values recovered from schwar.swf, DefineSprite_862. Time is in 18 Hz ticks.
 const TICKS_PER_SECOND: int = 18
+# Two 2-tick wind-ups and an 11-tick recovery per repeating swing.
+const ATTACK_CYCLE_TICKS: int = 15
 const BOARD_SIZE: int = 16
 const CELLS_PER_TILE: int = 4
 const GRID_SIZE: int = BOARD_SIZE * CELLS_PER_TILE

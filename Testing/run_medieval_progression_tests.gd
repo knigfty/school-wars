@@ -248,7 +248,7 @@ func _test_conversion() -> void:
 		orc.counter = 0
 		var probe: RandomNumberGenerator = RandomNumberGenerator.new()
 		probe.seed = seed_value
-		var hit: bool = probe.randf() >= 0.5
+		var hit: bool = probe.randf() >= 1.0 - sim.get_hit_chance(orc, victim)
 		var convert: bool = hit and probe.randf() < 0.25
 		sim.rng.seed = seed_value
 		sim._fighting(orc)

@@ -560,7 +560,7 @@ func _can_attack_priority(student: ClassicStudent) -> bool:
 	if not _valid_enemy(student, student.priority_target_id):
 		return false
 	var priority: ClassicStudent = students[student.priority_target_id]
-	return _within_attack_range(student, priority) and priority.state != ClassicStudent.State.WALK
+	return _within_attack_range(student, priority) and (priority.state != ClassicStudent.State.WALK or (medieval and get_attack_range(student) > 1))
 
 
 func _engage_defender(target: ClassicStudent, attacker: ClassicStudent) -> void:
@@ -927,7 +927,7 @@ func _fighting(student: ClassicStudent) -> void:
 		start_walk(student, Vector2i.ZERO, target.id)
 		return
 	if student.fight_phase == 0:
-		if target.state != ClassicStudent.State.WALK:
+		if target.state != ClassicStudent.State.WALK or (medieval and get_attack_range(student) > 1):
 			student.pattern = 17
 			student.counter = 1
 			student.fight_phase = 1
@@ -944,7 +944,7 @@ func _fighting(student: ClassicStudent) -> void:
 			student.pattern = 19
 			student.counter = 10
 			student.fight_phase = 3
-			if not _contact_target(student, target) or rng.randf() < 0.5:
+			if not _contact_target(student, target) or rng.randf() < 1.0 - get_hit_chance(student, target):
 				return
 			_apply_hit(student, target)
 		3:
@@ -957,9 +957,11 @@ func _fighting(student: ClassicStudent) -> void:
 
 
 func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
-	target.pattern = 20
-	target.fight_phase = 3
-	target.counter = 5
+	# A ranged hit must not restart or interrupt a reserved movement step.
+	if target.state != ClassicStudent.State.WALK:
+		target.pattern = 20
+		target.fight_phase = 3
+		target.counter = 5
 	if medieval:
 		target.damage_contributors[student.id] = {"tick": ticks, "lifetime": student.lifetime, "team": student.team}
 		target.last_attacked_tick = ticks
@@ -984,6 +986,10 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			sound_requested.emit("punch", target.world_position())
 			return
 		if _can_attack_priority(target) and target.priority_target_id != student.id:
+			sound_requested.emit("punch", target.world_position())
+			return
+		if target.state == ClassicStudent.State.WALK:
+			_engage_defender(target, student)
 			sound_requested.emit("punch", target.world_position())
 			return
 		target.target_id = student.id
@@ -1102,8 +1108,30 @@ func _valid_enemy(student: ClassicStudent, target_id: int) -> bool:
 
 func _contact_target(student: ClassicStudent, target: ClassicStudent) -> bool:
 	if medieval and get_attack_range(student) > 1:
-		return target.is_alive() and target.state != ClassicStudent.State.WALK and _within_attack_range(student, target)
+		return target.is_alive() and _within_attack_range(student, target)
 	return target.is_alive() and target.state != ClassicStudent.State.WALK and student.cell + ClassicRules.DIRECTIONS[student.direction] == target.cell
+
+
+func get_attack_speed(_student: ClassicStudent) -> float:
+	return float(ClassicRules.TICKS_PER_SECOND) / ClassicRules.ATTACK_CYCLE_TICKS
+
+
+func get_hit_chance(student: ClassicStudent, target: ClassicStudent) -> float:
+	if not _contact_target(student, target):
+		return 0.0
+	if not medieval:
+		return 0.5
+	if get_attack_range(student) <= 1:
+		return 0.9
+	if target.state != ClassicStudent.State.WALK:
+		return 0.8
+	# Intentional gameplay comparison: swings/second versus movement multiplier,
+	# matching the numbers shown in the character-info panel, not cells/second.
+	var attack_speed: float = get_attack_speed(student)
+	var move_speed: float = get_movement_multiplier(target)
+	if is_equal_approx(attack_speed, move_speed):
+		return 0.5
+	return 0.7 if attack_speed > move_speed else 0.3
 
 
 func _adjacent(a: Vector2i, b: Vector2i) -> bool:

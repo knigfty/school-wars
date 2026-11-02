@@ -67,7 +67,8 @@ jobs:
             run_medieval_tests.gd \
             run_medieval_capture_tests.gd \
             run_medieval_progression_tests.gd \
-            run_character_info_tests.gd; do
+            run_character_info_tests.gd \
+            run_accuracy_tests.gd; do
             "$godot" --headless --path . --script "res://Testing/$test_script"
           done
           rm -rf export/web

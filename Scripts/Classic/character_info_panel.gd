@@ -65,7 +65,7 @@ func refresh(sim: ClassicSimulation, selected: Array[int], delta: float) -> void
 	_labels[2].text = "RANGE: %s" % _split(1.0, sim.get_attack_range(unit))
 	_labels[3].text = "MOVEMENT SPEED: %s×" % _split(1.0, sim.get_movement_multiplier(unit))
 	# Repeating attack cycle: two 2-tick windup phases and an 11-tick recovery.
-	var attack_rate: float = float(ClassicRules.TICKS_PER_SECOND) / 15.0
+	var attack_rate: float = sim.get_attack_speed(unit)
 	_labels[4].text = "ATTACK SPEED: %s/s" % _split(attack_rate, attack_rate)
 
 

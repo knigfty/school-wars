@@ -117,7 +117,7 @@ Ordinary movement chooses available steps toward the destination and can pause o
 
 A focus order follows a particular victim rather than committing to a fixed tile. Allies try to claim separate reachable attack positions around that victim. When the four basic melee positions are full, extra attackers close toward the target and wait for an opening instead of all occupying the same position. More than four allies can contribute if some have extended reach.
 
-A warrior can defend itself locally while its focus target is unavailable, then return to the focus order. A reachable, stationary focus target takes priority over switching to a different attacker. When the focused enemy dies, the focus ends and the warrior adopts its current tile as its new guarded position.
+A warrior can defend itself locally while its focus target is unavailable, then return to the focus order. A reachable focus target takes priority over switching to a different attacker when it can be attacked: stationary for melee, or stationary or moving for extended reach. When the focused enemy dies, the focus ends and the warrior adopts its current tile as its new guarded position.
 
 An explicit focus order can pursue farther than the automatic tile-defence limit. The one-adjacent-tile leash belongs to **guarding a tile**, not to every attack command.
 
@@ -127,9 +127,22 @@ An explicit focus order can pursue farther than the automatic tile-defence limit
 
 An attack needs a valid living enemy in reach. Basic melee also needs the victim in the cell directly in front of the attacker. Extended-reach humans and elves can connect anywhere within their allowed four-direction reach, without that single-front-cell restriction.
 
-A victim that is currently walking cannot receive a connecting normal swing. Attacks wait for or test a stationary target. A target moving out of reach or into a walking state can therefore make an apparent attack animation fail to connect.
+**Ranged attacks can hit moving targets.** In these rules, an attacker with more than one cell of unlocked reach is treated as ranged, including when its victim is adjacent. A one-cell attacker uses melee rules. Stationary includes standing, sitting, waiting, and fighting; moving means actively walking between cells.
 
-Each otherwise valid swing has a **50% chance to hit**. The other half miss. Punch is the damage on a successful hit, not the average damage of every animation. There is no accumulating accuracy bonus for repeated misses.
+| Attack type | Target condition | Hit chance per valid attempt |
+| --- | --- | ---: |
+| Ranged | Stationary | **80%** |
+| Ranged | Moving; attack speed greater than target movement multiplier | **70%** |
+| Ranged | Moving; attack speed equal to target movement multiplier | **50%** |
+| Ranged | Moving; attack speed lower than target movement multiplier | **30%** |
+| Melee | Stationary and in valid front-cell contact | **90%** |
+| Melee | Moving | Cannot connect |
+
+For moving-target accuracy, compare the displayed **attacker swings per second** directly with the displayed **target movement multiplier**. This is an intentional game rule, not a conversion to cells travelled per second. With the current attack speed of 1.2, a target walking at 1× gives 70% accuracy, at 1.2× gives 50%, and at 1.4× gives 30%. The target's current racial and difficulty-dependent speed gains count. The comparison and target state are evaluated when the hit attempt resolves, rather than locked in at the start of the wind-up.
+
+Moving out of reach still prevents a hit. Extended reach uses the target's reserved movement cell for its range check, even while the sprite is crossing toward that cell. A nonlethal ranged hit does not cancel or restart that reserved walking step. The target can finish it before responding according to its orders and defence rules.
+
+Punch is the damage on a successful hit, not the average damage of every animation. There is no accumulating accuracy bonus for repeated misses.
 
 ### The attack cycle
 
@@ -145,11 +158,11 @@ That is the source of the interface's **1.2 attacks per second**. It is a nomina
 
 For a stationary, uninterrupted attacker whose swings remain valid:
 
-> Expected damage per second ≈ punch × 1.2 × 0.5 = punch × 0.6.
+> Expected damage per second ≈ punch × 1.2 × applicable hit chance.
 
-A basic human's theoretical average is therefore about **2.4 HP per second**. A basic demon's is about **3 HP per second**. These are probability averages, not guaranteed damage schedules. A short duel can diverge sharply because of misses.
+Against a stationary target, basic melee averages punch × 1.08: a basic human therefore averages about **4.32 HP per second**, and a basic demon about **5.4 HP per second**. Extended-reach attacks against stationary targets average punch × 0.96. Against moving targets, the ranged multipliers are punch × 0.84, × 0.60, or × 0.36 for the 70%, 50%, and 30% cases respectively. These are probability averages, not guaranteed damage schedules. A short duel can diverge sharply because of misses.
 
-Receiving a successful hit also puts the victim into a short hit reaction/recovery state. Multiple attackers can disrupt an enemy's own attack rhythm, so a crowded fight is not fully described by multiplying duel damage figures.
+Receiving a successful hit while stationary also puts the victim into a short hit reaction/recovery state. A walking victim keeps its current movement step instead. Multiple attackers can disrupt an enemy's own attack rhythm, so a crowded fight is not fully described by multiplying duel damage figures.
 
 ### One victim per swing
 
@@ -651,6 +664,7 @@ The original School Wars mode remains a separate playable ruleset. The medieval 
 | Green / Orc recruitment | Orc target 750; twice the other races' speed | Green target 500; three times the other factions' speed |
 | Kill progression | Race-specific kills and assists | Killer gains +1 maximum HP; no instant heal |
 | Range growth | Human kills and elf bonus maximum HP | Basic one-cell combat |
+| Accuracy | Ranged: 80% stationary, 70%/50%/30% moving by speed comparison; melee: 90% stationary | Original 50% hit chance; walking victims cannot be hit |
 | Conversion | Orc final-blow mechanic | None |
 | Capture | Human group breakpoints; living enemies contest | Seated progress at the original 300-step target; opposing presence does not use the medieval global contest rule |
 | Base capture and expansion | Eliminated races' bases can be conquered, adding capacity and spawn locations | Bases are not capturable |
@@ -659,4 +673,4 @@ The original School Wars mode remains a separate playable ruleset. The medieval 
 | Automatic tile defence | Shared medieval clear-capture-defend policy | Original engagement behaviour |
 | Character-info panel | Available | Not added to the original mode |
 
-Both modes share the four-corner battlefield concept, automatic reinforcements, cell occupancy, the basic hit-and-miss combat rhythm, camera controls, and elimination as the match objective. When comparing advice or old screenshots, first check which mode the player was using.
+Both modes share the four-corner battlefield concept, automatic reinforcements, cell occupancy, the basic attack-cycle rhythm, camera controls, and elimination as the match objective. When comparing advice or old screenshots, first check which mode the player was using.

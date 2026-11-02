@@ -533,6 +533,10 @@ func _base_defence_tests() -> void:
 			_check(unit.target_id == invader.id, "Every AI race targets base intruder immediately after spawn wait on every difficulty")
 			unit.health = 1
 			for tick: int in 80:
+				# Successful hits shorten the intruder's standing counter; keep this
+				# fixture passive so it tests defender orders, not a one-HP duel.
+				invader.state = ClassicStudent.State.STAND
+				invader.counter = 10000
 				sim.step()
 				_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Base defenders cannot capture, flee or heal elsewhere while invaded")
 			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
