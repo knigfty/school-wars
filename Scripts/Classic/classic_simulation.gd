@@ -44,7 +44,7 @@ const RETALIATION_AI = preload("res://Scripts/Classic/medieval_retaliation.gd")
 var retaliation_ai = RETALIATION_AI.new()
 # Opt-in variant rules; classic remains the default.
 var medieval: bool = false
-const HUMAN_CAPTURE_SECONDS: Array[int] = [12, 9, 6, 4, 2, 1]
+const HUMAN_CAPTURE_SECONDS: Array[float] = [14.0, 7.0, 3.5, 2.0, 1.0]
 const AI_START_DELAY_TICKS: int = 400
 
 
@@ -1475,7 +1475,7 @@ func _capture_areas() -> void:
 				continue
 			var gain: float = float(count)
 			if team == 0:
-				var seconds: int = HUMAN_CAPTURE_SECONDS[mini(count, HUMAN_CAPTURE_SECONDS.size()) - 1]
+				var seconds: float = HUMAN_CAPTURE_SECONDS[count - 1] if count <= HUMAN_CAPTURE_SECONDS.size() else pow(0.9, count - 5)
 				gain = float(ClassicRules.CAPTURE_TICKS) / (seconds * ClassicRules.TICKS_PER_SECOND)
 			area.progress[team] += gain
 			if area.progress[team] >= ClassicRules.CAPTURE_TICKS - 0.000001:

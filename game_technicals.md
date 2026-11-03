@@ -156,12 +156,14 @@ Human capture replaces the standard formula:
 
 | Seated Humans | Full capture from zero |
 | ---: | ---: |
-| 1 | 12 seconds |
-| 2 | 9 seconds |
-| 3 | 6 seconds |
-| 4 | 4 seconds |
-| 5 | 2 seconds |
-| 6+ | 1 second |
+| 1 | 14 seconds |
+| 2 | 7 seconds |
+| 3 | 3.5 seconds |
+| 4 | 2 seconds |
+| 5 | 1 second |
+| 6+ | `0.9^(n − 5)` seconds for `n` seated Humans |
+
+Each Human above five multiplies capture time by **0.9**, without a scaling cap: six take 0.9 seconds; seven take 0.81 seconds. Actual completion rounds up to the next simulation tick (1/18 second); capture cannot complete in less than one tick. Changing the seated count preserves accumulated progress.
 
 Killing blows repeat **+2 maximum HP → +2 permanent punch → +2 reach**, without a fixed tier cap. For `K` lifetime kills:
 

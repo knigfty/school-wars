@@ -28,7 +28,7 @@ func _run() -> void:
 		human.cell = Vector2i(20, 20)
 		human.counter = 1000
 		human.state = ClassicStudent.State.SIT
-		var duration: int = 216 if variant else 300
+		var duration: int = 252 if variant else 300
 		for tick: int in duration - 1:
 			if variant:
 				sim._capture_areas()

@@ -41,15 +41,16 @@ func _seat(sim: ClassicSimulation, count: int, team: int, tile: Vector2i) -> voi
 
 func _run() -> void:
 	_contested_capture_tests()
-	var durations: Array[int] = [12, 9, 6, 4, 2, 1, 1, 1, 1, 1, 1, 1]
-	for count: int in range(1, 13):
+	var durations: Array[float] = [14.0, 7.0, 3.5, 2.0, 1.0]
+	for count: int in range(1, 17):
 		for kind: int in [ClassicRules.AreaKind.RECRUIT, ClassicRules.AreaKind.HEAL, ClassicRules.AreaKind.BASE]:
 			var sim: ClassicSimulation = _empty_sim()
 			var tile: Vector2i = Vector2i(5, 5)
 			sim._add_area(tile, kind, 1 if kind == ClassicRules.AreaKind.BASE else -1)
 			sim.active[1] = false
 			_seat(sim, count, 0, tile)
-			var ticks_needed: int = durations[count - 1] * 18
+			var seconds: float = durations[count - 1] if count <= 5 else pow(0.9, count - 5)
+			var ticks_needed: int = ceili(seconds * 18.0)
 			for tick: int in ticks_needed - 1:
 				sim._capture_areas()
 			_check(sim.areas[0].owner != 0, "Human capture not early: count=%d kind=%d" % [count, kind])
@@ -69,15 +70,15 @@ func _run() -> void:
 	var sim: ClassicSimulation = _empty_sim()
 	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, -1)
 	_seat(sim, 1, 0, Vector2i(5, 5))
-	for tick: int in 108:
+	for tick: int in 126:
 		sim._capture_areas()
-	_check(is_equal_approx(sim.areas[0].progress[0], 150), "One human halfway after six seconds")
+	_check(is_equal_approx(sim.areas[0].progress[0], 150), "One human halfway after seven seconds")
 	_seat(sim, 6, 0, Vector2i(5, 5))
 	for tick: int in 8:
 		sim._capture_areas()
 	_check(sim.areas[0].owner == -1, "Adding humans preserves normalized progress")
 	sim._capture_areas()
-	_check(sim.areas[0].owner == 0, "Six humans finish remaining half in half second")
+	_check(sim.areas[0].owner == 0, "Six humans finish remaining half in nine simulation ticks")
 
 	sim = _empty_sim()
 	var tile: Vector2i = sim.bases[1]
@@ -113,7 +114,7 @@ func _run() -> void:
 	sim = _empty_sim()
 	sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.RECRUIT, -1)
 	_seat(sim, 6, 0, Vector2i(5, 5))
-	for tick: int in 17:
+	for tick: int in 16:
 		sim.step()
 	_check(sim.areas[0].owner == -1, "Real simulation loop does not capture early")
 	sim.step()
@@ -171,7 +172,7 @@ func _run() -> void:
 	sim._initialize_student(captor, 0, sim.bases[1] * 4 + Vector2i(1, 1))
 	captor.state = ClassicStudent.State.SIT
 	captor.counter = 10000
-	for tick: int in 216:
+	for tick: int in 252:
 		sim._capture_areas()
 	_check(sim.areas[1].owner == 0, "Crowded-home fixture captures eliminated base")
 	_check(sim.get_priority_spawn_base(0) == sim.bases[1] and sim.has_spawn_space(0), "Captured base offers spawn space when home is full")
