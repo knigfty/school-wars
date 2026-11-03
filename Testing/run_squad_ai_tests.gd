@@ -433,7 +433,7 @@ func _base_defence_tests() -> void:
 				invader.counter = 10000
 				sim.step()
 				if race in [0, 2]:
-					_check(unit.is_alive() and (unit.ai_elf_recovering or sim.human_ai.is_recovering(unit)), "Low-HP human squads and elves may retreat from an invaded base")
+					_check(unit.is_alive() and (unit.ai_elf_recovering or sim.human_ai.is_recovering(unit) or (race == 0 and sim.ticks < unit.ai_heal_ready_at)), "Low-HP human squads and elves may retreat from an invaded base")
 				else:
 					_check(unit.is_alive() and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == Vector2i(5, 5) and not unit.ai_retreating, "Other base defenders remain while invaded")
 			var outside: ClassicStudent = _unit(sim, 2, sim.player_team, Vector2i(24, 20))
@@ -479,7 +479,7 @@ func _coincident_group_tests() -> void:
 				starts.append(unit.cell)
 			sim._add_area(Vector2i(8,8), ClassicRules.AreaKind.RECRUIT,-1)
 			sim._add_area(Vector2i(12,12), ClassicRules.AreaKind.RECRUIT,-1)
-			if race == 0 or mode == ClassicSimulation.Difficulty.EASY:
+			if mode == ClassicSimulation.Difficulty.EASY:
 				for id: int in 8:
 					sim._com_order(sim.students[id])
 			else:

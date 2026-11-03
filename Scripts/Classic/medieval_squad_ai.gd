@@ -13,8 +13,6 @@ func update(sim) -> void:
 		return
 	for unit: ClassicStudent in sim.students:
 		sim.orc_flee.update(sim, unit)
-		if unit.team == 0:
-			continue
 		if sim.retaliation_ai.active(unit) or sim.proximity_ai.active(unit) or sim.ranged_response.active(unit) or not unit.is_alive() or unit.team == sim.player_team or unit.tile_order_busy or unit.ai_base_defence_tile.x >= 0 or unit.retaliation_until > 0 or unit.returning_to_tile:
 			continue
 		if unit.team == 2:
@@ -45,7 +43,7 @@ func _refresh(sim) -> void:
 		if squads[i].is_empty():
 			squads.remove_at(i)
 	for unit: ClassicStudent in sim.students:
-		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 0 or assigned.has(unit.id):
+		if not unit.is_alive() or unit.team == sim.player_team or assigned.has(unit.id):
 			continue
 		var best: Array = []
 		var distance: float = INF
@@ -83,8 +81,6 @@ func _plan(sim, squad: Array) -> void:
 		return
 	center /= ready.size()
 	var team: int = ready[0].team
-	if team == 0:
-		return
 	var expert: bool = sim.difficulty == sim.Difficulty.EXPERT
 	var radius: float = 16.0
 	var enemies: Array[ClassicStudent] = []
@@ -162,8 +158,8 @@ func _plan(sim, squad: Array) -> void:
 		if area.owner == team or not sim.can_capture_area(area, team):
 			continue
 		var score: float = center.distance_to(Vector2(area.tile * 4 + Vector2i(2, 2)))
-		# Orc recruitment tiles also grow capacity; hearts support elf veterans.
-		if (team == 1 and area.kind == ClassicRules.AreaKind.RECRUIT) or (team == 2 and area.kind == ClassicRules.AreaKind.HEAL):
+		# Orc recruitment tiles also grow capacity; Humans and Elves favour hearts.
+		if (team == 1 and area.kind == ClassicRules.AreaKind.RECRUIT) or (team in [0, 2] and area.kind == ClassicRules.AreaKind.HEAL):
 			score -= 6.0
 		if score < best:
 			best = score
@@ -240,9 +236,9 @@ func _refresh_expert(sim) -> void:
 	squads.clear()
 	var supporters: Array[ClassicStudent] = []
 	for unit: ClassicStudent in sim.students:
-		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 0:
+		if not unit.is_alive() or unit.team == sim.player_team:
 			continue
-		if unit.team == 2 and sim.get_attack_range(unit) > 1:
+		if unit.team in [0, 2] and sim.get_attack_range(unit) > 1:
 			supporters.append(unit)
 			continue
 		var group: Array = []
@@ -259,7 +255,7 @@ func _refresh_expert(sim) -> void:
 		var group: Array = []
 		var nearest: float = INF
 		for squad: Array in squads:
-			if squad[0].team == 2 and unit.cell.distance_squared_to(squad[0].cell) < nearest:
+			if squad[0].team == unit.team and unit.cell.distance_squared_to(squad[0].cell) < nearest:
 				group = squad
 				nearest = unit.cell.distance_squared_to(squad[0].cell)
 		if group.is_empty():
@@ -282,15 +278,13 @@ func _focus(sim, ready: Array[ClassicStudent], target: ClassicStudent) -> void:
 
 func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	var team: int = ready[0].team
-	if team == 0:
-		return
 	var target: ClassicStudent = null
 	var best: float = INF
 	for enemy: ClassicStudent in sim.students:
 		if not enemy.is_alive() or enemy.team == team or (center.distance_to(Vector2(enemy.cell)) > 16.0 and not (team == 3 and sim.is_demon_owned_intruder(enemy) and center.distance_to(Vector2(enemy.cell)) <= sim.get_demon_awareness_radius())):
 			continue
 		var score: float = center.distance_to(Vector2(enemy.cell))
-		if team == 2:
+		if team in [0, 2]:
 			if enemy.target_id >= 0 and enemy.target_id < sim.students.size():
 				var victim: ClassicStudent = sim.students[enemy.target_id]
 				if victim.is_alive() and victim.team == team and victim.health <= victim.maximum_health * 0.2 and enemy.state == ClassicStudent.State.FIGHT:
@@ -314,7 +308,7 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	if target != null and (team == 1 or best < 0.0):
 		var responders: Array[ClassicStudent] = []
 		for unit: ClassicStudent in ready:
-			var location: Vector2i = sim.students[target.target_id].cell if team == 2 else target.cell
+			var location: Vector2i = sim.students[target.target_id].cell if team in [0, 2] else target.cell
 			if team == 1 or (team == 3 and unit.cell.distance_to(location) <= sim.get_demon_awareness_radius()) or (team != 3 and _cell_distance(unit.cell, location) <= 10):
 				responders.append(unit)
 		_focus(sim, responders, target)
@@ -325,14 +319,6 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 		if not sim.can_capture_area(area, team):
 			continue
 		var score: float = center.distance_to(Vector2(area.tile * 4 + Vector2i(2, 2)))
-		if team == 0:
-			var occupied: bool = false
-			for enemy: ClassicStudent in sim.students:
-				if enemy.is_alive() and enemy.team != team and center.distance_to(Vector2(enemy.cell)) <= 16.0 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == area.tile:
-					occupied = true
-					break
-			if occupied:
-				continue
 		if score < best:
 			best = score
 			objective = area.tile

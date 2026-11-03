@@ -27,12 +27,14 @@ func _run() -> void:
 	_test_demon_territorial_awareness()
 	_test_blocking_retreat()
 	for mode: int in 3:
-		for race: int in [2, 3]:
+		for race: int in [0, 2, 3]:
 			var sim := _fixture(mode, race)
 			var unit: ClassicStudent = sim.students[0]
 			var victim: ClassicStudent = sim.students[1]
 			if race == 2:
 				unit.maximum_health = 29
+			elif race == 0:
+				unit.level = 3
 			sim.proximity_ai.update(sim)
 			_check(unit.target_id == victim.id and sim.proximity_ai.active(unit), "Passing enemy is intercepted on every difficulty")
 			_check(unit.priority_target_id == victim.id, "Proximity commitment overrides strategic goals")
@@ -43,14 +45,17 @@ func _run() -> void:
 			sim.proximity_ai.update(sim)
 			_check(sim.proximity_ai.active(unit) == (race == 3), "Only demons retain unlimited pursuit after enemy leaves")
 			if race == 0:
-				_check(unit.returning_to_tile and unit.designated_tile == Vector2i(5, 5), "Humans regroup at encounter tile")
+				_check(not unit.returning_to_tile, "Human interception releases without a special encounter-tile leash")
 			if race == 3:
 				victim.state = ClassicStudent.State.DEAD
 				sim.proximity_ai.update(sim)
 				_check(not sim.proximity_ai.active(unit), "Demon pursuit ends when target dies")
 		var sim := _fixture(mode, 0)
 		sim.proximity_ai.update(sim)
-		_check(not sim.proximity_ai.active(sim.students[0]), "Human interception removed on every difficulty")
+		_check(not sim.proximity_ai.active(sim.students[0]), "Human ignores enemies outside current reach")
+		sim.students[1].cell = Vector2i(21,20)
+		sim.proximity_ai.update(sim)
+		_check(sim.proximity_ai.active(sim.students[0]), "Human intercepts enemies inside current reach on every difficulty")
 		sim = _fixture(mode, 2)
 		var elf: ClassicStudent = sim.students[0]
 		var enemy: ClassicStudent = sim.students[1]

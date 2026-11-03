@@ -173,17 +173,21 @@ Killing blows repeat **+2 maximum HP → +2 permanent punch → +2 reach**, with
 
 Assists give no Human upgrade. Fighting on an owned special tile activates **+1 temporary punch**. Once active, owned-territory presence refreshes it; it lasts three seconds after leaving. It does not change permanent punch, movement or attack speed.
 
-### AI: individual orders and regrouping
+### AI: organisation, interception and retreat
 
-On every difficulty, Humans use basic individual capture/attack orders. Their proximity-interception controller, numerical engagement restriction, squad objectives, squad healing and conquest waves are **removed**. Shared tile defence and retaliation remain.
+Easy uses individual capture/attack orders after the global **400-tick opening delay**, without the default repeated seated-idle delay. Normal uses the shared up-to-four squads and opening delay; Expert starts immediately, with up to **four melee core members** and ranged supporters joining the nearest same-race group even if full. Like Elves, Normal squads favour hearts; Expert squads prioritise protecting allies at **20% HP or less** within ten Manhattan cells, then capture, then local attacks. Combat awareness is the shared 16-cell squad radius. The old Human numerical engagement restriction and conquest waves remain removed.
 
-Easy/Normal apply a **global 400-tick opening delay** to individual strategic orders. Expert removes that opening delay. Humans do not need the default 400 seated-idle ticks between individual orders; they still must be seated, available and selected by the rotating individual scheduler. Wounds alone do not switch ordinary objective selection to healing.
+Available AI Humans intercept enemies within their **current Manhattan attack range**, on every difficulty, including while travelling. Interception ends when the target leaves range or becomes invalid, then the saved destination resumes. Retreat suppresses fresh interception. Shared tile defence, attack-attempt retaliation and nearby ally assistance remain in effect.
 
-Below **50% individual current/max HP**, an AI Human begins regrouping toward the nearest living Human by Manhattan cell distance. It refreshes the ally choice about once per second, or immediately when an existing target dies/changes lifetime. The destination follows that ally's current tile.
+Below **30% individual current/max HP**, an AI Human retreats to the first available category:
 
-Regrouping ends when a completed movement step leaves the Human on a tile containing another living Human, or **20 seconds after regrouping begins**. A **20-second cooldown** starts then. A lone survivor waits out the deadline. Full healing is not required, and already sharing an ally's tile can complete regrouping immediately.
+1. Nearest **owned heart or base within 20 Manhattan cells**, measured to the nearest cell of the tile.
+2. Nearest living **Human ally within 20 Manhattan cells**.
+3. Nearest owned base, without a distance limit; original home is the fallback if no base is owned.
 
-Entering regrouping replaces an existing response; subsequent melee retaliation can interrupt travel. Its 20-second deadline still runs during that interruption. Player-controlled Humans are not automatically regrouped. Active AI regrouping displays **`Retreat!`**.
+Destination priority is re-evaluated once per second. Retreat ends on reaching the selected tile after a reserved movement step, or after **20 seconds**; a **20-second cooldown** then starts. Full healing is not required. Movement remains 1×; active retreat displays **`Retreat!`**. Player-controlled Humans do not automatically retreat or receive strategic/interception orders.
+
+Retreat replaces the current response. Subsequent **melee retaliation can interrupt travel**, while the original travel deadline continues. Retreating Humans ignore ranged retaliation and are not recruited into nearby ranged responses, exactly as retreating Orcs and Elves do.
 
 ## 7. Orcs
 
@@ -305,7 +309,7 @@ The playable entry scene is `Scenes/Classic/classic_game.tscn`. `/` selects orig
 | --- | --- |
 | [classic_rules.gd](Scripts/Classic/classic_rules.gd) | Clock, board, starting stats, base constants |
 | [classic_simulation.gd](Scripts/Classic/classic_simulation.gd) | Combat, movement, ownership, capture, healing, recruitment, progression and elimination |
-| [medieval_human_ai.gd](Scripts/Classic/medieval_human_ai.gd) | Individual regroup lifecycle |
+| [medieval_human_ai.gd](Scripts/Classic/medieval_human_ai.gd) | Individual retreat lifecycle |
 | [medieval_orc_flee.gd](Scripts/Classic/medieval_orc_flee.gd) | Two-phase flee and reuse cooldown |
 | [medieval_elf_recovery.gd](Scripts/Classic/medieval_elf_recovery.gd) | Healing-tile selection, recovery and travel timeout |
 | [medieval_proximity_ai.gd](Scripts/Classic/medieval_proximity_ai.gd) | Tick-level interception |

@@ -124,7 +124,7 @@ func _run() -> void:
 		app._show_help()
 		var name: String = ["EASY AI", "NORMAL AI", "EXPERT AI & BONUSES"][difficulty]
 		_check(app.modal_body.text.begins_with(name), "Help reflects the active match difficulty")
-		_check("Human AI (all difficulties)" in app.modal_body.text and "Below 50% individual HP" in app.modal_body.text, "Shared Human regroup rules appear on every difficulty")
+		_check("Human AI:" in app.modal_body.text and "Below 30% HP" in app.modal_body.text and "within 20 Manhattan cells" in app.modal_body.text, "Shared Human retreat rules appear on every difficulty")
 		_check("Retreat cooldown is 30 seconds from arrival" in app.modal_body.text and "below 30% HP" in app.modal_body.text, "Shared elf recovery rules appear on every difficulty")
 		for other: int in 3:
 			if other != difficulty:

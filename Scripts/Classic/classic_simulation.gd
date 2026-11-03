@@ -377,7 +377,7 @@ func step() -> void:
 				_dying(student)
 	if ai_enabled:
 		var candidate: ClassicStudent = students[ticks % students.size()]
-		if not uses_squad_ai() or candidate.team == 0:
+		if not uses_squad_ai():
 			_com_order(candidate)
 	for color: int in 4:
 		if active[color]:
@@ -776,7 +776,7 @@ func _start_sit(student: ClassicStudent) -> void:
 	if _valid_enemy(student, student.priority_target_id):
 		start_walk(student, Vector2i.ZERO, student.priority_target_id)
 		return
-	if uses_squad_ai() and student.team != player_team and student.team != 0:
+	if uses_squad_ai() and student.team != player_team:
 		student.state = ClassicStudent.State.SIT
 		student.counter = 40
 		student.pattern = 13
@@ -981,7 +981,7 @@ func _start_turn(student: ClassicStudent) -> void:
 		student.state = ClassicStudent.State.WAIT
 		student.counter = 2
 		return
-	if medieval and (student.returning_to_tile or human_ai.controls(student) or (student.ai_elf_recovering and student.ai_retreating)):
+	if medieval and (student.returning_to_tile or (human_ai.controls(student) and not retaliation_ai.active(student)) or (student.ai_elf_recovering and student.ai_retreating)):
 		_return_step(student)
 		return
 	if _stop_cross_tile_pursuit(student):
@@ -1258,7 +1258,7 @@ func uses_squad_ai() -> bool:
 
 
 func _com_order(student: ClassicStudent) -> void:
-	if human_ai.controls(student):
+	if human_ai.controls(student) or (medieval and student.team == 0 and uses_squad_ai()):
 		return
 	var individual_human: bool = medieval and student.team == 0
 	if individual_human and difficulty != Difficulty.EXPERT and ticks < AI_START_DELAY_TICKS:

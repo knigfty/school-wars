@@ -6,8 +6,8 @@ var engagements: Dictionary = {}
 func active(unit: ClassicStudent) -> bool:
 	return engagements.has(unit.id) and engagements[unit.id].life == unit.lifetime
 
-func allows_cell(unit: ClassicStudent, cell: Vector2i) -> bool:
-	return not active(unit) or unit.team != 0 or Vector2i(cell.x / 4, cell.y / 4) == engagements[unit.id].origin
+func allows_cell(_unit: ClassicStudent, _cell: Vector2i) -> bool:
+	return true
 
 func may_engage(sim, unit: ClassicStudent, target: ClassicStudent) -> bool:
 	if not active(unit):
@@ -16,7 +16,7 @@ func may_engage(sim, unit: ClassicStudent, target: ClassicStudent) -> bool:
 		return true
 	if engagements[unit.id].target != target.id:
 		return false
-	if unit.team == 2:
+	if unit.team in [0, 2]:
 		return sim._within_attack_range(unit, target)
 	if unit.team == 3:
 		return true
@@ -30,11 +30,8 @@ func _release(sim, unit: ClassicStudent, record: Dictionary) -> void:
 	unit.priority_target_id = -1
 	unit.ranged_pursuit_id = -1
 	unit.ai_base_defence_tile = Vector2i(-1, -1)
-	var goal: Vector2i = record.origin if unit.team == 0 else record.goal
+	var goal: Vector2i = record.goal
 	sim.designate_order(unit, goal)
-	if unit.team == 0:
-		# Return to the encounter tile before rejoining strategic squad orders.
-		unit.returning_to_tile = true
 	if unit.state != ClassicStudent.State.WALK:
 		unit.state = ClassicStudent.State.STAND
 	sim.start_walk(unit, goal)
@@ -43,7 +40,7 @@ func update(sim) -> void:
 	for unit: ClassicStudent in sim.students:
 		if sim.retaliation_ai.active(unit):
 			continue
-		if not unit.is_alive() or unit.team == sim.player_team or unit.team in [0, 1]:
+		if not unit.is_alive() or unit.team == sim.player_team or unit.team == 1:
 			engagements.erase(unit.id)
 			continue
 		if sim.human_ai.controls(unit):
@@ -62,7 +59,7 @@ func update(sim) -> void:
 			if unit.returning_to_tile or (unit.ai_spawn_wait and unit.state == ClassicStudent.State.STAND and unit.counter >= 0):
 				continue
 			var target: ClassicStudent = null
-			var radius: int = sim.get_attack_range(unit) if unit.team == 2 else (maxi(3, sim.get_attack_range(unit)) if unit.team == 0 else 3)
+			var radius: int = sim.get_attack_range(unit) if unit.team in [0, 2] else 3
 			var best: float = INF
 			for enemy: ClassicStudent in sim.students:
 				if not enemy.is_alive() or enemy.team == unit.team:
