@@ -30,6 +30,7 @@ func _unit(sim: ClassicSimulation, id: int, race: int, cell: Vector2i, hp: float
 	unit.state = ClassicStudent.State.SIT
 	return unit
 func _run() -> void:
+	_heart_group_step_tests()
 	_retaliation_tests()
 	_squad_structure_tests()
 	for mode: int in 3:
@@ -83,7 +84,7 @@ func _run() -> void:
 		sim.areas[-1].progress[0] = 299
 		sim._capture_areas()
 		_check(sim.areas[-1].owner == 0 and sim.human_ai.controls(sim.students[0]) and sim.human_ai.controls(sim.students[1]), "Captured heart commits every wounded Human despite cooldown or HP above 30%")
-		_check(not sim.human_ai.controls(sim.students[2]), "Healthy Human is not forced to wait for wounded companions")
+		_check(sim.human_ai.controls(sim.students[2]), "Healthy Human waits for wounded companions")
 		sim.human_ai.update(sim)
 		for tick: int in 51:
 			for id: int in 2:
@@ -151,3 +152,41 @@ func _squad_structure_tests() -> void:
 					_check(member.team == 0, "Human squads never recruit Elf supporters")
 		_check(humans == (6 if mode == ClassicSimulation.Difficulty.EXPERT else 4), "Human squad membership includes all available core units and ranged supporters")
 		_check(largest == (6 if mode == ClassicSimulation.Difficulty.EXPERT else 4), "Expert Human ranged supporters join a full four-member core like Elves")
+
+func _heart_group_step_tests() -> void:
+	for mode: int in 3:
+		var sim := _sim(mode)
+		var tile := Vector2i(5,5)
+		sim._add_area(tile,ClassicRules.AreaKind.HEAL,0)
+		sim._add_area(Vector2i(8,5),ClassicRules.AreaKind.RECRUIT,-1)
+		var wounded := _unit(sim,0,0,Vector2i(23,20))
+		wounded.health = 10
+		var healthy := _unit(sim,1,0,Vector2i(22,20))
+		var moderate := _unit(sim,2,0,Vector2i(21,20))
+		moderate.health = 18
+		# Reproduce missed capture hook / old ownership and an outgoing reserved step.
+		sim.designate_order(wounded,Vector2i(8,5))
+		sim._reserve_step(wounded,0)
+		_check(wounded.cell.x == 24, "Fixture reserves exit across heart boundary")
+		var released: bool = false
+		for tick: int in 300:
+			sim.step()
+			if not sim.human_ai.controls(healthy):
+				released = true
+				_check(wounded.health == wounded.maximum_health and moderate.health == moderate.maximum_health, "Group releases only after every wounded companion reaches full HP")
+				_check(wounded.designated_tile == healthy.designated_tile and moderate.designated_tile == healthy.designated_tile and healthy.designated_tile == Vector2i(8,5), "Healed group receives one common departure destination on every difficulty")
+				break
+			_check(Vector2i(healthy.cell.x/4,healthy.cell.y/4) == tile, "Healthy companion stays on heart through real simulation steps")
+			if moderate.health == moderate.maximum_health:
+				_check(sim.human_ai.controls(moderate) and Vector2i(moderate.cell.x/4,moderate.cell.y/4) == tile, "Earlier-healed member waits for slowest companion")
+		_check(released, "Outgoing unit returns, heals and releases group without deadlock")
+		# A fallen member cannot permanently block the waiting cohort.
+		sim = _sim(mode)
+		sim._add_area(tile,ClassicRules.AreaKind.HEAL,0)
+		wounded = _unit(sim,0,0,Vector2i(20,20))
+		wounded.health = 10
+		healthy = _unit(sim,1,0,Vector2i(21,20))
+		sim.human_ai.update(sim)
+		wounded.state = ClassicStudent.State.DEAD
+		sim.human_ai.update(sim)
+		_check(not sim.human_ai.controls(healthy), "Dead wounded companion does not trap healthy group")

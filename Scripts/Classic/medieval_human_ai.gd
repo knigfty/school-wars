@@ -2,6 +2,7 @@ extends RefCounted
 
 ## Individual low-health retreat, shared by all AI difficulties.
 const COOLDOWN: int = 20 * ClassicRules.TICKS_PER_SECOND
+var heart_groups: Dictionary = {}
 
 func controls(unit: ClassicStudent) -> bool:
 	return unit.team == 0 and unit.ai_regroup_started_at >= 0
@@ -73,16 +74,76 @@ func _begin(sim, unit: ClassicStudent, goal: Vector2i) -> void:
 	unit.returning_to_tile = false
 	unit.ai_retreating = not sim.retaliation_ai.active(unit)
 
+func _on_tile(unit: ClassicStudent, tile: Vector2i) -> bool:
+	return Vector2i(unit.cell.x / 4, unit.cell.y / 4) == tile
+
+func _group_waiting(unit: ClassicStudent) -> bool:
+	for records: Array in heart_groups.values():
+		for record: Dictionary in records:
+			if record.unit == unit and record.life == unit.lifetime:
+				return true
+	return false
+
 func hold_captured_heart(sim, tile: Vector2i) -> void:
 	if not sim.ai_enabled or sim.player_team == 0:
 		return
+	var occupants: Array[ClassicStudent] = []
+	var wounded: bool = false
 	for unit: ClassicStudent in sim.students:
-		if unit.is_alive() and unit.team == 0 and unit.health < unit.maximum_health and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == tile:
+		if not unit.is_alive() or unit.team != 0:
+			continue
+		# Include an outgoing reserved step whose animation still starts in this
+		# tile. Finish that step safely, then return instead of losing its hold.
+		if _on_tile(unit, tile) or (unit.state == ClassicStudent.State.WALK and Vector2i(unit.previous_cell.x / 4, unit.previous_cell.y / 4) == tile):
+			occupants.append(unit)
+			wounded = wounded or unit.health < unit.maximum_health
+	if not wounded and not heart_groups.has(tile):
+		return
+	if not heart_groups.has(tile):
+		heart_groups[tile] = []
+	for unit: ClassicStudent in occupants:
+		var already_held: bool = false
+		for record: Dictionary in heart_groups[tile]:
+			already_held = already_held or (record.unit == unit and record.life == unit.lifetime)
+		if not already_held and not _group_waiting(unit):
+			heart_groups[tile].append({"unit":unit,"life":unit.lifetime})
 			_begin(sim, unit, tile)
+
+func _update_heart_groups(sim) -> void:
+	# Reconcile every tick, before planners: capturing is not the only way a
+	# Human can arrive at a friendly heart, and the capture tick can reserve exits.
+	for area: Dictionary in sim.areas:
+		if area.owner == 0 and area.kind == ClassicRules.AreaKind.HEAL:
+			hold_captured_heart(sim, area.tile)
+	for tile: Vector2i in heart_groups.keys():
+		var members: Array[ClassicStudent] = []
+		var records: Array = heart_groups[tile]
+		for index: int in range(records.size()-1, -1, -1):
+			var record: Dictionary = records[index]
+			if not record.unit.is_alive() or record.unit.team != 0 or record.unit.lifetime != record.life:
+				records.remove_at(index)
+			else:
+				members.append(record.unit)
+		if not _valid_healing_tile(sim, tile):
+			heart_groups.erase(tile)
+			continue # Wounded members retain individual recovery and retarget.
+		var ready: bool = not members.is_empty()
+		for member: ClassicStudent in members:
+			ready = ready and member.health >= member.maximum_health and _on_tile(member,tile) and member.state != ClassicStudent.State.WALK and not sim.retaliation_ai.active(member)
+		if members.is_empty() or ready:
+			heart_groups.erase(tile)
+			if ready:
+				for member: ClassicStudent in members:
+					_finish(sim,member)
+					member.ai_heal_tile = Vector2i(-1,-1)
+				# One ordinary shared objective lets the healed cohort depart
+				# together, including on Easy, without changing future scheduling.
+				sim.squad_ai._plan(sim,members)
 
 func update(sim) -> void:
 	if not sim.medieval or not sim.ai_enabled or sim.player_team == 0:
 		return
+	_update_heart_groups(sim)
 	for unit: ClassicStudent in sim.students:
 		if not unit.is_alive() or unit.team != 0:
 			continue
@@ -92,7 +153,7 @@ func update(sim) -> void:
 			_begin(sim, unit, _destination(sim, unit))
 		if sim.retaliation_ai.active(unit):
 			continue
-		if unit.health >= unit.maximum_health:
+		if unit.health >= unit.maximum_health and not _group_waiting(unit):
 			_finish(sim, unit)
 			unit.ai_heal_tile = Vector2i(-1, -1)
 			continue
