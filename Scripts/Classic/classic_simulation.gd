@@ -18,6 +18,10 @@ var last_spawn_base: Array[Vector2i] = []
 var player_team: int = 0
 var spectating: bool = false
 var ticks: int = 0
+var team_kills: Array[int] = [0, 0, 0, 0]
+var team_deaths: Array[int] = [0, 0, 0, 0]
+var eliminated_at: Array[int] = [-1, -1, -1, -1]
+var elimination_order: Array[int] = []
 var leader: int = -1
 var finished: bool = false
 var ai_enabled: bool = true
@@ -62,6 +66,10 @@ func setup(team: int, map_seed: int, spectator: bool = false) -> void:
 	recruit_progress.assign([0, 0, 0, 0])
 	last_spawn_base.assign([Vector2i(-1, -1), Vector2i(-1, -1), Vector2i(-1, -1), Vector2i(-1, -1)])
 	ticks = 0
+	team_kills.assign([0, 0, 0, 0])
+	team_deaths.assign([0, 0, 0, 0])
+	eliminated_at.assign([-1, -1, -1, -1])
+	elimination_order.clear()
 	leader = -1
 	finished = false
 	var order: Array[int] = [0, 1, 2, 3]
@@ -1151,6 +1159,9 @@ func _apply_hit(student: ClassicStudent, target: ClassicStudent) -> void:
 			target.orc_conversion_hits.append(ticks)
 	target.health -= get_punch_damage(student, target)
 	if target.health <= 0.0:
+		if target.is_alive() and student.team != target.team:
+			team_kills[student.team] += 1
+			team_deaths[target.team] += 1
 		target.health = 0.0
 		_target_died(target)
 		target.state = ClassicStudent.State.DEAD
@@ -1217,6 +1228,8 @@ func _dying(student: ClassicStudent) -> void:
 func _check_elimination(team: int) -> void:
 	if active[team] and get_count(team) == 0:
 		active[team] = false
+		eliminated_at[team] = ticks
+		elimination_order.append(team)
 		team_eliminated.emit(team)
 		var survivors: int = active.count(true)
 		if survivors == 1 or (player_team >= 0 and not active[player_team]):
@@ -1622,3 +1635,30 @@ func _respond_to_hit(defender: ClassicStudent, attacker: ClassicStudent) -> void
 
 func get_winner_team() -> int:
 	return active.find(true) if active.count(true) == 1 else -1
+
+
+func get_match_results() -> Array[Dictionary]:
+	# Living armies lead. A player defeat may freeze several surviving armies;
+	# rank those provisionally by living count, kills, then stable faction order.
+	var survivors: Array[int] = []
+	var living_counts: Array[int] = [0, 0, 0, 0]
+	for unit: ClassicStudent in students:
+		if unit.is_alive():
+			living_counts[unit.team] += 1
+	for team: int in 4:
+		if active[team]:
+			survivors.append(team)
+	survivors.sort_custom(func(a: int, b: int) -> bool:
+		if living_counts[a] != living_counts[b]:
+			return living_counts[a] > living_counts[b]
+		if team_kills[a] != team_kills[b]:
+			return team_kills[a] > team_kills[b]
+		return a < b)
+	var ordered: Array[int] = survivors.duplicate()
+	for index: int in range(elimination_order.size() - 1, -1, -1):
+		ordered.append(elimination_order[index])
+	var result: Array[Dictionary] = []
+	for team: int in ordered:
+		var duration: int = eliminated_at[team] if eliminated_at[team] >= 0 else ticks
+		result.append({"team": team, "survival_ticks": duration, "kills": team_kills[team], "deaths": team_deaths[team]})
+	return result

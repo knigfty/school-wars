@@ -1,6 +1,6 @@
 # Medieval Wars — Current Game Mechanics
 
-Checked against `main` gameplay code at **1b13e414** on **3 November 2026**. This document describes the `/v2` Medieval rules. Shared mechanics appear first; each race's stats, exceptions, progression and AI appear only in its race section. Times are battle seconds at 1× speed unless stated otherwise.
+Checked against current gameplay code on **3 November 2026**. This document describes the `/v2` Medieval rules. Shared mechanics appear first; each race's stats, exceptions, progression and AI appear only in its race section. Times are battle seconds at 1× speed unless stated otherwise.
 
 ## Contents
 
@@ -286,6 +286,8 @@ AI Demons do not initiate healing retreats. The old casualty-based ranged-respon
 
 ## 10. Interface
 
+Every victory, defeat and spectator result displays a four-row table of race, survival time (`Xm YYs`), cumulative kills and cumulative deaths. Time uses simulation ticks from match start to recorded elimination; surviving armies use the final tick. Lethal defeats count immediately, totals survive replacement recruits, and a new match resets all statistics. Final standings put the winner first, followed by reverse elimination order; equal-tick eliminations retain their recorded sequence. Early player defeat can leave several armies alive: those survivors are provisionally sorted by living units, then kills, then faction order, above eliminated armies. The result screen labels these provisional standings. The exit button reads **Return to menu**.
+
 - The top bar reports regular population/capacity. Fallen units can remain counted until cleanup. Race-specific extra population is defined in that race's section.
 - The bottom-left spawning box shows the shared meter, capacity-full/base-blocked state and an estimate based on current boosts. Spectator mode identifies itself instead of reporting one selected army's meter.
 - One selected warrior shows current/max HP and base-plus-gain punch, reach, movement and attack rate. Active temporary damage bonuses are included; several selected warriors show a count instead of aggregate stats.
@@ -311,4 +313,4 @@ The playable entry scene is `Scenes/Classic/classic_game.tscn`. `/` selects orig
 
 **Retained-code distinction:** `medieval_ranged_response.gd` still contains older hit-triggered group/chase/retreat routines and direct tests. Normal AI attack processing registers universal retaliation first; its guards then prevent creating those legacy groups. Their existence is not evidence that old group casualty rolls or hit-triggered flee decisions normally activate in a running match. Active shared-target squad orders and tile defence remain, even though coordinated pursuit routing was removed.
 
-For this documentation update, facts were checked against the source above; **14 existing Godot 4.3 headless mechanics suites passed**, and all **23 document links/contents anchors** were validated. Gameplay code is unchanged. Run the relevant `Testing/run_*tests.gd` scripts with Godot headless for executable checks. Web export/browser CI is defined in [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml).
+Facts were checked against the source above. Mechanics and match-results regression suites cover these rules; document links and contents anchors were also validated. Run the relevant `Testing/run_*tests.gd` scripts with Godot headless for executable checks. Web export/browser CI is defined in [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml).

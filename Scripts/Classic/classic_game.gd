@@ -32,6 +32,9 @@ var recruit_bar: ProgressBar
 var recruit_label: Label
 var hint_panel: PanelContainer
 var announcement_label: Label
+var modal_header: BoxContainer
+var result_stats: GridContainer
+var _showing_results: bool = false
 var modal_title: Label
 var modal_body: Label
 var modal_scroll: ScrollContainer
@@ -286,8 +289,19 @@ func _build_modal() -> void:
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	margin.add_child(box)
+	modal_header = BoxContainer.new()
+	modal_header.add_theme_constant_override("separation", 20)
+	box.add_child(modal_header)
 	modal_title = _label("Paused", 30)
-	box.add_child(modal_title)
+	modal_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	modal_header.add_child(modal_title)
+	result_stats = GridContainer.new()
+	result_stats.name = "ResultStats"
+	result_stats.columns = 4
+	result_stats.add_theme_constant_override("h_separation", 12)
+	result_stats.add_theme_constant_override("v_separation", 4)
+	result_stats.hide()
+	modal_header.add_child(result_stats)
 	modal_body = _label("", 15)
 	modal_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	modal_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -300,7 +314,7 @@ func _build_modal() -> void:
 	box.add_child(resume_button)
 	replay_button = _button("Play again", func() -> void: _start_match(0 if _spectating else _team, _spectating))
 	box.add_child(replay_button)
-	quit_button = _button("Return to school selection", _show_menu)
+	quit_button = _button("Return to menu", _show_menu)
 	box.add_child(quit_button)
 
 
@@ -368,8 +382,11 @@ func _layout() -> void:
 	announcement_label.size = Vector2(size.x, 40)
 	if modal != null:
 		var dialog: Control = modal.get_node("Dialog")
-		dialog.position = Vector2((size.x - 560) * 0.5, (size.y - _dialog_height) * 0.5)
-		dialog.size = Vector2(560, _dialog_height)
+		var dialog_width: float = minf(720.0 if _showing_results else 560.0, maxf(320.0, size.x - 32.0))
+		modal_header.vertical = _showing_results and dialog_width < 650.0
+		var dialog_height: float = (440.0 if modal_header.vertical else 360.0) if _showing_results else _dialog_height
+		dialog.size = Vector2(dialog_width, dialog_height)
+		dialog.position = (size - dialog.size) * 0.5
 
 
 func _update_difficulty_tooltip(selected: int) -> void:
@@ -414,6 +431,8 @@ func _show_menu() -> void:
 
 
 func _show_dialog(title: String, body: String, can_resume: bool, can_replay: bool) -> void:
+	_showing_results = false
+	result_stats.hide()
 	board.paused = true
 	board.stop_audio()
 	board.cancel_selection()
@@ -427,6 +446,8 @@ func _show_dialog(title: String, body: String, can_resume: bool, can_replay: boo
 	replay_button.visible = can_replay
 	modal.show()
 	_layout()
+	# Recenter after containers apply text wrapping and minimum sizes.
+	_layout.call_deferred()
 	if can_resume:
 		resume_button.grab_focus()
 	else:
@@ -449,7 +470,7 @@ func _show_pause() -> void:
 
 
 func _show_quit() -> void:
-	_show_dialog("Leave this match?", "Returning to school selection ends the current match.", true, false)
+	_show_dialog("Leave this match?", "Returning to the menu ends the current match.", true, false)
 
 
 func _resume() -> void:
@@ -461,11 +482,38 @@ func _show_result(won: bool) -> void:
 	if _spectating:
 		var winner: int = board.simulation.get_winner_team()
 		_show_dialog("Battle Concluded", "%s stand victorious. All rival armies have fallen." % board.team_names[winner] if winner >= 0 else "The battle has ended.", false, true)
-		return
-	if medieval:
+	elif medieval:
 		_show_dialog("Victory!" if won else "Defeat", "%s stand victorious. All rival armies have fallen, and the battlefield is yours." % board.team_names[_team] if won else "Your army has fallen, but the war is not over. Rally your warriors and march into battle once more.", false, true)
+	else:
+		_show_dialog("You win !!" if won else "You lose...", "%s school eliminated all three opponents." % board.team_names[_team] if won else "Your last student has been defeated. Choose a school and try again.", false, true)
+	_showing_results = true
+	if board.simulation.active.count(true) > 1:
+		modal_body.text += "\nSurviving armies ranked provisionally by living units, then kills."
+	# Match-finished can fire partway through the final simulation tick. Read
+	# totals after that tick completes so later attacks in it are included.
+	_refresh_result_stats.call_deferred()
+
+
+func _refresh_result_stats() -> void:
+	if not _showing_results or not modal.visible:
 		return
-	_show_dialog("You win !!" if won else "You lose...", "%s school eliminated all three opponents." % board.team_names[_team] if won else "Your last student has been defeated. Choose a school and try again.", false, true)
+	for child: Node in result_stats.get_children():
+		result_stats.remove_child(child)
+		child.queue_free()
+	for heading: String in ["Race" if medieval else "School", "Time", "Kills", "Deaths"]:
+		var label: Label = _label(heading, 12)
+		label.add_theme_color_override("font_color", Color("aaaaaa"))
+		result_stats.add_child(label)
+	for record: Dictionary in board.simulation.get_match_results():
+		var seconds: int = int(record.survival_ticks) / ClassicRules.TICKS_PER_SECOND
+		var values: Array[String] = [board.team_names[record.team] + " :", "%dm %02ds" % [seconds / 60, seconds % 60], str(record.kills), str(record.deaths)]
+		for column: int in 4:
+			var label: Label = _label(values[column], 13)
+			if column > 0:
+				label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			result_stats.add_child(label)
+	result_stats.show()
+	_layout()
 
 
 func _announce(text: String) -> void:
