@@ -179,15 +179,13 @@ Easy uses individual capture/attack orders after the global **400-tick opening d
 
 Available AI Humans intercept enemies within their **current Manhattan attack range**, on every difficulty, including while travelling. Interception ends when the target leaves range or becomes invalid, then the saved destination resumes. Retreat suppresses fresh interception. Shared tile defence, attack-attempt retaliation and nearby ally assistance remain in effect.
 
-Below **30% individual current/max HP**, an AI Human retreats to the first available category:
+Below **30% individual current/max HP**, an AI Human retreats to the nearest **owned heart or base within 20 Manhattan cells**, measured to the nearest cell of the tile. If none qualifies, it goes to the nearest owned base without a distance limit; original home is the fallback if no base is owned. Allies are no longer retreat destinations.
 
-1. Nearest **owned heart or base within 20 Manhattan cells**, measured to the nearest cell of the tile.
-2. Nearest living **Human ally within 20 Manhattan cells**.
-3. Nearest owned base, without a distance limit; original home is the fallback if no base is owned.
+Recovery retains its destination while valid, retargets if ownership is lost, and remains committed until **full HP**. Arrival ends travel and begins seated healing; ordinary individual/squad orders and proximity interception cannot pull a recovering Human away. There is no travel timeout that releases a wounded Human. Full recovery starts the existing **20-second cooldown**. Movement remains 1×; active retreat travel displays **`Retreat!`**. Player-controlled Humans retain manual control.
 
-Destination priority is re-evaluated once per second. Retreat ends on reaching the selected tile after a reserved movement step, or after **20 seconds**; a **20-second cooldown** then starts. Full healing is not required. Movement remains 1×; active retreat displays **`Retreat!`**. Player-controlled Humans do not automatically retreat or receive strategic/interception orders.
+When AI Humans **capture a heart tile**, every wounded Human currently on that tile commits to healing there until full HP, even above the 30% retreat threshold or during cooldown. Healthy occupants can continue their orders independently.
 
-Retreat replaces the current response. Subsequent **melee retaliation can interrupt travel**, while the original travel deadline continues. Retreating Humans ignore ranged retaliation and are not recruited into nearby ranged responses, exactly as retreating Orcs and Elves do.
+Shared tile defence, attack-attempt retaliation and nearby ally assistance remain. **Melee retaliation can interrupt travel**, while ranged attacks do not recruit retreating Humans into responses. Once seated for healing, ordinary shared retaliation can interrupt recovery; the Human returns to its healing destination afterward and resumes healing until full HP.
 
 ## 7. Orcs
 

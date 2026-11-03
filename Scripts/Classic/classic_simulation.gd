@@ -759,7 +759,7 @@ func _start_sit(student: ClassicStudent) -> void:
 	if retaliation_ai.active(student):
 		start_walk(student, Vector2i.ZERO, retaliation_ai.target_id(student))
 		return
-	if medieval and student.ai_elf_recovering:
+	if medieval and (student.ai_elf_recovering or human_ai.controls(student)):
 		student.state = ClassicStudent.State.SIT if not student.ai_retreating else ClassicStudent.State.WAIT
 		student.counter = 2
 		return
@@ -982,7 +982,7 @@ func _start_turn(student: ClassicStudent) -> void:
 		student.state = ClassicStudent.State.WAIT
 		student.counter = 2
 		return
-	if medieval and (student.returning_to_tile or (human_ai.controls(student) and not retaliation_ai.active(student)) or (student.ai_elf_recovering and student.ai_retreating)):
+	if medieval and (student.returning_to_tile or (human_ai.controls(student) and student.ai_retreating and not retaliation_ai.active(student)) or (student.ai_elf_recovering and student.ai_retreating)):
 		_return_step(student)
 		return
 	if _stop_cross_tile_pursuit(student):
@@ -1483,6 +1483,8 @@ func _capture_areas() -> void:
 				area.owner = team
 				area.progress = [0.0, 0.0, 0.0, 0.0]
 				area.spawn_progress = 0
+				if team == 0 and area.kind == ClassicRules.AreaKind.HEAL:
+					human_ai.hold_captured_heart(self, area.tile)
 				_update_leader()
 				break
 

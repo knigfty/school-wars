@@ -74,7 +74,7 @@ func _plan(sim, squad: Array) -> void:
 	var ready: Array[ClassicStudent] = []
 	var center: Vector2 = Vector2.ZERO
 	for unit: ClassicStudent in squad:
-		if not sim.retaliation_ai.active(unit) and not sim.proximity_ai.active(unit) and not unit.ai_elf_recovering and not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
+		if not sim.human_ai.controls(unit) and not sim.retaliation_ai.active(unit) and not sim.proximity_ai.active(unit) and not unit.ai_elf_recovering and not sim.ranged_response.active(unit) and not unit.tile_order_busy and unit.ai_base_defence_tile.x < 0 and not unit.ai_retreating and unit.retaliation_until == 0 and not unit.returning_to_tile and sim.ticks >= unit.ai_hold_ground_until:
 			ready.append(unit)
 			center += Vector2(unit.cell)
 	if ready.is_empty():
