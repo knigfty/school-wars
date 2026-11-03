@@ -181,7 +181,9 @@ func _test_range() -> void:
 	victim.health = 100
 	_hit(sim, human, victim)
 	_check(victim.health == 96, "Human range hit resolves")
+	sim.occupancy.erase(victim.cell)
 	victim.cell = Vector2i(35, 30)
+	sim.occupancy[victim.cell] = victim.id
 	human.state = ClassicStudent.State.STAND
 	sim._start_turn(human)
 	_check(human.state == ClassicStudent.State.WALK, "Ranged focus pursues out-of-range target")
@@ -189,7 +191,7 @@ func _test_range() -> void:
 		if human.state == ClassicStudent.State.FIGHT:
 			break
 		sim._walking(human)
-	_check(human.state == ClassicStudent.State.FIGHT and sim._within_attack_range(human, victim), "Ranged pathfinding stops in valid attack range")
+	_check(human.state == ClassicStudent.State.FIGHT and sim._within_attack_range(human, victim), "Ordinary ranged pursuit stops in valid attack range")
 	_check(human.cell != victim.cell, "Ranged approach never overlaps target")
 
 	sim.medieval = false

@@ -1,6 +1,6 @@
 extends RefCounted
 
-## One recovery lifecycle for every AI difficulty. Cooldown begins on arrival.
+## Shared nearest-owned-tile retreat. Cooldown starts on arrival or travel timeout.
 func eligible(sim, unit: ClassicStudent) -> bool:
 	return sim.medieval and unit.is_alive() and unit.team == 2 and unit.team != sim.player_team
 
@@ -10,9 +10,6 @@ func safe_tile(sim, tile: Vector2i) -> bool:
 	var area: Dictionary = sim.areas[sim.area_at[tile]]
 	if area.owner != 2 or area.kind == ClassicRules.AreaKind.RECRUIT:
 		return false
-	for enemy: ClassicStudent in sim.students:
-		if enemy.is_alive() and enemy.team != 2 and Vector2i(enemy.cell.x / 4, enemy.cell.y / 4) == tile:
-			return false
 	return true
 
 func nearest(sim, unit: ClassicStudent) -> Vector2i:
@@ -56,7 +53,17 @@ func threat(sim, unit: ClassicStudent, attacker: ClassicStudent) -> void:
 	unit.tile_guard_target = attacker.id
 
 func update(sim, unit: ClassicStudent) -> void:
-	if sim.retaliation_ai.active(unit) or not eligible(sim, unit):
+	if not eligible(sim, unit):
+		return
+	# A melee response must not postpone the travel deadline/cooldown.
+	if sim.retaliation_ai.active(unit):
+		if unit.ai_elf_recovering and not unit.ai_elf_arrived and unit.ai_elf_retreat_started_at >= 0 and sim.ticks - unit.ai_elf_retreat_started_at >= 20 * ClassicRules.TICKS_PER_SECOND:
+			unit.ai_elf_recovering = false
+			unit.ai_elf_retreat_started_at = -1
+			unit.ai_retreating = false
+			unit.ai_heal_tile = Vector2i(-1, -1)
+			unit.ai_heal_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
+			sim.retaliation_ai.responses[unit.id].retreat = false
 		return
 	if not unit.ai_elf_recovering:
 		if unit.health < unit.maximum_health * 0.3 and sim.ticks >= unit.ai_hold_ground_until:
@@ -95,19 +102,19 @@ func update(sim, unit: ClassicStudent) -> void:
 	if unit.ai_elf_arrived and not owned_healing:
 		unit.ai_elf_arrived = false
 		unit.ai_elf_retreat_started_at = sim.ticks
-	if unit.ai_elf_retreat_started_at >= 0 and sim.ticks - unit.ai_elf_retreat_started_at >= 15 * ClassicRules.TICKS_PER_SECOND:
+	if unit.ai_elf_retreat_started_at >= 0 and sim.ticks - unit.ai_elf_retreat_started_at >= 20 * ClassicRules.TICKS_PER_SECOND:
 		unit.ai_elf_recovering = false
 		unit.ai_elf_arrived = false
 		unit.ai_elf_retreat_started_at = -1
 		unit.ai_heal_tile = Vector2i(-1, -1)
 		if unit.state == ClassicStudent.State.WALK:
 			unit.destination = unit.cell # Finish only the already reserved step.
-		# Reuse the existing fight decision hold, avoiding immediate low-HP restart.
-		unit.ai_hold_ground_until = sim.ticks + 3 * ClassicRules.TICKS_PER_SECOND
+		# The travel timeout spends the same cooldown as arrival.
+		unit.ai_heal_ready_at = sim.ticks + 30 * ClassicRules.TICKS_PER_SECOND
 		sim.ranged_response._release(unit)
 		return
 	unit.ai_retreating = true
-	# A lost/contested goal is replaced, without releasing the retreat commitment.
+	# A lost goal is replaced, without releasing the retreat commitment.
 	if not safe_tile(sim, unit.ai_heal_tile):
 		unit.ai_heal_tile = nearest(sim, unit)
 	if unit.ai_heal_tile.x < 0:

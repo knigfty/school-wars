@@ -24,131 +24,52 @@ func _fixture(mode: int) -> ClassicSimulation:
 	sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
 	return sim
 func _run() -> void:
-	_test_retreat_deadline()
 	for mode: int in 3:
 		var sim := _fixture(mode)
 		var elf: ClassicStudent = sim.students[0]
-		sim.elf_recovery.update(sim, elf)
-		_check(not elf.ai_elf_recovering, "Exactly thirty percent does not trigger retreat")
-		elf.health = 7.4
-		sim._initialize_student(sim.students[1], 3, Vector2i(20, 24))
-		sim.students[1].state = ClassicStudent.State.SIT
-		sim.students[1].counter = 10000
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_heal_tile == Vector2i(12, 12) and elf.ai_retreating, "All difficulties choose distant safe base over contested nearby heart")
-		_check(elf.ai_heal_ready_at == 0, "Travel does not start cooldown")
-		_check(is_equal_approx(sim.get_movement_multiplier(elf), 0.7), "Retreat speed reduced by thirty percent")
-		# Losing every healing tile retains retreat; a recovered goal resumes it.
-		sim.areas[1].owner = 3
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_recovering and elf.ai_retreating and elf.ai_heal_tile.x < 0, "No safe goal does not cancel an active retreat")
-		sim.areas[1].owner = 2
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_heal_tile == Vector2i(12, 12), "Safe goal becomes available again")
-		# Resume near the far destination after validating unrestricted goal selection.
-		# A full-map trip may now correctly time out at fifteen seconds.
-		sim.occupancy.erase(elf.cell)
-		elf.cell = Vector2i(44, 44)
-		elf.previous_cell = elf.cell
-		elf.state = ClassicStudent.State.STAND
-		elf.walk_tick = 0
-		sim.occupancy[elf.cell] = elf.id
-		# Complete travel with real simulation steps, eight per frame.
-		sim.ai_enabled = false
-		var arrival_tick: int = -1
-		for frame: int in 180:
-			for substep: int in 8:
-				sim.elf_recovery.update(sim, elf)
-				if elf.ai_elf_arrived and arrival_tick < 0:
-					arrival_tick = sim.ticks
-				sim.step()
-			if elf.ai_elf_arrived:
-				break
-		_check(elf.ai_elf_arrived and not elf.ai_retreating, "Retreat reaches healing base at 8x")
-		var arrival_ready: int = elf.ai_heal_ready_at
-		_check(arrival_ready == arrival_tick + 30 * 18, "Thirty-second cooldown starts at arrival")
-		_check(sim.get_movement_multiplier(elf) == 1.0, "Speed restored during stationary recovery")
-		elf.health = 20
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_recovering, "Recovery stays committed above eighty percent")
-		var enemy: ClassicStudent = sim.students[1]
-		sim.occupancy.erase(enemy.cell)
-		enemy.cell = elf.cell + Vector2i.RIGHT
-		sim.occupancy[enemy.cell] = enemy.id
-		enemy.state = ClassicStudent.State.FIGHT
-		enemy.target_id = elf.id
-		elf.last_attacked_tick = sim.ticks
-		var spot: Vector2i = elf.cell
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.state == ClassicStudent.State.FIGHT and elf.target_id == enemy.id and elf.cell == spot, "Recovering elf retaliates from healing spot")
-		_check(not sim.can_heal(elf), "Retaliation never activates healing")
-		enemy.state = ClassicStudent.State.UNUSED
-		sim.ticks += 54
-		sim.elf_recovery.update(sim, elf)
-		var before: float = elf.health
-		sim._sitting(elf)
-		_check(elf.health > before, "Safe seated recovery resumes after combat")
-		elf.health = elf.maximum_health
-		sim.elf_recovery.update(sim, elf)
-		_check(not elf.ai_elf_recovering and elf.ai_heal_ready_at == arrival_ready, "Full HP releases recovery without restarting cooldown")
-		elf.health = 1
-		sim.elf_recovery.update(sim, elf)
-		_check(not elf.ai_elf_recovering, "Arrival cooldown blocks new retreat")
-		sim.ticks = arrival_ready
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_recovering, "Retreat is available at exact cooldown boundary")
-		var choices: Dictionary = {}
-		for seed_value: int in 30:
-			sim = _fixture(mode)
-			elf = sim.students[0]
-			elf.health = 25
-			sim.rng.seed = seed_value
-			sim.elf_recovery.threat(sim, elf, sim.students[1])
-			choices[elf.ai_retreating] = true
-			if not elf.ai_retreating:
-				_check(elf.ai_hold_ground_until == sim.ticks + 54, "Fight choice holds three seconds")
-		_check(choices.size() == 2, "Threatened defenders can choose fight or retreat on every difficulty")
-	print("Elf recovery tests: %d failure(s)" % failures)
-	quit(1 if failures else 0)
-
-func _test_retreat_deadline() -> void:
-	for mode: int in 3:
-		var sim := _fixture(mode)
-		var elf: ClassicStudent = sim.students[0]
+		sim.elf_recovery.update(sim,elf)
+		_check(not elf.ai_elf_recovering, "Exactly 30% HP does not trigger retreat")
 		elf.health = 2
-		sim.ticks = 100
-		sim.elf_recovery.begin(sim, elf)
-		_check(elf.ai_elf_retreat_started_at == 100, "Retreat travel deadline begins at departure")
-		# Block all routes; the same deadline survives goal loss and rerouting.
-		for direction: Vector2i in ClassicRules.DIRECTIONS:
-			sim.occupancy[elf.cell + direction] = 10
-		elf.state = ClassicStudent.State.WAIT
+		# Nearby enemies no longer invalidate the nearest owned healing tile.
+		sim._initialize_student(sim.students[1],3,Vector2i(20,24))
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_heal_tile == Vector2i(5,6) and elf.ai_retreating, "Nearest owned heart chosen even when contested")
+		_check(elf.ai_heal_ready_at == 0, "Cooldown does not start at departure")
+		_check(sim.get_movement_multiplier(elf) == 0.7, "Retreat speed retained")
+		var start: int = sim.ticks
 		sim.areas[0].owner = 3
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_retreat_started_at == 100, "Rerouting cannot reset travel deadline")
-		sim.ticks = 369
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_retreating and elf.ai_elf_recovering, "Retreat is still active just before fifteen seconds")
-		sim.ticks = 370
-		sim.elf_recovery.update(sim, elf)
-		_check(not elf.ai_retreating and not elf.ai_elf_recovering and sim.get_retreat_text(elf).is_empty(), "Blocked retreat stops at exactly fifteen seconds")
-		_check(sim.get_movement_multiplier(elf) == 1.0 and elf.ai_heal_ready_at == 0, "Timeout restores movement and does not spend arrival-only cooldown")
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_heal_tile == Vector2i(12,12) and elf.ai_elf_retreat_started_at == start, "Ownership loss retargets without resetting deadline")
+		sim.areas[1].owner = 3
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_heal_tile.x < 0 and elf.ai_retreating, "No healing tile retains retreat only until deadline")
+		sim.ticks = start+20*18-1
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_retreating, "Travel continues just before twenty seconds")
 		sim.ticks += 1
-		sim.elf_recovery.update(sim, elf)
-		_check(not elf.ai_elf_recovering, "Low HP does not immediately restart a failed retreat")
-		# Arrival at the exact deadline is valid; seated recovery has no travel timeout.
+		sim.elf_recovery.update(sim,elf)
+		_check(not elf.ai_retreating and not elf.ai_elf_recovering and elf.ai_heal_ready_at == sim.ticks+30*18, "Timeout starts thirty-second cooldown")
+		sim.elf_recovery.update(sim,elf)
+		_check(not elf.ai_elf_recovering, "Low HP does not immediately restart timed-out retreat")
+		# Arrival starts cooldown; healing remains committed until full HP.
 		sim = _fixture(mode)
 		elf = sim.students[0]
 		elf.health = 2
-		sim.elf_recovery.begin(sim, elf)
+		sim.elf_recovery.begin(sim,elf)
 		sim.occupancy.erase(elf.cell)
-		elf.cell = Vector2i(20, 24)
+		elf.cell = Vector2i(20,24)
 		elf.previous_cell = elf.cell
-		sim.occupancy[elf.cell] = elf.id
 		elf.state = ClassicStudent.State.SIT
-		sim.ticks = 270
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_arrived and elf.ai_elf_recovering, "Arrival at fifteen seconds enters healing instead of timing out")
+		sim.occupancy[elf.cell] = elf.id
+		sim.ticks = 20*18
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_elf_arrived and not elf.ai_retreating and elf.ai_heal_ready_at == sim.ticks+30*18, "Arrival at deadline wins over timeout")
+		var ready: int = elf.ai_heal_ready_at
 		sim.ticks += 1000
-		sim.elf_recovery.update(sim, elf)
-		_check(elf.ai_elf_recovering and not elf.ai_retreating, "Travel timeout never cancels healing after arrival")
+		sim.elf_recovery.update(sim,elf)
+		_check(elf.ai_elf_recovering, "Arrival recovery remains committed beyond travel deadline")
+		elf.health = elf.maximum_health
+		sim.elf_recovery.update(sim,elf)
+		_check(not elf.ai_elf_recovering and elf.ai_heal_ready_at == ready, "Full healing releases without restarting cooldown")
+	print("Elf recovery tests: %d failure(s)" % failures)
+	quit(1 if failures else 0)

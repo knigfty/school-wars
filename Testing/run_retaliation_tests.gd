@@ -55,9 +55,6 @@ func _run() -> void:
 				if context=="healing" and race==2:
 					victim.ai_elf_recovering=true
 					victim.ai_elf_arrived=true
-				if context=="conquest" and race==0:
-					sim.human_ai.started=true
-					sim.human_ai.phase="rally"
 				_check(sim._contact_target(shooter,victim),"Long-range test shot has valid contact")
 				sim._apply_hit(shooter,victim)
 				if context=="retreat" and race in [0,1,2]:

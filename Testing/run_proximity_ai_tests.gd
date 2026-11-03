@@ -26,7 +26,7 @@ func _fixture(mode: int, race: int) -> ClassicSimulation:
 func _run() -> void:
 	_test_blocking_retreat()
 	for mode: int in 3:
-		for race: int in [0, 2, 3]:
+		for race: int in [2, 3]:
 			var sim := _fixture(mode, race)
 			var unit: ClassicStudent = sim.students[0]
 			var victim: ClassicStudent = sim.students[1]
@@ -47,17 +47,9 @@ func _run() -> void:
 				victim.state = ClassicStudent.State.DEAD
 				sim.proximity_ai.update(sim)
 				_check(not sim.proximity_ai.active(unit), "Demon pursuit ends when target dies")
-		# Human routes cannot use a cell outside their encounter tile.
 		var sim := _fixture(mode, 0)
-		var human: ClassicStudent = sim.students[0]
 		sim.proximity_ai.update(sim)
-		_check(sim.proximity_ai.allows_cell(human, Vector2i(23, 23)) and not sim.proximity_ai.allows_cell(human, Vector2i(24, 23)), "Human encounter path is confined to its current tile")
-		sim = _fixture(mode, 0)
-		human = sim.students[0]
-		human.level = 6 # Reach five; detection must extend beyond three cells.
-		sim.students[1].cell = Vector2i(25, 20)
-		sim.proximity_ai.update(sim)
-		_check(sim.proximity_ai.active(human), "Upgraded human intercepts at its larger attack range")
+		_check(not sim.proximity_ai.active(sim.students[0]), "Human interception removed on every difficulty")
 		sim = _fixture(mode, 2)
 		var elf: ClassicStudent = sim.students[0]
 		var enemy: ClassicStudent = sim.students[1]

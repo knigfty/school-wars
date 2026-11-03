@@ -34,9 +34,11 @@ func on_hit(sim, defender: ClassicStudent, attacker: ClassicStudent) -> void:
 	if defender.team in [0, 2] and sim.rng.randf() >= 0.5:
 		_retreat(sim, group, defender.team == 0)
 	else:
-		_chase(sim, group)
-	if defender.team == 1:
-		_orc_decide(sim, group, defender)
+		# Assess local numbers at the hit location before pursuit reserves a step.
+		if defender.team == 1:
+			_orc_decide(sim, group, defender)
+		if group.mode == "chase":
+			_chase(sim, group)
 
 func _members(group: Dictionary) -> Array[ClassicStudent]:
 	var result: Array[ClassicStudent] = []

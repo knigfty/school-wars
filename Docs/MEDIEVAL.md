@@ -217,3 +217,14 @@ Strategic/recovery controllers cannot overwrite active retaliation. Recovery fla
 
 
 Ranged-fire retreat exception (all difficulties): Humans, Orcs and Elves with an active retreat/flee flag do not initiate retaliation or join an ally's response against a ranged attacker (attack reach greater than one). They keep their current safety destination and existing retreat movement/timers. Non-retreating allies may still respond to cover them. Melee attacks retain ordinary retaliation, as do ranged attacks outside retreat; Demons retain their existing response. This exception takes precedence over the universal retaliation rule above.
+
+
+## Simplified Medieval AI — current rules (supersedes earlier strategy notes)
+
+- Medieval units of every race use ordinary individual pursuit. Coordinated attack-slot reservations and breadth-first focus pursuit are disabled in Medieval; classic routing remains unchanged. Explicit focus commands, group target orders, range, occupancy, retaliation and tile defence still work.
+- Human proximity interception, numerical permission-to-engage checks, squad objective planning, group healing and army conquest waves are removed on all difficulties. Humans use the existing individual capture/attack orders instead; Expert retains immediate strategic availability, Easy/Normal retain the global opening delay.
+- Each AI Human below 50% individual HP regroups toward its nearest living Human ally. The ally is reselected at most once per second unless it dies or changes lifetime. Reaching a tile containing another living Human ends regrouping; otherwise it ends after 20 simulation seconds, including when no ally survives. A 20-second cooldown starts on completion or timeout. Regrouping does not require healing. Player-controlled Humans remain under player orders.
+- Elf retreat selects the nearest owned heart or base by Manhattan distance to the tile edge, without enemy occupancy/support scans. Only ownership loss changes the selected healing tile. Selection is O(number of areas), replacing nested area-by-unit scans. Arrival or 20 simulation seconds of travel starts the 30-second cooldown. Arrival keeps full-healing recovery; timeout releases travel. Existing low-HP/threat triggers, healing/combat restrictions and retreat speed remain.
+- Retreating Humans/Orcs/Elves retain the existing exception to ranged retaliation; melee attackers still trigger retaliation. Simulation time, not frame rate, controls deadlines at every game speed.
+
+Validation: Godot 4.3 headless regression suites, including Human regroup lifecycle, Elf nearest-tile/arrival/timeout cooldowns, all-race individual pursuit, classic compatibility, retaliation and tile defence. No scene wiring or manual Godot setup is required.

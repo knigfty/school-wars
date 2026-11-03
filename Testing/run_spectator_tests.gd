@@ -38,7 +38,11 @@ func _run() -> void:
 			var races: Dictionary = {}
 			for squad: Array in sim.squad_ai.squads:
 				races[squad[0].team] = true
-			_check(races.size() == 4, "All four spectator races participate in squad AI")
+			_check(races.size() == 3 and not races.has(0), "Non-Human spectator races participate in squad AI")
+			for warrior: ClassicStudent in sim.students:
+				if warrior.is_alive() and warrior.team == 0:
+					sim._com_order(warrior)
+					_check(warrior.state != ClassicStudent.State.SIT, "Spectator Humans receive basic individual orders")
 		# Elimination must not interpret the -1 observer as the last race.
 		for warrior: ClassicStudent in sim.students:
 			warrior.state = ClassicStudent.State.UNUSED

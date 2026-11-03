@@ -31,10 +31,8 @@ func _unit(sim: ClassicSimulation, id: int, team: int, cell: Vector2i) -> Classi
 
 func _run() -> void:
 	_coincident_group_tests()
-	_human_idle_base_tests()
 	_demon_no_healing_retreat_tests()
 	_base_defence_tests()
-	_human_commitment_tests()
 	_surrounded_return_tests()
 	_expert_recovery_tests()
 	_player_tile_tests()
@@ -50,27 +48,6 @@ func _run() -> void:
 	sim.medieval = true
 	sim.ai_enabled = false
 	_check(not sim.uses_squad_ai(), "AI disable switch still works")
-	sim.ai_enabled = true
-	sim.difficulty = ClassicSimulation.Difficulty.NORMAL
-	for i: int in 5:
-		_unit(sim, i, 0, Vector2i(4 + i, 4))
-	sim._add_area(Vector2i(4, 4), ClassicRules.AreaKind.RECRUIT, -1)
-	sim.squad_ai.update(sim)
-	_check(sim.squad_ai.squads.size() == 2, "Five humans form two squads")
-	for squad: Array in sim.squad_ai.squads:
-		_check(squad.size() >= 2 and squad.size() <= 4, "Human squad size is 2–4")
-		for unit: ClassicStudent in squad:
-			_check(Vector2i(unit.destination.x / 4, unit.destination.y / 4) == Vector2i(4, 4), "Humans share capture objective")
-	# Capture orders seat the whole squad and advance as soon as ownership changes.
-	for unit: ClassicStudent in sim.students.slice(0, 5):
-		unit.cell = Vector2i(16 + unit.id % 4, 16 + unit.id / 4)
-		unit.state = ClassicStudent.State.SIT
-	sim._add_area(Vector2i(8, 8), ClassicRules.AreaKind.RECRUIT, -1)
-	sim.areas[0].owner = 0
-	sim.ticks = 436
-	sim.squad_ai.update(sim)
-	_check(Vector2i(sim.students[0].destination.x / 4, sim.students[0].destination.y / 4) == Vector2i(8, 8), "Humans advance after capture")
-
 	sim = _fixture()
 	var elf: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
 	var enemy: ClassicStudent = _unit(sim, 1, 1, Vector2i(21, 20))
@@ -195,9 +172,9 @@ func _retreat_timing_tests() -> void:
 			ally.punch_bonus = 100
 		sim.squad_ai.update(sim)
 		if supported:
-			_check(elf.ai_retreating and elf.ai_heal_tile == Vector2i(12, 12), "Expert elf skips contested healing even with support")
+			_check(elf.ai_elf_arrived and elf.ai_heal_tile == Vector2i(5, 5), "Expert elf keeps nearest owned healing tile despite enemies or support")
 		else:
-			_check(elf.ai_retreating, "Expert elves heal before fighting when a point is nearby")
+			_check(elf.ai_elf_arrived and elf.ai_elf_recovering, "Expert elf enters recovery immediately when already on nearest healing tile")
 	var choices: Dictionary = {}
 	for seed_value: int in 24:
 		sim = _fixture(0)
@@ -209,7 +186,7 @@ func _retreat_timing_tests() -> void:
 		sim._add_area(Vector2i(5, 5), ClassicRules.AreaKind.HEAL, 2)
 		sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.BASE, 2)
 		sim.elf_recovery.threat(sim, elf, sim.students[1])
-		choices[elf.ai_retreating] = true
+		choices[elf.ai_elf_recovering] = true
 	_check(choices.size() == 2, "Normal elves randomly choose both fight and escape")
 	sim = _fixture(0)
 	var orc: ClassicStudent = _unit(sim, 0, 1, Vector2i(20, 20))
@@ -243,7 +220,7 @@ func _start_delay_tests() -> void:
 		var sim: ClassicSimulation = _fixture(3)
 		sim.difficulty = mode
 		sim.ticks = 0
-		var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(4, 4))
+		var human: ClassicStudent = _unit(sim, 0, 1, Vector2i(4, 4))
 		sim._add_area(Vector2i(4, 3), ClassicRules.AreaKind.RECRUIT, -1)
 		sim.squad_ai.update(sim)
 		_check((human.state == ClassicStudent.State.WALK) == (mode == ClassicSimulation.Difficulty.EXPERT), "Only Expert issues opening orders immediately")
@@ -255,14 +232,14 @@ func _start_delay_tests() -> void:
 			sim.squad_ai.update(sim)
 			_check(human.state == ClassicStudent.State.WALK, "Normal starts at opening delay boundary")
 			# Fresh reinforcements after the opening are immediately eligible.
-			var recruit: ClassicStudent = _unit(sim, 1, 0, Vector2i(5, 4))
+			var recruit: ClassicStudent = _unit(sim, 1, 1, Vector2i(5, 4))
 			sim.ticks += 36
 			sim.squad_ai.update(sim)
 			_check(recruit.state == ClassicStudent.State.WALK, "Opening delay is not reapplied to recruits")
 
 
 func _expert_strategy_tests() -> void:
-	for team: int in 4:
+	for team: int in range(1,4):
 		var sim: ClassicSimulation = _fixture((team + 1) % 4)
 		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 		for color: int in 4:
@@ -281,14 +258,6 @@ func _expert_strategy_tests() -> void:
 			elf.maximum_health = 28
 	sim.squad_ai._refresh(sim)
 	_check(sim.squad_ai.squads.size() == 1 and sim.squad_ai.squads[0].size() == 6, "Ranged elves may join a full four-member group")
-	sim = _fixture(3)
-	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-	var human: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
-	_unit(sim, 1, 1, Vector2i(24, 20))
-	sim._add_area(Vector2i(6, 5), ClassicRules.AreaKind.RECRUIT, -1)
-	sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
-	sim.squad_ai.update(sim)
-	_check(human.priority_target_id == -1 and Vector2i(human.destination.x / 4, human.destination.y / 4) == Vector2i(8, 5), "Expert humans capture peaceful tile over closer occupied tile")
 	sim = _fixture(0)
 	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
 	var guard: ClassicStudent = _unit(sim, 0, 2, Vector2i(20, 20))
@@ -428,48 +397,6 @@ func _surrounded_return_tests() -> void:
 		_check(not unit.returning_to_tile and Vector2i(unit.cell.x / 4, unit.cell.y / 4) == unit.designated_tile, "Return path detours around surviving surrounding units")
 
 
-func _human_commitment_tests() -> void:
-	var outcomes: Dictionary = {}
-	for seed_value: int in 24:
-		var sim: ClassicSimulation = _fixture(3)
-		sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-		for id: int in 4:
-			_unit(sim, id, 0, Vector2i(20 + id, 20))
-		sim._add_area(Vector2i(8, 5), ClassicRules.AreaKind.RECRUIT, -1)
-		sim._add_area(Vector2i(0, 0), ClassicRules.AreaKind.HEAL, 0)
-		sim._add_area(Vector2i(15, 15), ClassicRules.AreaKind.RECRUIT, -1)
-		sim.squad_ai.update(sim)
-		_check(sim.squad_ai.human_missions[0].goal == Vector2i(8, 5), "Humans select a capture objective within five tiles")
-		var enemy: ClassicStudent = _unit(sim, 10, 1, Vector2i(32, 20))
-		sim._add_area(Vector2i(6, 5), ClassicRules.AreaKind.RECRUIT, -1)
-		sim.ticks += 18
-		sim.squad_ai.update(sim)
-		_check(sim.squad_ai.human_missions[0].goal == Vector2i(8, 5) and sim.students[0].priority_target_id == enemy.id, "Committed humans fight for their objective instead of switching to a new peaceful tile")
-		sim.students[0].state = ClassicStudent.State.UNUSED
-		sim.students[1].state = ClassicStudent.State.UNUSED
-		for id: int in [2, 3]:
-			sim.students[id].health = 5
-		sim.ticks += 18
-		sim.rng.seed = seed_value
-		sim.squad_ai.update(sim)
-		var retreated: bool = sim.students[2].ai_retreating
-		outcomes[retreated] = true
-		_check(sim.squad_ai.human_missions[0].rolled, "Losing half the mission group triggers one retreat roll")
-		if retreated:
-			_check(sim.students[2].ai_heal_ready_at == sim.ticks + 45 * 18 and Vector2i(sim.students[2].destination.x / 4, sim.students[2].destination.y / 4) == Vector2i(0, 0), "Human retreat has forty-five-second cooldown and no healing distance limit")
-			sim.students[2].health = sim.students[2].maximum_health * 0.99
-			sim.ticks += 1
-			sim.squad_ai.update(sim)
-			_check(sim.students[2].ai_retreating, "Retreating humans wait for full HP")
-			sim.students[2].health = sim.students[2].maximum_health
-			sim.students[2].cell = Vector2i(1, 1)
-			sim.students[2].state = ClassicStudent.State.SIT
-			sim.ticks += 1
-			sim.squad_ai.update(sim)
-			_check(not sim.students[2].ai_retreating, "Full HP releases recovered human")
-	_check(outcomes.size() == 2, "Seeded casualty decisions exercise both fifty-percent outcomes")
-
-
 func _base_defence_tests() -> void:
 	for mode: int in 3:
 		for race: int in 4:
@@ -539,49 +466,6 @@ func _demon_no_healing_retreat_tests() -> void:
 		_check(not demon.ai_retreating and Vector2i(demon.destination.x / 4, demon.destination.y / 4) == Vector2i(8, 5), "Wounded demons pursue objectives instead of retreating to hearts or bases on every difficulty")
 
 
-func _human_idle_base_tests() -> void:
-	var sim: ClassicSimulation = _fixture(3)
-	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-	sim.bases[0] = Vector2i(15, 0)
-	sim._add_area(sim.bases[0], ClassicRules.AreaKind.BASE, 0)
-	sim._add_area(Vector2i(0, 15), ClassicRules.AreaKind.RECRUIT, 3)
-	# No valid capture target is visible from this full-capacity, uninvaded base.
-	for id: int in 12:
-		var unit: ClassicStudent = _unit(sim, id, 0, Vector2i(60 + id % 4, id / 4))
-		unit.counter = 10000
-	sim.squad_ai.update(sim)
-	var departing: bool = false
-	for unit: ClassicStudent in sim.students:
-		if unit.is_alive() and unit.team == 0 and unit.state == ClassicStudent.State.WALK:
-			departing = true
-	_check(departing, "Full Expert human base scouts rather than freezing when no capture objective is visible")
-	for mission: Dictionary in sim.squad_ai.human_missions:
-		_check(mission.goal.x < 0, "Scouting does not select an unseen distant capture objective")
-	for tick: int in 1000:
-		sim.step()
-		for unit: ClassicStudent in sim.students:
-			if unit.is_alive():
-				_check(sim.occupancy.get(unit.cell, -1) == unit.id, "Human scouting preserves occupancy")
-	_check(sim.human_ai.started and sim.human_ai.weakest_race(sim) == -1, "Full-capacity conquest handles a world without living enemy targets")
-
-	# A friendly blockade requires the first step to lead away from the objective.
-	sim = _fixture(3)
-	sim.difficulty = ClassicSimulation.Difficulty.EXPERT
-	var mover: ClassicStudent = _unit(sim, 0, 0, Vector2i(20, 20))
-	_unit(sim, 1, 0, Vector2i(21, 20))
-	_unit(sim, 2, 0, Vector2i(20, 19))
-	_unit(sim, 3, 0, Vector2i(20, 21))
-	sim.designate_order(mover, Vector2i(8, 5))
-	sim.start_walk(mover, Vector2i(8, 5))
-	_check(mover.state == ClassicStudent.State.WALK and mover.cell == Vector2i(19, 20), "Expert human takes a temporary backward detour around friendly blockade")
-	for tick: int in 200:
-		if mover.state == ClassicStudent.State.WALK:
-			sim._walking(mover)
-		elif mover.state == ClassicStudent.State.WAIT:
-			sim._start_turn(mover)
-	_check(Vector2i(mover.cell.x / 4, mover.cell.y / 4) == Vector2i(8, 5), "Human detour reaches the ordered tile")
-
-
 func _coincident_group_tests() -> void:
 	for mode: int in 3:
 		for race: int in 4:
@@ -595,9 +479,7 @@ func _coincident_group_tests() -> void:
 				starts.append(unit.cell)
 			sim._add_area(Vector2i(8,8), ClassicRules.AreaKind.RECRUIT,-1)
 			sim._add_area(Vector2i(12,12), ClassicRules.AreaKind.RECRUIT,-1)
-			if race == 0:
-				sim.human_ai.update(sim)
-			elif mode == ClassicSimulation.Difficulty.EASY:
+			if race == 0 or mode == ClassicSimulation.Difficulty.EASY:
 				for id: int in 8:
 					sim._com_order(sim.students[id])
 			else:
