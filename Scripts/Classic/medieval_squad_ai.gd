@@ -100,9 +100,9 @@ func _plan(sim, squad: Array) -> void:
 		else:
 			if nearby:
 				nearby_enemies += 1
-			if nearby:
+			if nearby or (team == 3 and sim.is_demon_owned_intruder(other) and center.distance_to(Vector2(other.cell)) <= sim.get_demon_awareness_radius()):
 				enemies.append(other)
-	# All difficulties assess nearby enemies only.
+	# Threat counts stay local; Demon territorial candidates can extend farther.
 	if team == 1 and nearby_enemies > allies:
 		for i: int in range(ready.size() - 1, -1, -1):
 			var unit: ClassicStudent = ready[i]
@@ -287,7 +287,7 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 	var target: ClassicStudent = null
 	var best: float = INF
 	for enemy: ClassicStudent in sim.students:
-		if not enemy.is_alive() or enemy.team == team or center.distance_to(Vector2(enemy.cell)) > 16.0:
+		if not enemy.is_alive() or enemy.team == team or (center.distance_to(Vector2(enemy.cell)) > 16.0 and not (team == 3 and sim.is_demon_owned_intruder(enemy) and center.distance_to(Vector2(enemy.cell)) <= sim.get_demon_awareness_radius())):
 			continue
 		var score: float = center.distance_to(Vector2(enemy.cell))
 		if team == 2:
@@ -302,7 +302,7 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 			var tile: Vector2i = Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
 			if sim.area_at.has(tile) and sim.areas[sim.area_at[tile]].owner == team:
 				for guard: ClassicStudent in ready:
-					if _cell_distance(guard.cell, enemy.cell) <= 10:
+					if guard.cell.distance_to(enemy.cell) <= sim.get_demon_awareness_radius():
 						score -= 10000.0
 						break
 			score += enemy.health * 0.25
@@ -315,7 +315,7 @@ func _plan_expert(sim, ready: Array[ClassicStudent], center: Vector2) -> void:
 		var responders: Array[ClassicStudent] = []
 		for unit: ClassicStudent in ready:
 			var location: Vector2i = sim.students[target.target_id].cell if team == 2 else target.cell
-			if team == 1 or _cell_distance(unit.cell, location) <= 10:
+			if team == 1 or (team == 3 and unit.cell.distance_to(location) <= sim.get_demon_awareness_radius()) or (team != 3 and _cell_distance(unit.cell, location) <= 10):
 				responders.append(unit)
 		_focus(sim, responders, target)
 		return

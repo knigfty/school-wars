@@ -1662,3 +1662,17 @@ func get_match_results() -> Array[Dictionary]:
 		var duration: int = eliminated_at[team] if eliminated_at[team] >= 0 else ticks
 		result.append({"team": team, "survival_ticks": duration, "kills": team_kills[team], "deaths": team_deaths[team]})
 	return result
+
+
+func get_demon_awareness_radius() -> float:
+	# Only rival eliminations expand territorial awareness: 16 -> 32 -> 64.
+	var rivals: int = 0
+	for team: int in 3:
+		if active[team]:
+			rivals += 1
+	return 16.0 * pow(2.0, clampi(3 - rivals, 0, 2))
+
+
+func is_demon_owned_intruder(enemy: ClassicStudent) -> bool:
+	var tile := Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
+	return enemy.is_alive() and enemy.team != 3 and area_at.has(tile) and areas[area_at[tile]].owner == 3

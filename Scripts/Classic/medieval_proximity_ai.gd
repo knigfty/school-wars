@@ -63,12 +63,13 @@ func update(sim) -> void:
 				continue
 			var target: ClassicStudent = null
 			var radius: int = sim.get_attack_range(unit) if unit.team == 2 else (maxi(3, sim.get_attack_range(unit)) if unit.team == 0 else 3)
-			var best: int = radius + 1
+			var best: float = INF
 			for enemy: ClassicStudent in sim.students:
 				if not enemy.is_alive() or enemy.team == unit.team:
 					continue
 				var distance: int = absi(unit.cell.x - enemy.cell.x) + absi(unit.cell.y - enemy.cell.y)
-				if distance < best:
+				var territorial: bool = unit.team == 3 and sim.is_demon_owned_intruder(enemy) and unit.cell.distance_to(enemy.cell) <= sim.get_demon_awareness_radius()
+				if (distance <= radius or territorial) and distance < best:
 					best = distance
 					target = enemy
 			if target == null:

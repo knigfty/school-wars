@@ -24,6 +24,7 @@ func _fixture(mode: int, race: int) -> ClassicSimulation:
 	sim.students[1].previous_cell = Vector2i(24, 20)
 	return sim
 func _run() -> void:
+	_test_demon_territorial_awareness()
 	_test_blocking_retreat()
 	for mode: int in 3:
 		for race: int in [2, 3]:
@@ -99,3 +100,25 @@ func _test_blocking_retreat() -> void:
 		blocker.state = ClassicStudent.State.DEAD
 		sim.proximity_ai.update(sim)
 		_check(demon.priority_target_id == primary.id, "Demon resumes original pursuit after blocker dies")
+
+
+func _test_demon_territorial_awareness() -> void:
+	for mode: int in 3:
+		for eliminated: int in 3:
+			for owned: bool in [false, true]:
+				for inside: bool in [false, true]:
+					var sim := _fixture(mode, 3)
+					sim.active.assign([true, true, true, true])
+					for race: int in eliminated:
+						sim.active[race] = false
+					var radius: int = 16 * (1 << eliminated)
+					_check(sim.get_demon_awareness_radius() == radius, "Demon awareness doubles only for eliminated rivals")
+					var demon: ClassicStudent = sim.students[0]
+					var enemy: ClassicStudent = sim.students[1]
+					demon.cell = Vector2i(0, 0)
+					enemy.cell = Vector2i(radius if inside else radius + 1, 0) if radius < 64 else Vector2i(63, 11 if inside else 12)
+					var tile := Vector2i(enemy.cell.x / 4, enemy.cell.y / 4)
+					sim.areas.append({"tile": tile, "owner": 3 if owned else 2, "kind": ClassicRules.AreaKind.HEAL})
+					sim.area_at[tile] = 0
+					sim.proximity_ai.update(sim)
+					_check(sim.proximity_ai.active(demon) == (owned and inside), "All difficulties acquire owned-objective intruders only within scaled straight-line radius")

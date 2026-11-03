@@ -361,7 +361,7 @@ func _expert_recovery_tests() -> void:
 				sim._add_area(Vector2i(invader.cell.x / 4, invader.cell.y / 4), ClassicRules.AreaKind.RECRUIT, race)
 			sim._add_area(Vector2i(12, 12), ClassicRules.AreaKind.RECRUIT, -1)
 			sim.squad_ai.update(sim)
-			_check((guard.priority_target_id == invader.id) == (distance == 10), "Expert protection/defence priority respects ten-cell boundary")
+			_check((guard.priority_target_id == invader.id) == (race == 3 or distance == 10), "Expert Elf protection retains ten-cell boundary; Demon defence uses territorial awareness")
 
 
 func _surrounded_return_tests() -> void:

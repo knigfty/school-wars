@@ -136,7 +136,7 @@ Responses can pursue beyond tile leashes and from beyond the defender's own reac
 | Ordinary strategic organisation | Individual decisions | Squads, for races using them | Race-specific squads, for races using them |
 | Squad planning interval | None | 36 ticks / 2 seconds | 18 ticks / 1 second |
 | Squad opening delay | Not applicable | 400 ticks / 22.22 seconds | None |
-| Squad combat awareness | Not applicable | Straight-line radius 16 cells from available members' centre | Same |
+| Squad combat awareness | Not applicable | Straight-line radius 16 cells from available members' centre; Demon territorial exception below | Same |
 
 The individual scheduler considers **one unit-list entry per tick**. Its default eligibility requires a seated unit with at least **400 seated idle ticks**; the individual race override is in its section. Objectives use Manhattan tile distance plus random variation below four. When no objective qualifies, it can select an enemy.
 
@@ -280,7 +280,7 @@ Every difficulty checks for enemies within **three Manhattan cells** each tick. 
 
 Easy treats wounded Demons as available for offensive objectives instead of seeking healing. Normal groups use the shared up-to-four system. They favour weak victims and estimate hostile support within eight straight-line cells of each candidate, rejecting danger above **1.1×** group power. The strength estimate is `HP × permanent punch × (1 + 0.15 × (reach − 1))`.
 
-Expert groups contain up to **four**. They prioritise enemies on owned objectives when a ready guard is within **ten Manhattan cells** of the intruder, then capture objectives, then ordinary local group attacks. Enemy candidates still come from the 16-cell squad radius. Expert does not use Normal's support-strength rejection calculation.
+Expert groups contain up to **four**. They prioritise enemies on owned objectives within territorial awareness, then capture objectives, then ordinary local group attacks. On **all difficulties**, Demon territorial awareness is **16 straight-line cells** while three rival races remain, **32** with two, and **64** with one. Eliminations use active-race state, not temporary population changes. This expands detection and response to enemies on Demon-owned objectives; ordinary squad combat awareness remains 16 cells and nearby interception remains three Manhattan cells. Easy uses individual pursuit for territorial responses. Once acquired, the existing persistent pursuit applies. Expert does not use Normal's support-strength rejection calculation.
 
 AI Demons do not initiate healing retreats. The old casualty-based ranged-response flee branch is retained code, not a normal live response under current universal retaliation ordering.
 
