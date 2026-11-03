@@ -59,6 +59,7 @@ var damage_contributors: Dictionary = {}
 var orc_conversion_hits: Array[int] = []
 var punch_bonus: int = 0
 var home_punch_until: int = -1
+var human_assists: int = 0
 var level: int = 0
 var level_ticks: int = 0
 var event_text: String = ""

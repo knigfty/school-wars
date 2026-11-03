@@ -71,7 +71,7 @@ This intentionally compares **1.2 swings/second** with the target's **movement m
 
 ### Kills, assists and replacement
 
-Successful damage records the contributor's ID, unit lifetime and tick on the victim. A qualifying damaging assist is within **54 ticks (three seconds), inclusive**, and requires the same contributor to still be alive. Repeated hits refresh that contributor's record but do not give multiple rewards for one death. A contributor can qualify even when a different race lands the final blow. Reward eligibility and amounts are defined in the race sections.
+Successful damage records the contributor's ID, unit lifetime and tick on the victim. A qualifying damaging assist must be within its race's reward window (defined below) and requires the same contributor to still be alive. Repeated hits refresh that contributor's record but do not give multiple rewards for one death. A contributor can qualify even when a different race lands the final blow. Reward eligibility and amounts are defined in the race sections.
 
 Maximum-HP rewards do **not** immediately heal. Ordinary recruits start at their race's full starting HP and reset progression, orders, assist history and personal cooldowns. Units retain earned bonuses only for their lifetime, except for the separate conversion inheritance described in its race section.
 
@@ -165,13 +165,13 @@ Human capture replaces the standard formula:
 
 Each Human above five multiplies capture time by **0.9**, without a scaling cap: six take 0.9 seconds; seven take 0.81 seconds. Actual completion rounds up to the next simulation tick (1/18 second); capture cannot complete in less than one tick. Changing the seated count preserves accumulated progress.
 
-Killing blows repeat **+2 maximum HP → +2 permanent punch → +2 reach**, without a fixed tier cap. For `K` lifetime kills:
+Killing blows repeat **+2 maximum HP → +2 permanent punch → +2 reach**, without a fixed tier cap. Qualifying assists independently repeat **+1 maximum HP → +1 permanent punch → +1 reach**, without a tier cap, on all difficulties for both player and AI Humans. A living Human qualifies once per victim when it dealt successful damage in the **five seconds before death, inclusive**; repeat hits refresh that window. The killer receives only its kill upgrade. Assists do not heal current HP, count as kills, or advance the kill cycle. Both cycles reset on a fresh unit. For `K` lifetime kills and `A` qualifying assists:
 
-- Maximum HP: `20 + 2 × floor((K + 2) / 3)`.
-- Permanent punch: `4 + 2 × floor((K + 1) / 3)`.
-- Reach: `1 + 2 × floor(K / 3)` cells.
+- Maximum HP: `20 + 2 × floor((K + 2) / 3) + floor((A + 2) / 3)`.
+- Permanent punch: `4 + 2 × floor((K + 1) / 3) + floor((A + 1) / 3)`.
+- Reach: `1 + 2 × floor(K / 3) + floor(A / 3)` cells.
 
-Assists give no Human upgrade. Fighting on an owned special tile activates **+1 temporary punch**. Once active, owned-territory presence refreshes it; it lasts three seconds after leaving. It does not change permanent punch, movement or attack speed.
+Fighting on an owned special tile activates **+1 temporary punch**. Once active, owned-territory presence refreshes it; it lasts three seconds after leaving. It does not change permanent punch, movement or attack speed.
 
 ### AI: organisation, interception and retreat
 
@@ -228,7 +228,7 @@ Expiry ends the speed bonus and leaves the new tile assignment instead of resumi
 
 **Starting HP 25 · punch 3 · reach 1 · movement 1×.** Default recruitment/capacity apply. No owned-tile punch bonus.
 
-Each qualifying death grants a living contributing Elf **+1 maximum HP**, once whether it killed or assisted. On Expert, AI Elves receive **+2**; player Elves still receive +1. All Elves in spectator mode are AI. These rewards do not instantly heal.
+Successful damage within **54 ticks (three seconds), inclusive**, qualifies. Each qualifying death grants a living contributing Elf **+1 maximum HP**, once whether it killed or assisted. On Expert, AI Elves receive **+2**; player Elves still receive +1. All Elves in spectator mode are AI. These rewards do not instantly heal.
 
 Reach depends on maximum HP above the starting 25:
 
@@ -267,7 +267,7 @@ Easy uses individual objectives outside these reactions. Normal uses shared squa
 
 **Starting HP 15 · punch 5 · reach 1 · movement 1×.** Default capacity applies.
 
-Killing blows grant **+1 permanent punch** on Easy/Normal, **+2** on Expert, and restore up to **two current HP**. A qualifying damaging assist independently has a **50% chance of +1 punch** and never heals. A killer receives one killing reward, not an additional assist reward. Expert bonuses apply equally to player and AI Demons. Ordinary progression does not increase maximum HP, reach or attack speed.
+Killing blows grant **+1 permanent punch** on Easy/Normal, **+2** on Expert, and restore up to **two current HP**. A qualifying damaging assist (successful damage within **54 ticks / three seconds, inclusive**) independently has a **50% chance of +1 punch** and never heals. A killer receives one killing reward, not an additional assist reward. Expert bonuses apply equally to player and AI Demons. Ordinary progression does not increase maximum HP, reach or attack speed.
 
 Demons **cannot heal on hearts**; seated owned-base healing retains the default rate. Owned hearts instead boost recruitment exactly like spades: `gain per tick = 2 + owned spades + owned hearts`. Hearts do not add capacity or spawning locations.
 

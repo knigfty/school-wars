@@ -308,6 +308,7 @@ func _initialize_student(student: ClassicStudent, team: int, cell: Vector2i) -> 
 	student.punch_bonus = 0
 	student.home_punch_until = -1
 	student.level = 0
+	student.human_assists = 0
 	student.level_ticks = 0
 	student.event_text = ""
 	student.walk_tick = 0.0
@@ -1490,7 +1491,7 @@ func get_attack_range(student: ClassicStudent) -> int:
 	if not medieval:
 		return 1
 	if student.team == 0:
-		return 1 + 2 * (student.level / 3)
+		return 1 + 2 * (student.level / 3) + student.human_assists / 3
 	if student.team == 2:
 		var bonus_hp: int = maxi(0, int(student.maximum_health - ClassicRules.HEALTH[2]))
 		if bonus_hp < 4:
@@ -1566,9 +1567,24 @@ func _reward_defeat(killer: ClassicStudent, victim: ClassicStudent) -> void:
 	for id: int in victim.damage_contributors:
 		var record: Dictionary = victim.damage_contributors[id]
 		var contributor: ClassicStudent = students[id]
-		if not contributor.is_alive() or contributor.lifetime != record.lifetime or ticks - int(record.tick) > 3 * ClassicRules.TICKS_PER_SECOND:
+		var assist_window: int = 5 if contributor.team == 0 else 3
+		if not contributor.is_alive() or contributor.lifetime != record.lifetime or ticks - int(record.tick) > assist_window * ClassicRules.TICKS_PER_SECOND:
 			continue
-		if contributor.team == 2:
+		if contributor.team == 0:
+			# Killing blows retain the independent +2 cycle, without assist credit.
+			if contributor.id == killer.id:
+				continue
+			contributor.human_assists += 1
+			match (contributor.human_assists - 1) % 3:
+				0:
+					contributor.maximum_health += 1.0
+					contributor.show_event("+1 HP")
+				1:
+					contributor.punch_bonus += 1
+					contributor.show_event("+1 PUNCH")
+				2:
+					contributor.show_event("+1 RANGE")
+		elif contributor.team == 2:
 			var reward: int = 2 if difficulty == Difficulty.EXPERT and contributor.team != player_team else 1
 			contributor.show_event("%d + %d HP" % [int(contributor.maximum_health), reward])
 			contributor.maximum_health += reward

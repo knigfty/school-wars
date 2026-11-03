@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_expert_enemy_rewards()
 	_test_new_mechanics()
 	_test_humans()
+	_test_human_assists()
 	_test_assists()
 	_test_range()
 	_test_speed()
@@ -510,3 +511,67 @@ func _test_scaling_and_inheritance() -> void:
 			elf.maximum_health = 25 + bonus
 			_check(sim.get_attack_range(elf) == tiers[bonus], "Elf tiered reach scales indefinitely on every difficulty")
 		_check(sim._attack_positions(elf, Vector2i(30, 30)).size() <= 4096, "Large reach remains bounded by actual map cells")
+
+
+func _test_human_assists() -> void:
+	for mode: int in 3:
+		for player: int in [0, 2]:
+			var sim := _sim()
+			sim.difficulty = mode
+			sim.player_team = player
+			var human := _unit(sim, 0, 0, Vector2i(20,20))
+			var killer := _unit(sim, 1, 0, Vector2i(22,20))
+			human.health = 5
+			for count: int in range(1,31):
+				var victim := _unit(sim, 2, 1, Vector2i(21,20))
+				victim.health = 100
+				sim._apply_hit(human, victim)
+				sim._apply_hit(human, victim)
+				victim.health = 1
+				sim._apply_hit(killer, victim)
+				_check(human.human_assists == count and human.level == 0, "Repeated successful hits yield one Human assist without kill credit")
+				_check(human.maximum_health == 20 + (count + 2) / 3, "Human assist HP cycle scales beyond old tiers on every difficulty")
+				_check(human.punch_bonus == (count + 1) / 3, "Human assist permanent punch cycle is independent")
+				_check(sim.get_attack_range(human) == 1 + count / 3, "Human assist reach scales without a tier cap")
+				_check(human.health == 5, "Human assist max HP does not heal current HP")
+				_check(killer.human_assists == 0 and killer.level == count, "Killing blow grants kill cycle only")
+			var victim := _unit(sim, 2, 1, Vector2i(21,20))
+			victim.health = 1
+			sim._apply_hit(human, victim)
+			_check(human.level == 1 and human.human_assists == 30 and human.maximum_health == 32, "Kills and assists stack while retaining independent cycles")
+			sim._initialize_student(human, 0, Vector2i(20,20))
+			_check(human.human_assists == 0 and sim.get_attack_range(human) == 1, "Fresh Human resets assist count and earned reach")
+		for elapsed: int in [0, 89, 90, 91]:
+			var sim := _sim()
+			sim.difficulty = mode
+			var human := _unit(sim, 0, 0, Vector2i(20,20))
+			var killer := _unit(sim, 1, 2, Vector2i(22,20))
+			var victim := _unit(sim, 2, 1, Vector2i(21,20))
+			victim.health = 100
+			sim._apply_hit(human, victim)
+			sim.ticks = elapsed
+			victim.health = 1
+			sim._apply_hit(killer, victim)
+			_check(human.human_assists == (1 if elapsed <= 90 else 0), "Human assist window includes exactly five seconds and excludes the next tick")
+		for context: String in ["dead", "reused", "refreshed", "no_damage", "classic"]:
+			var sim := _sim()
+			sim.difficulty = mode
+			sim.medieval = context != "classic"
+			var human := _unit(sim, 0, 0, Vector2i(20,20))
+			var killer := _unit(sim, 1, 2, Vector2i(22,20))
+			var victim := _unit(sim, 2, 1, Vector2i(21,20))
+			victim.health = 100
+			if context != "no_damage":
+				sim._apply_hit(human, victim)
+			match context:
+				"dead":
+					human.state = ClassicStudent.State.DEAD
+				"reused":
+					sim._initialize_student(human, 0, Vector2i(20,20))
+				"refreshed":
+					sim.ticks = 89
+					sim._apply_hit(human, victim)
+					sim.ticks = 178
+			victim.health = 1
+			sim._apply_hit(killer, victim)
+			_check(human.human_assists == (1 if context == "refreshed" else 0), "Human assist eligibility respects death, lifetime reuse, refreshed damage, actual damage and Medieval mode")
