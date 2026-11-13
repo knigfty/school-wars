@@ -50,7 +50,7 @@ var _dialog_height: float = 280.0
 
 func _ready() -> void:
 	if OS.has_feature("web"):
-		medieval = bool(JavaScriptBridge.eval("window.location.pathname == '/v2' || window.location.pathname.startsWith('/v2/')"))
+		medieval = bool(JavaScriptBridge.eval("!window.location.pathname.startsWith('/schoolwars')"))
 		_reduce_motion = bool(JavaScriptBridge.eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches"))
 		if medieval:
 			JavaScriptBridge.eval("document.title = 'Medieval Wars'")
@@ -137,7 +137,7 @@ func _build_menu() -> void:
 		spectator_button.name = "SpectatorMode"
 		spectator_button.tooltip_text = "Watch all four AI armies at the selected difficulty."
 		menu.add_child(spectator_button)
-	extras_button = _button("School Wars" if medieval else "Extras", _navigate_variant)
+	extras_button = _button("School Wars" if medieval else "Medieval Wars", _navigate_variant)
 	extras_button.name = "ExtrasButton"
 	menu.add_child(extras_button)
 	for team: int in 4:
@@ -602,7 +602,7 @@ func _notification(what: int) -> void:
 
 func _navigate_variant() -> void:
 	if OS.has_feature("web"):
-		JavaScriptBridge.eval("window.location.assign('/')" if medieval else "window.location.assign('/v2')")
+		JavaScriptBridge.eval("window.location.assign('/schoolwars')" if medieval else "window.location.assign('/')")
 
 
 func _button(text: String, action: Callable) -> Button:
