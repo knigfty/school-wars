@@ -50,7 +50,7 @@ var _dialog_height: float = 280.0
 
 func _ready() -> void:
 	if OS.has_feature("web"):
-		medieval = bool(JavaScriptBridge.eval("!window.location.pathname.startsWith('/schoolwars')"))
+		medieval = bool(JavaScriptBridge.eval("!(window.location.pathname === '/schoolwars' || window.location.pathname.startsWith('/schoolwars/'))"))
 		_reduce_motion = bool(JavaScriptBridge.eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches"))
 		if medieval:
 			JavaScriptBridge.eval("document.title = 'Medieval Wars'")
