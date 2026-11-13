@@ -43,6 +43,18 @@
   ],
   "rewrites": [
     {
+      "source": "/schoolwars",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/schoolwars/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/schoolwars/:path*",
+      "destination": "/:path*"
+    },
+    {
       "source": "/v2",
       "destination": "/index.html"
     },
