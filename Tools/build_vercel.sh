@@ -30,6 +30,29 @@ chmod +x "$godot_binary"
 "$godot_binary" --headless --editor --path . --quit
 "$godot_binary" --headless --path . --export-release Web export/web/index.html
 
+# Godot's generated shell uses the project name for both variants. Set the
+# route-specific tab title before the engine downloads and starts.
+python3 - <<'PY'
+from pathlib import Path
+
+html_path = Path("export/web/index.html")
+html = html_path.read_text(encoding="utf-8")
+title = "<title>School Wars</title>"
+bootstrap = """<script>
+(() => {
+  const path = window.location.pathname;
+  const is_school_wars = path === "/schoolwars" || path.startsWith("/schoolwars/");
+  document.title = is_school_wars ? "School Wars" : "Medieval Wars";
+})();
+</script>"""
+if html.count(title) != 1:
+    raise SystemExit("Expected exactly one default Godot page title in the web export")
+if "const is_school_wars" in html:
+    raise SystemExit("Route-specific page title bootstrap was already inserted")
+html = html.replace(title, title + "\n\t\t" + bootstrap, 1)
+html_path.write_text(html, encoding="utf-8")
+PY
+
 for file in index.html index.js index.wasm index.pck; do
   test -s "export/web/$file"
 done
